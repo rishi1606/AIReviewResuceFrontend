@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6366F1;
+  --color-primary-hover: #4F46E5;
+  --color-secondary: #F0F4FF;
+  --color-accent: #F43F5E;
+}
+
+:root {
+  --background: #FFFFFF;
+  --surface: #FFFFFF;
+  --glass: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(226, 232, 240, 0.5);
+  --text-main: #1E293B;
+  --text-muted: #64748B;
+  --border: #F1F5F9;
+  
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #3B82F6;
+
+  --pastel-indigo: #EEF2FF;
+  --pastel-blue: #E0F2FE;
+  --pastel-pink: #FDF2F8;
+  --pastel-green: #F0FDF4;
+}
+
+/* Force light mode everywhere */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #FFFFFF !important;
+  color: var(--text-main);
+  transition: color 0.3s, background-color 0.3s;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+  color: #0F172A;
+}
+
+.glass-card {
+  background-color: white;
+  border: 1px solid #F1F5F9;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.02), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+  border-radius: 1.5rem;
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background-color: #6366F1;
+  color: white;
+  border-radius: 1rem;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.3);
+}
+
+.btn-primary:hover {
+  background-color: #4F46E5;
+  transform: translateY(-2px);
+  box-shadow: 0 15px 25px -5px rgba(99, 102, 241, 0.4);
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  background-color: #F8FAFC;
+  border: 1px solid #F1F5F9;
+  color: #64748B;
+  border-radius: 1rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #F1F5F9;
+  color: #1E293B;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: 1rem;
+  color: #94A3B8;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.sidebar-link:hover {
+  background-color: #F8FAFC;
+  color: #6366F1;
+}
+
+.sidebar-link-active {
+  background-color: #EEF2FF;
+  color: #6366F1 !important;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #F1F5F9;
+  border-radius: 10px;
+}
+
+/* Input Styles */
+input, select, textarea {
+  background-color: #F8FAFC !important;
+  border: 1px solid #F1F5F9 !important;
+  color: #1E293B !important;
+  border-radius: 1rem !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #6366F1 !important;
+  background-color: white !important;
+  ring: 0 !important;
+  outline: none !important;
+}
