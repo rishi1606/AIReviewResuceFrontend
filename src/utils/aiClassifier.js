@@ -2,8 +2,14 @@ import Groq from "groq-sdk";
 import { updateClassification, createTicket } from "../api/apiClient";
 import { createTicketFromReview } from "./ticketFactory";
 
+const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+
+if (!apiKey) {
+  console.error("[Groq-Classifier] CRITICAL: VITE_GROQ_API_KEY is missing!");
+}
+
 const groq = new Groq({
-  apiKey: import.meta.env.VITE_GROQ_API_KEY,
+  apiKey: apiKey || "MISSING_KEY",
   dangerouslyAllowBrowser: true
 });
 
