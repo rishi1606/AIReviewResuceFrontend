@@ -75,12 +75,15 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     }
   };
 
-  // Auto-generate if missing
+  // Disabling auto-generate on load as per user request
+  // Use the tone dropdown or dedicated button to generate manually
+  /*
   useEffect(() => {
     if (!review.response_text && !proposal && !isGenerating && (review.status === "Classified" || review.status === "Approved" || review.status === "Pending AI")) {
       handleGenerate(tone);
     }
   }, [review.review_id, review.status]);
+  */
 
   const handleGenerate = async (selectedTone) => {
     setTone(selectedTone);
@@ -487,9 +490,19 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
                   <button onClick={() => setIsEditing(false)} className="px-3 py-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase flex items-center gap-1"><Check size={12} /> Save Edit</button>
                 </div>
               </div>
-            ) : (
+            ) : proposal ? (
               <div className="w-full h-32 p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm text-slate-600 italic overflow-y-auto">
-                {proposal || "Waiting for generation..."}
+                {proposal}
+              </div>
+            ) : (
+              <div className="w-full h-32 flex flex-col items-center justify-center bg-slate-50 border border-dashed border-slate-200 rounded-xl gap-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No draft generated yet</p>
+                <button 
+                  onClick={() => handleGenerate(tone)}
+                  className="px-6 py-2 bg-white text-indigo-600 border border-indigo-100 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-50 transition-all shadow-sm"
+                >
+                  Generate AI Draft
+                </button>
               </div>
             )}
           </div>
