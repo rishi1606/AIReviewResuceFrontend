@@ -29,25 +29,28 @@ export function useDerivedStats() {
   const criticalCount = filteredTickets.filter(t => t.urgency === "High" && (t.status === "Open" || t.status === "In Progress")).length;
   const approvedCount = filteredReviews.filter(r => r.status === "Approved").length;
   const resolvedTickets = filteredTickets.filter(t => t.status === "Closed" || t.status === "Resolved").length;
-  
-  const avgRating = totalReviews > 0 
-    ? (filteredReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1) 
+
+  const avgRating = totalReviews > 0
+    ? (filteredReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1)
     : "0.0";
 
   const requiresResponse = filteredReviews.filter(r => r.requires_response && r.status !== "Approved").length;
-  const responseRate = (requiresResponse + approvedCount) > 0 
-    ? Math.round((approvedCount / (requiresResponse + approvedCount)) * 100) 
+  const responseRate = (requiresResponse + approvedCount) > 0
+    ? Math.round((approvedCount / (requiresResponse + approvedCount)) * 100)
     : 0;
 
-  const overdueTickets = filteredTickets.filter(t => 
-    t.sla_deadline < Date.now() && 
+  const overdueTickets = filteredTickets.filter(t =>
+    t.sla_deadline < Date.now() &&
     !["Closed", "Resolved"].includes(t.status)
   ).length;
 
   const closedWithTime = filteredTickets.filter(t => t.resolved_at && t.created_at);
-  const avgResolutionTime = closedWithTime.length > 0 
-    ? Math.round(closedWithTime.reduce((sum, t) => sum + ((t.resolved_at - t.created_at) / 3600000), 0) / closedWithTime.length) 
+  const avgResolutionTimeRaw = closedWithTime.length > 0
+    ? closedWithTime.reduce((sum, t) => sum + ((t.resolved_at - t.created_at) / 3600000), 0) / closedWithTime.length
     : 0;
+
+  // Format: If < 1 hour, show as "0.5h" or similar, or we can just return the number and format in UI
+  const avgResolutionTime = avgResolutionTimeRaw.toFixed(1);
 
   const departmentBreakdown = filteredTickets.reduce((acc, t) => {
     acc[t.department] = (acc[t.department] || 0) + 1;
@@ -76,7 +79,7 @@ export function useDerivedStats() {
     pendingAI, criticalCount, approvedCount, resolvedTickets, activeTicketsCount,
     avgRating, responseRate, overdueTickets, avgResolutionTime,
     departmentBreakdown, platformBreakdown, ratingDistribution, sentimentDistribution,
-    escalationRisks: filteredReviews.filter(r => r.escalation_risk).length,
+    escalationRisks: filteredReviews.filter(r => r.escalation_risk || r.status === "ESCALATED").length,
     suspiciousCount: filteredReviews.filter(r => r.is_suspicious).length,
     needsHumanReview: filteredReviews.filter(r => r.needs_human_review).length,
     requiresResponse,
@@ -85,7 +88,7 @@ export function useDerivedStats() {
         .filter(t => (t.urgency === "High" || t.escalated) && !["Closed", "Resolved"].includes(t.status))
         .map(t => ({ ...t, type: 'ticket' })),
       ...filteredReviews
-        .filter(r => r.escalation_risk && r.status !== "Approved" && !r.linked_ticket_id)
+        .filter(r => (r.escalation_risk || r.status === "ESCALATED") && r.status !== "RESPONDED" && !r.linked_ticket_id)
         .map(r => ({ ...r, type: 'review' }))
     ].sort((a, b) => (b.created_at || b.review_date || 0) - (a.created_at || a.review_date || 0)).slice(0, 5)
   };

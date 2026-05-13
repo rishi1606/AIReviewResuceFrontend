@@ -29,6 +29,31 @@ const reducer = (state, action) => {
         ...state,
         reviews: state.reviews.map(r => r.review_id === action.payload.review_id ? { ...r, ...action.payload } : r)
       };
+    case actions.UPDATE_REVIEW:
+      const reviewObj = action.payload.data || action.payload; // Support both full response and direct object
+      const ticketObj = action.payload.ticket;
+      
+      const updatedTickets = [...state.tickets];
+      if (ticketObj) {
+        const idx = updatedTickets.findIndex(t => t.ticket_id === ticketObj.ticket_id);
+        if (idx > -1) updatedTickets[idx] = ticketObj;
+        else updatedTickets.unshift(ticketObj);
+      } else {
+        // Fallback for simple assignee updates if no ticket object returned
+        const idx = updatedTickets.findIndex(t => t.review_id === reviewObj.review_id);
+        if (idx > -1) {
+          updatedTickets[idx] = { 
+            ...updatedTickets[idx], 
+            assignee_id: reviewObj.assignee_id, 
+            assignee_name: reviewObj.assignee_name 
+          };
+        }
+      }
+      return {
+        ...state,
+        reviews: state.reviews.map(r => r.review_id === reviewObj.review_id ? { ...r, ...reviewObj } : r),
+        tickets: updatedTickets
+      };
     case actions.APPROVE_RESPONSE:
       return {
         ...state,
@@ -112,6 +137,18 @@ const reducer = (state, action) => {
       return { ...state, activeFilters: initialState.activeFilters };
     case actions.LOAD_STAFF:
       return { ...state, staff: action.payload };
+    case actions.ADD_STAFF_MEMBER:
+      return { ...state, staff: [...state.staff, action.payload] };
+    case actions.UPDATE_STAFF_MEMBER:
+      return {
+        ...state,
+        staff: state.staff.map(s => s._id === action.payload._id ? action.payload : s)
+      };
+    case actions.REMOVE_STAFF_MEMBER:
+      return {
+        ...state,
+        staff: state.staff.filter(s => s._id !== action.payload)
+      };
     case actions.UPDATE_HOTEL_CONFIG:
       return { ...state, hotelConfig: { ...state.hotelConfig, ...action.payload } };
     case actions.REANALYSE_REVIEW:

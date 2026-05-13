@@ -17,7 +17,10 @@ import {
   Sparkles,
   Loader2,
   RefreshCcw,
-  Zap
+  Zap,
+  Calendar,
+  AlertTriangle,
+  Flag
 } from "lucide-react";
 
 const Tickets = () => {
@@ -29,7 +32,34 @@ const Tickets = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
   const [deptFilter, setDeptFilter] = useState("ALL DEPARTMENTS");
+  const [urgencyFilter, setUrgencyFilter] = useState("ALL URGENCY");
+  const [assigneeFilter, setAssigneeFilter] = useState("ALL STAFF");
+  const [dateRange, setDateRange] = useState({ label: "All Time", start: null, end: null });
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const departments = Object.keys(state.hotelConfig?.deptSlaConfig || {
+    "Front Office": 4,
+    "Housekeeping": 6,
+    "Maintenance": 4,
+    "F&B": 8,
+    "Management": 24
+  });
+
+  const filterByDate = (items, dateField) => {
+    if (!dateRange.start) return items;
+    const start = new Date(dateRange.start);
+    const end = new Date(dateRange.end || new Date());
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    
+    return items.filter(item => {
+      const val = item[dateField];
+      if (!val) return false;
+      const d = new Date(val);
+      return d >= start && d <= end;
+    });
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -40,21 +70,44 @@ const Tickets = () => {
     }
   }, [location, state.tickets]);
 
-  const filteredTickets = state.tickets.filter(t => {
-    if (!currentUser) return false;
-    const isStaff = currentUser.role === "staff";
-    const isAssignedToMe = t.assignee_id === currentUser._id;
-    const canSee = !isStaff || isAssignedToMe;
-    if (!canSee) return false;
+  const [now, setNow] = useState(Date.now());
 
-    const matchesStatus = filter === "ALL" ? true : t.status.toUpperCase() === filter;
-    const matchesDept = deptFilter === "ALL DEPARTMENTS" ? true : t.department?.toUpperCase() === deptFilter.toUpperCase();
-    const matchesSearch =
-      t.guest_name.toLowerCase().includes(search.toLowerCase()) ||
-      t.ticket_id.toLowerCase().includes(search.toLowerCase()) ||
-      t.department?.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000); // Update every 30s
+    return () => clearInterval(timer);
+  }, []);
 
-    return matchesStatus && matchesDept && matchesSearch;
+  const formatTimeLeft = (ms) => {
+    if (ms <= 0) return "OVERDUE";
+    const hours = Math.floor(ms / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    return `${hours}h ${minutes}m left`;
+  };
+
+  const filteredTickets = filterByDate(state.tickets, "created_at").filter(t => {
+    // 1. Status Filter
+    const matchesStatus = filter === "ALL" ? true : (t.status || "").toUpperCase() === filter;
+
+    // 2. Department Filter
+    const matchesDept = deptFilter === "ALL DEPARTMENTS" ? true : (t.department || "").toUpperCase() === deptFilter.toUpperCase();
+
+    // 3. Urgency Filter
+    const matchesUrgency = urgencyFilter === "ALL URGENCY" ? true : (t.urgency || "").toUpperCase() === urgencyFilter.toUpperCase();
+
+    // 4. Assignee Filter
+    const matchesAssignee = assigneeFilter === "ALL STAFF" ? true : t.assignee_id === assigneeFilter;
+
+    // 5. Overdue Filter
+    const matchesOverdue = !overdueOnly ? true : (t.sla_deadline < now && !["Closed", "Resolved"].includes(t.status));
+
+    // 6. Search Filter
+    const matchesSearch = !search ? true : (
+      (t.guest_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (t.ticket_id || "").toLowerCase().includes(search.toLowerCase()) ||
+      (t.review_text || "").toLowerCase().includes(search.toLowerCase())
+    );
+
+    return matchesStatus && matchesDept && matchesUrgency && matchesAssignee && matchesOverdue && matchesSearch;
   });
 
   const runAnalysis = async () => {
@@ -67,6 +120,13 @@ const Tickets = () => {
       setLoading(false);
     }
   };
+
+  const datePresets = [
+    { label: "All Time", start: null, end: null },
+    { label: "Today", start: new Date().setHours(0,0,0,0), end: new Date().setHours(23,59,59,999) },
+    { label: "Last 7 Days", start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).setHours(0,0,0,0), end: new Date().setHours(23,59,59,999) },
+    { label: "This Month", start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(), end: new Date().setHours(23,59,59,999) }
+  ];
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -84,9 +144,9 @@ const Tickets = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:w-[60%]">
           {[
-            { label: "Active Tickets", val: stats.activeTicketsCount, icon: AlertCircle, col: "indigo" },
-            { label: "Overdue", val: stats.overdueTickets, icon: Clock, col: "red" },
-            { label: "Resolved", val: stats.resolvedTickets, icon: CheckCircle2, col: "green" },
+            { label: "Active Tickets", val: filteredTickets.filter(t => !["Closed", "Resolved"].includes(t.status)).length, icon: AlertCircle, col: "indigo" },
+            { label: "Overdue", val: filteredTickets.filter(t => t.sla_deadline < now && !["Closed", "Resolved"].includes(t.status)).length, icon: Clock, col: "red" },
+            { label: "Resolved", val: filteredTickets.filter(t => ["Closed", "Resolved"].includes(t.status)).length, icon: CheckCircle2, col: "green" },
             { label: "Avg Res Time", val: `${stats.avgResolutionTime}h`, icon: Zap, col: "amber" }
           ].map((kpi, idx) => (
             <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all">
@@ -101,7 +161,7 @@ const Tickets = () => {
       </div>
 
       {/* Advanced Filter Bar */}
-      <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex-1 min-w-[240px] relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
@@ -109,44 +169,95 @@ const Tickets = () => {
             placeholder="Search guest, ID or issues..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            className="bg-slate-50 border-none rounded-xl text-xs font-bold px-4 py-3 focus:ring-0 cursor-pointer hover:bg-slate-100 transition-colors"
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Department Filter */}
+          <div className="relative">
+            <select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black px-5 py-3.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-100 transition-all appearance-none pr-10 uppercase tracking-widest"
+            >
+              <option>ALL DEPARTMENTS</option>
+              {departments.map(d => (
+                <option key={d} value={d.toUpperCase()}>{d.toUpperCase()}</option>
+              ))}
+            </select>
+            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black px-5 py-3.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-100 transition-all appearance-none pr-10 uppercase tracking-widest"
+            >
+              <option value="ALL">ALL STATUS</option>
+              <option value="OPEN">OPEN</option>
+              <option value="IN PROGRESS">IN PROGRESS</option>
+              <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
+              <option value="RESOLVED">RESOLVED</option>
+              <option value="CLOSED">CLOSED</option>
+            </select>
+            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" size={12} />
+          </div>
+
+          {/* Urgency Filter */}
+          <div className="relative">
+            <select
+              value={urgencyFilter}
+              onChange={(e) => setUrgencyFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black px-5 py-3.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-100 transition-all appearance-none pr-10 uppercase tracking-widest"
+            >
+              <option value="ALL URGENCY">ALL URGENCY</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
+            </select>
+            <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+          </div>
+
+          {/* Assignee Filter */}
+          <div className="relative">
+            <select
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black px-5 py-3.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-100 transition-all appearance-none pr-10 uppercase tracking-widest"
+            >
+              <option value="ALL STAFF">ALL STAFF</option>
+              {state.staff.map(s => (
+                <option key={s._id} value={s._id}>{s.name.toUpperCase()}</option>
+              ))}
+            </select>
+            <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+          </div>
+
+          {/* Date Range */}
+          <div className="relative">
+            <select
+              onChange={(e) => {
+                const preset = datePresets.find(p => p.label === e.target.value);
+                if (preset) setDateRange(preset);
+              }}
+              className="bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black px-5 py-3.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-100 transition-all appearance-none pr-10 uppercase tracking-widest"
+            >
+              {datePresets.map(p => <option key={p.label} value={p.label}>{p.label.toUpperCase()}</option>)}
+            </select>
+            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+          </div>
+
+          {/* Overdue Toggle */}
+          <button
+            onClick={() => setOverdueOnly(!overdueOnly)}
+            className={`flex items-center gap-2 px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${overdueOnly ? "bg-red-500 text-white border-red-500 shadow-lg shadow-red-200" : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-red-50 hover:text-red-500"}`}
           >
-            <option>ALL DEPARTMENTS</option>
-            {["Front Office", "Housekeeping", "Maintenance", "F&B", "Security", "Concierge", "Spa", "Management"].map(d => (
-              <option key={d} value={d.toUpperCase()}>{d.toUpperCase()}</option>
-            ))}
-          </select>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-slate-50 border-none rounded-xl text-xs font-bold px-4 py-3 focus:ring-0 cursor-pointer hover:bg-slate-100 transition-colors"
-          >
-            <option value="ALL">ALL STATUS</option>
-            <option value="OPEN">OPEN</option>
-            <option value="IN PROGRESS">IN PROGRESS</option>
-            <option value="RESOLVED">RESOLVED</option>
-          </select>
-          {/* <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-4 py-3 border border-transparent cursor-pointer hover:bg-slate-100 transition-colors">
-            <Clock size={14} className="text-slate-400" />
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Today</span>
-            <ArrowUpDown size={14} className="text-slate-300" />
-          </div> */}
-          {/* <button 
-            onClick={runAnalysis}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all ml-2 disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-            GENERATE TICKETS
-          </button> */}
+            <Clock size={14} />
+            Overdue Only
+          </button>
         </div>
       </div>
 
@@ -160,20 +271,27 @@ const Tickets = () => {
               <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Guest & Status</th>
               <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">SLA Progress</th>
               <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assignee</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
+            {state.tickets.length > 0 && filteredTickets.length === 0 && (
+              <tr>
+                <td colSpan="6" className="py-10 text-center text-slate-400 text-xs italic">
+                  No tickets match the current filters ({state.tickets.length} total tickets in system).
+                </td>
+              </tr>
+            )}
             {filteredTickets.map(t => {
-              const overdue = t.sla_deadline < Date.now() && !["Closed", "Resolved"].includes(t.status);
+              const overdue = t.sla_deadline < now && !["Closed", "Resolved"].includes(t.status);
               const totalTime = t.sla_deadline - t.created_at;
-              const timeLeft = t.sla_deadline - Date.now();
+              const timeLeft = t.sla_deadline - now;
               const pct = Math.max(0, Math.min(100, (timeLeft / totalTime) * 100));
               const statusSteps = ["Open", "In Progress", "Pending Verification", "Resolved", "Closed"];
               const currentStep = statusSteps.indexOf(t.status);
 
               return (
-                <tr key={t.ticket_id} className="group hover:bg-slate-50/80 transition-all cursor-pointer" onClick={() => setSelectedTicket(t)}>
+                <tr key={t.ticket_id} className={`group transition-all cursor-pointer ${overdue ? "bg-red-50/30 hover:bg-red-50/50" : "hover:bg-slate-50/80"}`} onClick={() => setSelectedTicket(t)}>
                   <td className="px-6 py-4 max-w-xs">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`w-2 h-2 rounded-full ${t.urgency === "High" ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" : "bg-amber-500"}`}></span>
@@ -186,6 +304,16 @@ const Tickets = () => {
                           <RefreshCcw size={8} /> REC
                         </span>
                       )}
+                      {overdue && (
+                        <span className="bg-red-100 text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                          <AlertTriangle size={8} /> Overdue
+                        </span>
+                      )}
+                      {t.is_flagged && (
+                        <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1 shadow-[0_0_12px_rgba(220,38,38,0.4)]">
+                          <Flag size={8} /> FLAGGED BY MANAGER
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -194,7 +322,18 @@ const Tickets = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-semibold text-slate-900 mb-2">{t.guest_name}</p>
+                    <p className="text-sm font-semibold text-slate-900 mb-1">{t.guest_name}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm ${t.urgency === "High" ? "bg-red-100 text-red-600 border border-red-200" :
+                        t.urgency === "Medium" ? "bg-amber-100 text-amber-600 border border-amber-200" :
+                          "bg-blue-100 text-blue-600 border border-blue-200"
+                        }`}>
+                        {t.urgency?.toUpperCase() || "MED"}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-medium">
+                        Created {new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
                     <div className="flex gap-1.5">
                       {statusSteps.map((step, idx) => (
                         <div
@@ -208,9 +347,9 @@ const Tickets = () => {
                   <td className="px-6 py-4">
                     <div className="flex justify-between items-center mb-1.5">
                       <span className={`text-[10px] font-bold ${overdue ? "text-red-600" : "text-slate-500"}`}>
-                        {overdue ? "OVERDUE" : `${Math.max(0, Math.round(timeLeft / 3600000))}h left`}
+                        {formatTimeLeft(timeLeft)}
                       </span>
-                      {overdue && <span className="bg-red-100 text-red-600 text-[8px] font-black px-1 rounded animate-pulse">ALARM</span>}
+                      {overdue && <span className="bg-red-600 text-white text-[8px] font-black px-1 rounded animate-pulse">BREACHED</span>}
                     </div>
                     <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                       <div
@@ -233,19 +372,7 @@ const Tickets = () => {
                       <span className="text-xs font-medium text-slate-600 whitespace-nowrap">{t.assignee_name || "Unassigned"}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                      <button className="p-2 hover:bg-indigo-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-all" title="Assign">
-                        <User size={14} />
-                      </button>
-                      <button className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-all" title="Escalate">
-                        <AlertCircle size={14} />
-                      </button>
-                      <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-300">
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  </td>
+
                 </tr>
               );
             })}

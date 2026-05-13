@@ -15,20 +15,24 @@ import {
   Check,
   History,
   AlertCircle,
-  Info
+  Info,
+  Users,
+  RotateCcw
 } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { generateResponse } from "../utils/aiResponseGenerator";
 import {
   approveResponse,
   reanalyseReview,
   updateClassification,
-  addReviewNote
+  addReviewNote,
+  assignReviewStaff
 } from "../api/apiClient";
 import { classifyReview } from "../utils/aiClassifier";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 
-const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
+const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelected, onSelect, confidenceThreshold = 75 }) => {
   const { state, dispatch } = useAppContext();
   const { currentUser } = useAuth();
   const [loadingAI, setLoadingAI] = useState(false);
@@ -38,9 +42,38 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
   const [proposal, setProposal] = useState(review.response_text || "");
   const [noteText, setNoteText] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
-  const [noteSaved, setNoteSaved] = useState(false);
   const [noteError, setNoteError] = useState("");
+  const [noteSaved, setNoteSaved] = useState(false);
   const editRef = useRef(null);
+
+  const filteredStaff = state.staff?.filter(s =>
+    s.status === "active" &&
+    (s.department === review.primary_department || review.primary_department === "Management")
+  ) || [];
+
+  const handleAssign = async (staffId) => {
+    if (!staffId) return;
+    const selectedStaff = state.staff.find(s => s._id === staffId);
+    if (!selectedStaff) return;
+
+    try {
+      const res = await assignReviewStaff(review.review_id, {
+        staff_id: selectedStaff._id,
+        staff_name: selectedStaff.name
+      });
+      dispatch({ type: "UPDATE_REVIEW", payload: res.data });
+      dispatch({
+        type: "ADD_NOTIFICATION",
+        payload: {
+          type: "success",
+          message: `Assigned to ${selectedStaff.name}`,
+          created_at: Date.now()
+        }
+      });
+    } catch (err) {
+      alert("Assignment failed: " + err.message);
+    }
+  };
 
   // Auto-generate if missing
   useEffect(() => {
@@ -63,27 +96,44 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
     }
   };
 
+  const isApprover = currentUser?.role === "gm" || currentUser?.role === "dept_head" || currentUser?.role === "manager" || currentUser?.role === "superadmin";
+
   const handleApprove = async () => {
+    // Staff always submits. Approvers always post. 
+    const isSubmission = !isApprover || (currentUser?.role === "staff" && isMediumConfidence);
+
+    console.log("Approving review:", review.review_id, "isSubmission:", isSubmission, "Role:", currentUser?.role);
+
     try {
       const res = await approveResponse(review.review_id, {
         response_text: proposal,
         response_tone: tone,
-        approved_by: currentUser?.name || "Staff"
+        approved_by: currentUser?.name || "Staff",
+        is_submission: isSubmission
       });
 
-      dispatch({
-        type: "APPROVE_RESPONSE",
-        payload: {
-          review_id: review.review_id,
-          response_text: res.data.response_text,
-          response_tone: res.data.response_tone,
-          approved_by: res.data.approved_by,
-          approved_at: res.data.approved_at,
-          version_history: res.data.response_history
-        }
-      });
+      dispatch({ type: "UPDATE_REVIEW", payload: res.data });
+
+      if (!isSubmission) {
+        dispatch({
+          type: "ADD_NOTIFICATION", payload: {
+            type: "success",
+            message: `Response posted for ${review.reviewer_name}`,
+            created_at: Date.now()
+          }
+        });
+      }
     } catch (err) {
-      alert("Failed to approve: " + err.message);
+      alert("Action failed: " + err.message);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      const res = await rejectResponse(review.review_id);
+      dispatch({ type: "UPDATE_REVIEW", payload: res.data });
+    } catch (err) {
+      alert("Failed to reject: " + err.message);
     }
   };
 
@@ -106,6 +156,8 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
       setLoadingAI(false);
     }
   };
+
+  const navigate = useNavigate();
 
   const handleSaveNote = async () => {
     if (!noteText.trim()) return;
@@ -148,16 +200,39 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
   };
 
   const getConfidenceColor = (conf) => {
-    if (conf >= 75) return "text-slate-500";
+    if (conf >= confidenceThreshold) return "text-green-600";
     if (conf >= 50) return "text-amber-600";
     return "text-red-600";
   };
 
+  const getStatusStyles = (status) => {
+    const mapping = {
+      "NEW": "bg-blue-100 text-blue-700 border-blue-200",
+      "IN REVIEW": "bg-indigo-100 text-indigo-700 border-indigo-200",
+      "PENDING APPROVAL": "bg-amber-100 text-amber-700 border-amber-200",
+      "RESPONDED": "bg-green-100 text-green-700 border-green-200",
+      "CLOSED": "bg-slate-100 text-slate-500 border-slate-200",
+      "ESCALATED": "bg-red-100 text-red-700 border-red-200 animate-pulse",
+      "PENDING APPROVAL": "bg-amber-100 text-amber-700 border-amber-200 font-black",
+      // Legacy Mappings
+      "Classified": "bg-indigo-100 text-indigo-700 border-indigo-200",
+      "Approved": "bg-green-100 text-green-700 border-green-200",
+      "Pending AI": "bg-blue-100 text-blue-700 border-blue-200",
+      "Suspicious": "bg-red-100 text-red-700 border-red-200"
+    };
+    return mapping[status] || "bg-slate-100 text-slate-600 border-slate-200";
+  };
+
+  const conf = review.confidence || 0;
+  const isHighConfidence = conf >= confidenceThreshold;
+  const isMediumConfidence = conf >= 50 && conf < confidenceThreshold;
+  const isLowConfidence = conf < 50;
+
   return (
     <div
       id={review.review_id}
-      className={`glass-card p-6 border-l-4 transition-all relative group/card ${highlight ? "ring-2 ring-indigo-500 ring-offset-2" : ""} ${review.needs_human_review ? "border-l-[#F59E0B]" : review.rating >= 4 ? "border-l-green-500" : review.rating === 3 ? "border-l-amber-500" : "border-l-red-500"}`}
-      style={review.needs_human_review ? { borderLeft: "3px solid #F59E0B" } : {}}
+      className={`glass-card p-6 border-l-4 transition-all relative group/card ${highlight ? "ring-2 ring-indigo-500 ring-offset-2" : ""} ${isLowConfidence ? "border-l-red-500 bg-red-50/10" : isMediumConfidence ? "border-l-amber-500" : review.rating >= 4 ? "border-l-green-500" : review.rating === 3 ? "border-l-amber-500" : "border-l-red-500"}`}
+      style={isMediumConfidence ? { borderLeft: "3px solid #F59E0B" } : {}}
     >
       {loadingAI && (
         <div className="absolute inset-0 bg-slate-50/60 backdrop-blur-[2px] z-20 flex items-center justify-center rounded-3xl">
@@ -168,16 +243,73 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
         </div>
       )}
 
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex text-amber-400">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} size={16} fill={i < review.rating ? "currentColor" : "none"} />
-            ))}
-          </div>
-          <span className="text-sm font-bold text-slate-900">{review.reviewer_name}</span>
-          <span className="text-xs text-slate-500">{review.platform} • {new Date(review.review_date).toLocaleDateString()}</span>
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-3">
+        {/* Selection Checkbox */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(review.review_id);
+          }}
+          className={`w-5 h-5 rounded border-2 cursor-pointer flex items-center justify-center transition-all ${isSelected ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200" : "bg-white border-slate-200 hover:border-indigo-300"}`}
+        >
+          {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
         </div>
+
+        {/* Re-analyse Button (Existing) */}
+        {/* <button 
+          onClick={handleReanalyse}
+          title="Re-analyse Review"
+          className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-indigo-600 transition-colors"
+        >
+          <RotateCcw size={14} />
+        </button> */}
+      </div>
+
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex text-amber-400">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} size={16} fill={i < review.rating ? "currentColor" : "none"} />
+              ))}
+            </div>
+            <span className="text-sm font-bold text-slate-900">{review.reviewer_name}</span>
+            <span className="text-xs text-slate-500">{review.platform} • {new Date(review.review_date).toLocaleDateString()}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusStyles(review.status)}`}>
+              {review.status || "NEW"}
+            </span>
+            {review.linked_ticket_id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/tickets?highlight=${review.linked_ticket_id}`);
+                }}
+                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[9px] font-black px-2 py-0.5 rounded-full transition-all flex items-center gap-1 border border-indigo-100"
+              >
+                TICKET: {review.linked_ticket_id.slice(-6)}
+              </button>
+            )}
+            <div className="flex gap-1 items-center">
+              {[...Array(Math.floor(review.confidence / 20))].map((_, i) => (
+                <div key={i} className={`w-1 h-1 rounded-full ${isLowConfidence ? "bg-red-400" : isMediumConfidence ? "bg-amber-400" : "bg-green-400"}`} />
+              ))}
+            </div>
+          <div className="flex gap-1">
+            {["NEW", "IN REVIEW", "RESPONDED", "CLOSED"].map((s, idx) => {
+              const statusSteps = ["NEW", "IN REVIEW", "RESPONDED", "CLOSED"];
+              const currentStep = statusSteps.indexOf(review.status);
+              const isActive = statusSteps.indexOf(s) <= currentStep && review.status !== "ESCALATED";
+              return (
+                <div key={s} title={s} className={`w-3 h-1 rounded-full ${isActive ? "bg-indigo-500" : "bg-slate-100"}`}></div>
+              );
+            })}
+            {review.status === "ESCALATED" && <div className="w-12 h-1 bg-red-500 rounded-full animate-pulse"></div>}
+          </div>
+        </div>
+      </div>
+
         <div className="flex items-center gap-3">
           <span className={`text-[11px] font-bold ${getConfidenceColor(review.confidence)}`}>
             Confidence: {review.confidence ?? "--"}%
@@ -219,7 +351,74 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
         )}
       </div>
 
-      {review.needs_human_review && (
+      {/* Assignment Section */}
+      <div className="mb-4 space-y-2">
+        <div className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100/50">
+          <Users size={14} className="text-slate-400" />
+          <div className="flex-1">
+            <select
+              value={review.assignee_id || ""}
+              onChange={(e) => handleAssign(e.target.value)}
+              className="w-full bg-transparent border-none text-xs font-bold text-slate-600 focus:ring-0 cursor-pointer appearance-none p-0"
+            >
+              <option value="">{review.assignee_name || "Assign Staff..."}</option>
+              {filteredStaff.length > 0 ? (
+                filteredStaff.map(s => (
+                  <option key={s._id} value={s._id}>{s.name} ({s.role === 'gm' ? 'GM' : 'Staff'})</option>
+                ))
+              ) : (
+                <option disabled>No staff in {review.primary_department}. Add in Settings.</option>
+              )}
+            </select>
+          </div>
+          {review.assignee_id && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black uppercase">
+              <Check size={10} /> Assigned
+            </div>
+          )}
+        </div>
+
+        {review.status === "PENDING APPROVAL" && (
+          <div className="flex flex-col gap-1 px-1">
+            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+              <span>Submitted by: <span className="text-slate-900">{review.submitted_by || "Staff"}</span></span>
+            </div>
+            {review.assignee_id && (
+              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                <span>Assigned to: <span className="text-slate-600">{review.assignee_name}</span></span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isHighConfidence && (
+        <div className="mb-4">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-700 rounded text-[11px] font-bold uppercase tracking-wider">
+            <CheckCircle2 size={12} /> High Trust Analysis
+          </span>
+        </div>
+      )}
+
+      {isMediumConfidence && (
+        <div className="mb-4">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#FEF3C7] text-[#92400E] rounded text-[11px] font-bold uppercase tracking-wider">
+            <AlertCircle size={12} /> LOW CONFIDENCE
+          </span>
+        </div>
+      )}
+
+      {isLowConfidence && (
+        <div className="mb-4">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[11px] font-bold uppercase tracking-wider">
+            <AlertTriangle size={12} /> REVIEW REQUIRED
+          </span>
+        </div>
+      )}
+
+      {review.needs_human_review && !isLowConfidence && !isMediumConfidence && (
         <div className="mb-4">
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#FEF3C7] text-[#92400E] rounded text-[11px] font-bold">
             <AlertCircle size={12} /> Needs Human Review
@@ -238,7 +437,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
       )}
 
       {/* AI Proposal Section */}
-      {review.status !== "Approved" && !review.is_suspicious && (
+      {review.status !== "RESPONDED" && !isLowConfidence && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs">
@@ -296,46 +495,77 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory }) => {
           </div>
 
           <div className="flex justify-between items-center mt-4">
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
               <button onClick={() => onFlag(review)} className="text-[10px] font-bold text-slate-400 hover:text-red-600 transition-colors uppercase">FLAG REVIEW</button>
-              {/* <button onClick={() => onSimilar(review)} className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase">SIMILAR COMPLAINTS</button> */}
               <button onClick={() => setIsAddingNote(!isAddingNote)} className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase">ADD NOTE {review.internal_notes?.length > 0 && `(${review.internal_notes.length})`}</button>
+              {review.status === "PENDING APPROVAL" && isApprover && (
+                <button onClick={handleReject} className="text-[10px] font-bold text-red-500 hover:text-red-700 transition-colors uppercase flex items-center gap-1">
+                  <X size={12} /> REJECT DRAFT
+                </button>
+              )}
             </div>
-            <button
-              onClick={handleApprove}
-              disabled={isGenerating || !proposal}
-              className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              <CheckCircle2 size={14} /> APPROVE & POST
-            </button>
-          </div>
 
-          {isAddingNote && (
-            <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in slide-in-from-top-2">
-              <textarea
-                rows="3"
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Add an internal note about this review..."
-                className="w-full p-3 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              {noteError && <p className="text-red-500 text-[10px] mt-1">{noteError}</p>}
-              <div className="flex justify-end gap-2 mt-2">
-                {noteSaved ? (
-                  <span className="text-green-600 text-xs font-bold flex items-center gap-1 animate-in fade-in">Note saved ✓</span>
-                ) : (
-                  <>
-                    <button onClick={() => setIsAddingNote(false)} className="px-3 py-1.5 text-xs font-bold text-slate-500 uppercase">Cancel</button>
-                    <button onClick={handleSaveNote} className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase">Save Note</button>
-                  </>
-                )}
+            {review.status === "PENDING APPROVAL" && !isApprover ? (
+              <div className="px-4 py-2 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-wider border border-amber-100">
+                Awaiting Manager Approval
               </div>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={handleApprove}
+                disabled={isGenerating || !proposal}
+                title={!isApprover ? "Requires Manager approval to post" : ""}
+                className={`px-5 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 ${(isMediumConfidence || review.status === "PENDING APPROVAL" || !isApprover) ? "bg-amber-500 text-white shadow-amber-500/20 hover:bg-amber-600" : "bg-indigo-600 text-white shadow-indigo-500/20 hover:bg-indigo-700"}`}
+              >
+                <CheckCircle2 size={14} />
+                {isApprover ? "APPROVE & POST" : "SUBMIT FOR APPROVAL"}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {review.status === "Approved" && (
+      {isAddingNote && (
+        <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in slide-in-from-top-2">
+          <textarea
+            rows="3"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Add an internal note about this review..."
+            className="w-full p-3 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {noteError && <p className="text-red-500 text-[10px] mt-1">{noteError}</p>}
+          <div className="flex justify-end gap-2 mt-2">
+            {noteSaved ? (
+              <span className="text-green-600 text-xs font-bold flex items-center gap-1 animate-in fade-in">Note saved ✓</span>
+            ) : (
+              <>
+                <button onClick={() => setIsAddingNote(false)} className="px-3 py-1.5 text-xs font-bold text-slate-500 uppercase">Cancel</button>
+                <button onClick={handleSaveNote} className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase">Save Note</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isLowConfidence && review.status !== "RESPONDED" && (
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 flex flex-col items-center gap-2 text-center">
+            <Pencil size={24} className="text-slate-300" />
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Manual Response Required</p>
+            <p className="text-[10px] text-slate-400">AI confidence is too low for this review. Please draft a response manually.</p>
+            <button
+              onClick={() => {
+                setIsEditing(true);
+              }}
+              className="mt-2 px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase"
+            >
+              Start Drafting
+            </button>
+          </div>
+        </div>
+      )}
+
+      {review.status === "RESPONDED" && (
         <div className="mt-6 p-4 bg-green-50 border border-green-100 rounded-xl relative">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-green-700 font-bold text-xs">

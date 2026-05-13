@@ -53,9 +53,12 @@ export const getReviews = (filters) => apiClient.get("/reviews", { params: filte
 export const importReviews = (reviews) => apiClient.post("/reviews/import", { reviews });
 export const updateClassification = (review_id, data) => apiClient.put(`/reviews/${review_id}/classification`, data);
 export const approveResponse = (review_id, data) => apiClient.put(`/reviews/${review_id}/approve-response`, data);
+export const rejectResponse = (review_id) => apiClient.put(`/reviews/${review_id}/reject-response`);
 export const flagSuspicious = (review_id, reason) => apiClient.put(`/reviews/${review_id}/flag-suspicious`, { suspicious_reason: reason });
 export const addReviewNote = (review_id, data) => apiClient.post(`/reviews/${review_id}/notes`, data);
 export const reanalyseReview = (review_id) => apiClient.put(`/reviews/${review_id}/reanalyse`);
+export const assignReviewStaff = (review_id, data) => apiClient.put(`/reviews/${review_id}/assign-staff`, data);
+export const runFullAnalysis = () => apiClient.post("/import/analyze-all");
 export const deleteAllReviews = () => apiClient.delete("/reviews/delete-all");
 
 // Tickets

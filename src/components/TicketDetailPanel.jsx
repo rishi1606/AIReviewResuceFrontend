@@ -9,13 +9,16 @@ import {
   Send,
   CheckCircle2,
   Lock,
-  Loader2
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import { useSLAStatus } from "../hooks/useSLA";
 import { updateTicketStatus, addTicketNote, assignTicket, escalateTicket } from "../api/apiClient";
 import { useAppContext } from "../context/AppContext";
+import { useAuth } from "../context/AuthContext";
 
 const TicketDetailPanel = ({ ticket, onClose, staff }) => {
+  const { currentUser } = useAuth();
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const sla = useSLAStatus(ticket);
@@ -236,7 +239,7 @@ const TicketDetailPanel = ({ ticket, onClose, staff }) => {
             onClick={() => handleStatusChange("In Progress")}
             className={`btn-primary ${isFlagged ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
           >
-            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Acknowledge"}
+            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Acknowledge & Start"}
           </button>
         )}
         {ticket.status === "In Progress" && (
@@ -249,22 +252,38 @@ const TicketDetailPanel = ({ ticket, onClose, staff }) => {
           </button>
         )}
         {ticket.status === "Pending Verification" && (
-          <button
-            disabled={isFlagged || loading}
-            onClick={() => handleStatusChange("Resolved")}
-            className={`bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold ${isFlagged ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
-          >
-            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Mark Resolved"}
-          </button>
+          <div className="col-span-2">
+            {["gm", "dept_head"].includes(currentUser?.role) ? (
+              <button
+                disabled={isFlagged || loading}
+                onClick={() => handleStatusChange("Resolved")}
+                className={`w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 ${isFlagged ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+              >
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <><CheckCircle2 size={18} /> Verify & Resolve</>}
+              </button>
+            ) : (
+              <div className="w-full py-3 bg-slate-100 text-slate-400 rounded-xl font-bold text-center text-xs uppercase tracking-widest border border-slate-200">
+                Waiting for Management Verification
+              </div>
+            )}
+          </div>
         )}
         {ticket.status === "Resolved" && (
-          <button
-            disabled={loading}
-            onClick={() => handleStatusChange("Closed")}
-            className="bg-indigo-600 text-white rounded-xl font-bold"
-          >
-            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Close Ticket"}
-          </button>
+          <div className="col-span-2">
+            {currentUser?.role === "gm" ? (
+              <button
+                disabled={loading}
+                onClick={() => handleStatusChange("Closed")}
+                className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800"
+              >
+                {loading ? <Loader2 className="animate-spin" size={18} /> : "Final Close (Manual)"}
+              </button>
+            ) : (
+              <div className="w-full py-3 bg-green-50 text-green-600 rounded-xl font-bold text-center text-xs uppercase tracking-widest border border-green-100">
+                Resolved • Auto-closing in 24h
+              </div>
+            )}
+          </div>
         )}
         {ticket.status === "Closed" && (
           <div className="col-span-2 flex items-center justify-center gap-2 text-green-600 font-bold bg-green-50 py-3 rounded-xl border border-green-100">
@@ -272,11 +291,11 @@ const TicketDetailPanel = ({ ticket, onClose, staff }) => {
           </div>
         )}
 
-        {!["Resolved", "Closed"].includes(ticket.status) && !ticket.escalated && !isFlagged && (
+        {/* {!["Resolved", "Closed"].includes(ticket.status) && !ticket.escalated && !isFlagged && (
           <button onClick={() => setShowEscalateModal(true)} className="col-span-2 py-3 text-red-600 font-bold hover:bg-red-50 rounded-xl border border-red-100 transition-all">
             Escalate to Management
           </button>
-        )}
+        )} */}
       </div>
 
       {/* Escalation Modal Overlay */}

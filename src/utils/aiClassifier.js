@@ -82,37 +82,41 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
   const hotelConfig = hotelConfigRaw ? JSON.parse(hotelConfigRaw) : {};
   const threshold = hotelConfig?.ai_confidence_threshold || 75;
 
+  const isAutoTicketOn = hotelConfig?.aiConfig?.autoTicket;
+
   // 1. Identify reviews that need AI analysis
   const needsAI = reviews.filter(r => r.status === "Pending AI" || !r.status);
 
   // 2. Identify reviews that are already classified (have sentiment/urgency) but MISSING tickets
-  const needsTicketOnly = reviews.filter(r =>
+  const needsTicketOnly = isAutoTicketOn ? reviews.filter(r =>
     !r.linked_ticket_id &&
     r.sentiment &&
     (r.sentiment === "Negative" || r.sentiment === "Mixed" || r.urgency === "High" || r.urgency === "Medium")
-  );
+  ) : [];
 
-  console.log(`[AI] Deep Sync: ${needsAI.length} need AI, ${needsTicketOnly.length} need tickets only.`);
+  console.log(`[AI] Deep Sync: ${needsAI.length} need AI, ${needsTicketOnly.length} need tickets only. Auto-Ticket: ${isAutoTicketOn}`);
 
   // --- PHASE A: Instant Ticket Creation for already classified reviews ---
-  for (const review of needsTicketOnly) {
-    const ticketData = createTicketFromReview(review, review, hotelConfig);
+  if (isAutoTicketOn) {
+    for (const review of needsTicketOnly) {
+      const ticketData = createTicketFromReview(review, review, hotelConfig);
 
-    if (staff && staff.length > 0) {
-      const deptStaff = staff.filter(s => s.department.toLowerCase() === (review.primary_department || "").toLowerCase());
-      if (deptStaff.length > 0) {
-        const assignee = deptStaff[0];
-        ticketData.assignee_id = assignee._id;
-        ticketData.assignee_name = assignee.name;
-        ticketData.status = "In Progress";
+      if (staff && staff.length > 0) {
+        const deptStaff = staff.filter(s => s.department.toLowerCase() === (review.primary_department || "").toLowerCase());
+        if (deptStaff.length > 0) {
+          const assignee = deptStaff[0];
+          ticketData.assignee_id = assignee._id;
+          ticketData.assignee_name = assignee.name;
+          ticketData.status = "In Progress";
+        }
       }
-    }
 
-    try {
-      const created = await createTicket(ticketData);
-      dispatch({ type: "CREATE_TICKET_FROM_REVIEW", payload: { review, classification: review, ticket: created.data } });
-    } catch (err) {
-      console.error("[AI] Instant ticket creation failed:", err);
+      try {
+        const created = await createTicket(ticketData);
+        dispatch({ type: "CREATE_TICKET_FROM_REVIEW", payload: { review, classification: review, ticket: created.data } });
+      } catch (err) {
+        console.error("[AI] Instant ticket creation failed:", err);
+      }
     }
   }
 
@@ -174,7 +178,7 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
         result.urgency === "High" ||
         result.urgency === "Medium";
 
-      if (!result.is_suspicious && !result.is_factual_only && shouldCreateTicket) {
+      if (isAutoTicketOn && !result.is_suspicious && !result.is_factual_only && shouldCreateTicket) {
         const ticketData = createTicketFromReview(review, result, hotelConfig);
 
         // --- Smart Clustering Logic ---
