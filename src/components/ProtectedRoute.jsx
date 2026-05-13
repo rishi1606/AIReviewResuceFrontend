@@ -19,9 +19,7 @@ const ProtectedRoute = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (currentUser && !currentUser.onboarding_complete && location.pathname !== "/onboarding") {
-    return <Navigate to="/login" replace />;
-  }
+
 
   return (
     <div className="flex min-h-screen bg-white">

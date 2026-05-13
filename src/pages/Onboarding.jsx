@@ -62,7 +62,7 @@ const Onboarding = () => {
       // 4. Complete Onboarding
       await completeOnboarding();
 
-      navigate("/dashboard");
+
     } catch (err) {
       alert("Setup failed: " + err.message);
     } finally {
@@ -99,17 +99,17 @@ const Onboarding = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-2">Hotel Name</label>
-                  <input type="text" className="w-full p-3 bg-slate-50 border rounded-xl" value={hotelData.hotel_name} onChange={e => setHotelData({...hotelData, hotel_name: e.target.value})} />
+                  <input type="text" className="w-full p-3 bg-slate-50 border rounded-xl" value={hotelData.hotel_name} onChange={e => setHotelData({ ...hotelData, hotel_name: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Rooms</label>
-                  <select className="w-full p-3 bg-slate-50 border rounded-xl" value={hotelData.number_of_rooms} onChange={e => setHotelData({...hotelData, number_of_rooms: e.target.value})}>
+                  <select className="w-full p-3 bg-slate-50 border rounded-xl" value={hotelData.number_of_rooms} onChange={e => setHotelData({ ...hotelData, number_of_rooms: e.target.value })}>
                     <option>&lt;50</option><option>50-100</option><option>100-200</option><option>200+</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Star Category</label>
-                  <select className="w-full p-3 bg-slate-50 border rounded-xl" value={hotelData.star_category} onChange={e => setHotelData({...hotelData, star_category: e.target.value})}>
+                  <select className="w-full p-3 bg-slate-50 border rounded-xl" value={hotelData.star_category} onChange={e => setHotelData({ ...hotelData, star_category: e.target.value })}>
                     <option>3★</option><option>4★</option><option>5★</option><option>Boutique</option>
                   </select>
                 </div>
@@ -124,25 +124,25 @@ const Onboarding = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-2">Full Name</label>
-                  <input type="text" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.name} onChange={e => setUserData({...userData, name: e.target.value})} />
+                  <input type="text" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.name} onChange={e => setUserData({ ...userData, name: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Email</label>
-                  <input type="email" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.email} onChange={e => setUserData({...userData, email: e.target.value})} />
+                  <input type="email" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.email} onChange={e => setUserData({ ...userData, email: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Role</label>
-                  <select className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.role} onChange={e => setUserData({...userData, role: e.target.value})}>
+                  <select className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.role} onChange={e => setUserData({ ...userData, role: e.target.value })}>
                     <option value="gm">General Manager</option><option value="dept_head">Department Head</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Password</label>
-                  <input type="password" placeholder="Min 8 chars" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.password} onChange={e => setUserData({...userData, password: e.target.value})} />
+                  <input type="password" placeholder="Min 8 chars" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.password} onChange={e => setUserData({ ...userData, password: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Confirm Password</label>
-                  <input type="password" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.confirm_password} onChange={e => setUserData({...userData, confirm_password: e.target.value})} />
+                  <input type="password" className="w-full p-3 bg-slate-50 border rounded-xl" value={userData.confirm_password} onChange={e => setUserData({ ...userData, confirm_password: e.target.value })} />
                 </div>
               </div>
               <div className="flex gap-4">
@@ -166,9 +166,9 @@ const Onboarding = () => {
                   </div>
                 ))}
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                  <input type="text" placeholder="Name" className="p-3 bg-slate-50 border rounded-xl" value={newStaff.name} onChange={e => setNewStaff({...newStaff, name: e.target.value})} />
-                  <input type="email" placeholder="Email" className="p-3 bg-slate-50 border rounded-xl" value={newStaff.email} onChange={e => setNewStaff({...newStaff, email: e.target.value})} />
-                  <select className="p-3 bg-slate-50 border rounded-xl" value={newStaff.department} onChange={e => setNewStaff({...newStaff, department: e.target.value})}>
+                  <input type="text" placeholder="Name" className="p-3 bg-slate-50 border rounded-xl" value={newStaff.name} onChange={e => setNewStaff({ ...newStaff, name: e.target.value })} />
+                  <input type="email" placeholder="Email" className="p-3 bg-slate-50 border rounded-xl" value={newStaff.email} onChange={e => setNewStaff({ ...newStaff, email: e.target.value })} />
+                  <select className="p-3 bg-slate-50 border rounded-xl" value={newStaff.department} onChange={e => setNewStaff({ ...newStaff, department: e.target.value })}>
                     <option>Front Office</option><option>Housekeeping</option><option>Maintenance</option><option>F&B</option>
                   </select>
                   <button onClick={addStaffMember} className="btn-secondary">+ Add</button>

@@ -7,7 +7,6 @@ import ToastManager from "./components/ToastManager";
 
 // Pages
 import Login from "./pages/Login";
-import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Reviews from "./pages/Reviews";
 import Tickets from "./pages/Tickets";
@@ -23,7 +22,7 @@ function App() {
           <ToastManager />
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/onboarding" element={<Onboarding />} />
+
             <Route path="/" element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="reviews" element={<Reviews />} />

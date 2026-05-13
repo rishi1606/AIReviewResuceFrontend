@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@gmail.com");
+  const [password, setPassword] = useState("password123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -16,12 +16,8 @@ const Login = () => {
     setLoading(true);
     setError("");
     try {
-      const user = await login(email, password);
-      if (!user.onboarding_complete) {
-        navigate("/onboarding");
-      } else {
-        navigate("/dashboard");
-      }
+      await login(email, password);
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message || "Invalid email or password");
     } finally {
@@ -86,13 +82,6 @@ const Login = () => {
               {loading ? <Loader2 className="animate-spin" size={20} /> : "Sign In"}
             </button>
           </form>
-
-          <div className="mt-8 text-center text-sm text-slate-500">
-            First time?{" "}
-            <Link to="/onboarding" className="text-indigo-600 font-bold hover:underline">
-              Set up your account →
-            </Link>
-          </div>
         </div>
       </div>
     </div>
