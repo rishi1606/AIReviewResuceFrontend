@@ -44,8 +44,8 @@ Return ONLY this JSON shape:
   "primary_department": "",
   "urgency": "High|Medium|Low|None",
   "urgency_reason": "",
-  "issues": [],
-  "positive_aspects": [],
+  "issues": ["plain string of issue 1", "plain string of issue 2"],
+  "positive_aspects": ["plain string of aspect 1", "plain string of aspect 2"],
   "requires_response": true,
   "response_priority": "Urgent|Normal|Optional",
   "suggested_action": "",
@@ -154,12 +154,23 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
 
       if (!result) continue;
 
-      // Sanitize AI output to prevent backend validation errors
+      // Robust sanitization: convert objects to strings if AI returns them
+      const sanitizeArray = (arr) => {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(item => {
+          if (typeof item === 'string') return item;
+          if (typeof item === 'object' && item !== null) {
+            return item.issue || item.aspect || item.description || item.text || JSON.stringify(item);
+          }
+          return String(item);
+        }).filter(i => i && i !== "null");
+      };
+      
       const sanitizedResult = {
         ...result,
-        issues: Array.isArray(result.issues) ? result.issues.filter(i => i && i !== "null") : [],
-        positive_aspects: Array.isArray(result.positive_aspects) ? result.positive_aspects.filter(a => a && a !== "null") : [],
-        departments: Array.isArray(result.departments) ? result.departments : []
+        issues: sanitizeArray(result.issues),
+        positive_aspects: sanitizeArray(result.positive_aspects),
+        departments: sanitizeArray(result.departments)
       };
 
       const classificationPayload = {
