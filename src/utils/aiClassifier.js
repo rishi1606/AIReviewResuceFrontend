@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import { updateClassification, createTicket } from "../api/apiClient";
+import { updateClassification, createTicket, deleteReview } from "../api/apiClient";
 import { createTicketFromReview } from "./ticketFactory";
 
 const apiKey = import.meta.env.VITE_GROQ_API_KEY;
@@ -40,7 +40,7 @@ Return ONLY this JSON shape:
   "sentiment": "Positive|Negative|Mixed|Neutral",
   "sentiment_reason": "",
   "confidence": 0-100,
-  "departments": ["Housekeeping", "Maintenance", "F&B", "Front Office", "Security", "Concierge", "Spa", "Management"],
+  "departments": ["Front Office", "Reservations", "Concierge", "Guest Relations", "Housekeeping", "Laundry", "Maintenance", "Engineering", "IT Support", "Security", "Valet", "Parking", "Bell Desk", "Food & Beverage", "Restaurant", "Bar", "Room Service", "Kitchen", "Banquet", "Events", "Spa", "Gym", "Pool", "Sales", "Marketing", "Revenue Management", "Finance", "Billing", "Management", "Operations", "Human Resources", "Airport Shuttle", "Transportation", "WiFi & Internet", "Facilities", "Cleanliness", "Noise Control", "Accessibility", "Check-in Experience", "Check-out Experience"],
   "primary_department": "",
   "urgency": "High|Medium|Low|None",
   "urgency_reason": "",
@@ -152,7 +152,16 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
       const result = results[idx];
       const review = batch[idx];
 
-      if (!result) continue;
+      if (!result) {
+        console.warn(`[AI] Analysis failed for ${review.review_id}. Deleting from DB.`);
+        try {
+          await deleteReview(review.review_id);
+          dispatch({ type: actions.REMOVE_REVIEW, payload: review.review_id });
+        } catch (err) {
+          console.error("[AI] Cleanup failed:", err);
+        }
+        continue;
+      }
 
       // Robust sanitization: convert objects to strings if AI returns them
       const sanitizeArray = (arr) => {

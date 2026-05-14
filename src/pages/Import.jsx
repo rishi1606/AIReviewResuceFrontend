@@ -1,24 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { parseCSV, generateCSVTemplate } from "../utils/csvParser";
-import { importReviews, deleteAllReviews } from "../api/apiClient";
+import {
+  importReviews,
+  deleteAllReviews,
+  scrapeGoogle,
+  scrapeBooking,
+} from "../api/apiClient";
 import { classifyAllPending } from "../utils/aiClassifier";
 import { useAuth } from "../context/AuthContext";
-import { 
-  Upload, 
-  FileText, 
-  Download, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  Upload,
+  FileText,
+  Download,
+  CheckCircle2,
+  AlertCircle,
   Loader2,
   Table as TableIcon,
   Trash2,
   ChevronRight,
   ShieldAlert,
   BarChart3,
-  PartyPopper
+  PartyPopper,
+  Globe,
+  RefreshCw,
+  Zap,
+  CloudUpload,
+  Search,
+  Cloud
 } from "lucide-react";
+
 
 const Import = () => {
   const [files, setFiles] = useState([]);
@@ -29,6 +41,109 @@ const Import = () => {
   const { state, dispatch } = useAppContext();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("scrape");
+  const [urls, setUrls] = useState({
+    Google: "",
+    TripAdvisor: "",
+    "Booking.com": "",
+    "Hotels.com": "",
+    Yelp: "",
+    Expedia: ""
+  });
+  const [scrapingStatus, setScrapingStatus] = useState({}); // { [platform]: 'idle' | 'loading' | 'done' | 'error' }
+
+  useEffect(() => {
+    // Polling disabled as requested
+  }, []);
+
+  const handleScrape = async (platform) => {
+    if (platform !== "Booking.com" && platform !== "Google") {
+      return alert(`${platform} scraping is not implemented yet.`);
+    }
+
+    if (!urls[platform]) return alert(`Please provide a URL for ${platform}.`);
+
+    setScrapingStatus(prev => ({ ...prev, [platform]: 'loading' }));
+
+    try {
+      if (platform === "Google") {
+        const res = await scrapeGoogle(urls[platform]);
+        if (res.success && res.reviews) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+
+          const mappedReviews = res.reviews.map((r, idx) => ({
+            review_id: `google_${Date.now()}_${idx}`,
+            reviewer_name: r.reviewerName || "Anonymous",
+            rating: r.rating || 5,
+            review_date: r.reviewDate || "Recent",
+            review_text: r.reviewText || "",
+            platform: "Google",
+            categoryRatings: r.categoryRatings,
+            highlights: r.highlights
+          }));
+
+          setPreview({
+            valid: mappedReviews,
+            totalRows: mappedReviews.length,
+            validCount: mappedReviews.length,
+            duplicateCount: 0,
+            errorCount: 0,
+            errors: []
+          });
+        } else if (res.success) {
+          // Fallback if success but no reviews (Step 1 only mode)
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+          // alert("Browser opened! Please follow the steps in the automated window.");
+        }
+      } else {
+        const res = await scrapeBooking(urls[platform]);
+        if (res.success && res.reviews) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+
+          const mappedReviews = res.reviews.map((r, idx) => ({
+            review_id: `booking_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+            reviewer_name: r.reviewerName || "Anonymous",
+            rating: r.rating ? Number((r.rating / 2).toFixed(1)) : 5, // Normalize 10-star to 5-star
+            review_date: r.reviewDate || "Recent",
+            review_text: r.reviewText || "",
+            platform: "Booking.com",
+            metadata: {
+              original_rating: r.rating,
+              country: r.country,
+              roomType: r.roomType,
+              stayDuration: r.stayDuration,
+              stayDate: r.stayDate,
+              travelerType: r.travelerType
+            }
+          }));
+
+          setPreview({
+            valid: mappedReviews,
+            totalRows: mappedReviews.length,
+            validCount: mappedReviews.length,
+            duplicateCount: 0,
+            errorCount: 0,
+            errors: []
+          });
+        } else if (res.success) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setScrapingStatus(prev => ({ ...prev, [platform]: 'error' }));
+      // alert(`Scraping failed: ${err.message}`);
+    }
+  };
+
+  const handleScrapeAll = async () => {
+    const activePlatforms = Object.keys(urls).filter(p => urls[p] && (p === "Booking.com" || p === "Google"));
+    // if (activePlatforms.length === 0) return alert("No supported platforms with URLs found.");
+
+    for (const p of activePlatforms) {
+      handleScrape(p);
+    }
+  };
 
   const handleFileChange = async (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -63,7 +178,7 @@ const Import = () => {
           errors: allErrors
         });
       } catch (err) {
-        alert("Parse error: " + err.message);
+        console.error("Parse error: " + err.message);
       } finally {
         setLoading(false);
       }
@@ -72,21 +187,21 @@ const Import = () => {
 
   const handleImport = async () => {
     if (!preview || preview.valid.length === 0) return;
-    
+
     setLoading(true);
     setProgress({ current: 0, total: preview.valid.length, phase: "Uploading reviews..." });
-    
+
     try {
       // 1. Upload to backend
       await importReviews(preview.valid);
       dispatch({ type: "IMPORT_REVIEWS", payload: preview.valid });
-      
+
       // 2. Start AI Classification
       setProgress({ current: 0, total: preview.valid.length, phase: "AI Classification & Ticket Creation..." });
-      
+
       const results = [];
       await classifyAllPending(
-        preview.valid, 
+        preview.valid,
         (curr, tot) => setProgress({ current: curr, total: tot, phase: "Analysing reviews..." }),
         (action) => {
           if (action.type === "UPDATE_REVIEW_CLASSIFICATION") {
@@ -97,7 +212,7 @@ const Import = () => {
         currentUser,
         state.staff
       );
-      
+
       // 3. Calculate summary
       const counts = {
         Positive: results.filter(r => r.sentiment === "Positive").length,
@@ -108,7 +223,7 @@ const Import = () => {
       };
       setSummary(counts);
     } catch (err) {
-      alert("Import failed: " + err.message);
+      console.error("Import failed: " + err.message);
     } finally {
       setLoading(false);
       setProgress({ current: 0, total: 0, phase: "" });
@@ -170,17 +285,17 @@ const Import = () => {
     <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Import Center</h1>
-          <p className="text-slate-500">Bulk upload guest reviews for AI analysis.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Import reviews</h1>
+          <p className="text-slate-500 font-medium">Pull in reviews from your connected platforms or upload a CSV</p>
         </div>
         <div className="flex gap-3">
-          <button 
+          <button
             onClick={handleClearDatabase}
             className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl font-bold text-sm transition-all"
           >
             <Trash2 size={18} /> Clear Data
           </button>
-          <button 
+          <button
             onClick={generateCSVTemplate}
             className="btn-secondary flex items-center gap-2"
           >
@@ -189,25 +304,116 @@ const Import = () => {
         </div>
       </div>
 
-      {!preview ? (
-        <div 
-          className="glass-card p-24 border-2 border-dashed border-slate-200 text-center hover:border-indigo-500 transition-all cursor-pointer group bg-white shadow-sm"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const droppedFiles = Array.from(e.dataTransfer.files);
-            if (droppedFiles.length > 0) handleFileChange({ target: { files: droppedFiles } });
-          }}
+      <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveTab("scrape")}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === "scrape" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
         >
-          <input type="file" accept=".csv" multiple className="hidden" id="csv-input" onChange={handleFileChange} />
-          <label htmlFor="csv-input" className="cursor-pointer">
-            <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm">
-              <Upload size={40} />
+          <CloudUpload size={18} /> Scrape platforms
+        </button>
+        <button
+          onClick={() => setActiveTab("csv")}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === "csv" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          <FileText size={18} /> Upload CSV
+        </button>
+      </div>
+
+      {!preview ? (
+        activeTab === "scrape" ? (
+          <div className="space-y-4">
+            {["Google", "Booking.com", "TripAdvisor", "Hotels.com", "Yelp", "Expedia"].map(platform => {
+              // Only show if active in settings (default to showing if no config yet for UX)
+              const isActive = !state.hotelConfig?.platforms || state.hotelConfig.platforms.includes(platform);
+              if (!isActive) return null;
+
+              const platformDataMap = {
+                Google: { placeholder: "https://g.page/your-business", help: "Paste your Google Business Profile URL", dot: "bg-blue-500" },
+                TripAdvisor: { placeholder: "https://tripadvisor.com/Hotel_Review", help: "Paste your TripAdvisor property page URL", dot: "bg-emerald-500" },
+                "Booking.com": { placeholder: "https://booking.com/hotel/...", help: "Paste your Booking.com property page URL", dot: "bg-blue-600" },
+                "Hotels.com": { placeholder: "https://hotels.com/ho...", help: "Paste your Hotels.com property page URL", dot: "bg-red-500" },
+                Yelp: { placeholder: "https://yelp.com/biz/...", help: "Paste your Yelp business page URL", dot: "bg-red-600" },
+                Expedia: { placeholder: "https://expedia.com/...", help: "Paste your Expedia property page URL", dot: "bg-amber-500" }
+              };
+
+              const platformData = platformDataMap[platform];
+
+              return (
+                <div key={platform} className="glass-card p-6 bg-white border border-slate-100 group hover:border-indigo-200 transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${platformData.dot} ${scrapingStatus[platform] === 'loading' ? 'animate-ping' : ''}`} />
+                      <span className="font-bold text-slate-900">{platform}</span>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${scrapingStatus[platform] === 'loading' ? 'text-indigo-600' :
+                      scrapingStatus[platform] === 'done' ? 'text-green-600' :
+                        'text-slate-300'
+                      }`}>
+                      {scrapingStatus[platform] === 'loading' ? 'Scraping...' : scrapingStatus[platform] === 'done' ? 'Complete' : 'Idle'}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={urls[platform] || ""}
+                        onChange={(e) => setUrls({ ...urls, [platform]: e.target.value })}
+                        placeholder={platformData.placeholder}
+                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-700"
+                      />
+                      <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-tight">{platformData.help}</p>
+                      <p className="text-[10px] text-slate-300 font-medium mt-1">
+                        {scrapingStatus[platform] === 'done' ? 'Last scraped moments ago' : 'Not scraped yet'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleScrape(platform)}
+                      disabled={scrapingStatus[platform] === 'loading'}
+                      className="h-fit flex items-center gap-2 px-6 py-4 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200 disabled:opacity-50"
+                    >
+                      {scrapingStatus[platform] === 'loading' ? <Loader2 className="animate-spin" size={18} /> : <CloudUpload size={18} />}
+                      {scrapingStatus[platform] === 'loading' ? 'Working...' : 'Scrape now'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* <button
+              onClick={handleScrapeAll}
+              className="w-fit flex items-center gap-2 px-8 py-4 border-2 border-slate-200 text-slate-700 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all active:scale-95 mt-4"
+            >
+              <RefreshCw size={18} /> Scrape all platforms
+            </button> */}
+
+            {/* Recent Scrapes List */}
+            <div className="mt-12 text-center p-12 bg-slate-50/50 rounded-[3rem] border border-slate-100">
+              <Globe className="mx-auto mb-4 text-indigo-600/20" size={48} />
+              <h3 className="text-xl font-black text-slate-900">Advanced Scraper UI</h3>
+              <p className="text-slate-500 max-w-sm mx-auto mt-2">The platform is ready to connect with your chosen review sources. Enter your URLs above to preview how the integration works.</p>
             </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-2">Click or Drag Multiple CSVs</h3>
-            <p className="text-slate-500 max-w-sm mx-auto">Upload multiple review files at once. We'll handle duplicates automatically.</p>
-          </label>
-        </div>
+          </div>
+        ) : (
+          <div
+            className="glass-card p-24 border-2 border-dashed border-slate-200 text-center hover:border-indigo-500 transition-all cursor-pointer group bg-white shadow-sm"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const droppedFiles = Array.from(e.dataTransfer.files);
+              if (droppedFiles.length > 0) handleFileChange({ target: { files: droppedFiles } });
+            }}
+          >
+            <input type="file" accept=".csv" multiple className="hidden" id="csv-input" onChange={handleFileChange} />
+            <label htmlFor="csv-input" className="cursor-pointer">
+              <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm">
+                <Upload size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">Click or Drag Multiple CSVs</h3>
+              <p className="text-slate-500 max-w-sm mx-auto">Upload multiple review files at once. We'll handle duplicates automatically.</p>
+            </label>
+          </div>
+        )
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -261,7 +467,7 @@ const Import = () => {
               <p className="font-black text-2xl">Ready to import {preview.validCount} reviews?</p>
               <p className="text-indigo-100 text-sm mt-1">Our AI will automatically categorize these and create tickets for your team.</p>
             </div>
-            <button 
+            <button
               onClick={handleImport}
               disabled={loading}
               className="px-10 py-4 bg-white text-indigo-600 rounded-2xl font-black shadow-lg hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-50"

@@ -58,8 +58,12 @@ export const flagSuspicious = (review_id, reason) => apiClient.put(`/reviews/${r
 export const addReviewNote = (review_id, data) => apiClient.post(`/reviews/${review_id}/notes`, data);
 export const reanalyseReview = (review_id) => apiClient.put(`/reviews/${review_id}/reanalyse`);
 export const assignReviewStaff = (review_id, data) => apiClient.put(`/reviews/${review_id}/assign-staff`, data);
+export const scrapeGoogle = (url) => apiClient.post("/import/scrape-google", { url });
+export const scrapeBooking = (url) => apiClient.post("/import/scrape-booking", { url });
+export const getImportHistory = () => apiClient.get("/import/history");
 export const runFullAnalysis = () => apiClient.post("/import/analyze-all");
 export const deleteAllReviews = () => apiClient.delete("/reviews/delete-all");
+export const deleteReview = (id) => apiClient.delete(`/reviews/${id}`);
 
 // Tickets
 export const getTickets = (filters) => apiClient.get("/tickets", { params: filters });

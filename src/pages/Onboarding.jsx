@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { registerUser, addStaff, importReviews, completeOnboarding } from "../api/apiClient";
 import { ShieldCheck, Hotel, User, Users, Upload, ChevronRight, Loader2 } from "lucide-react";
 import { parseCSV } from "../utils/csvParser";
+import { DEPARTMENTS } from "../utils/constants";
 
 const Onboarding = () => {
   const [step, setStep] = useState(1);
@@ -169,7 +170,9 @@ const Onboarding = () => {
                   <input type="text" placeholder="Name" className="p-3 bg-slate-50 border rounded-xl" value={newStaff.name} onChange={e => setNewStaff({ ...newStaff, name: e.target.value })} />
                   <input type="email" placeholder="Email" className="p-3 bg-slate-50 border rounded-xl" value={newStaff.email} onChange={e => setNewStaff({ ...newStaff, email: e.target.value })} />
                   <select className="p-3 bg-slate-50 border rounded-xl" value={newStaff.department} onChange={e => setNewStaff({ ...newStaff, department: e.target.value })}>
-                    <option>Front Office</option><option>Housekeeping</option><option>Maintenance</option><option>F&B</option>
+                    {DEPARTMENTS.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
                   </select>
                   <button onClick={addStaffMember} className="btn-secondary">+ Add</button>
                 </div>

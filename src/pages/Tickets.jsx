@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Flag
 } from "lucide-react";
+import { DEPARTMENTS } from "../utils/constants";
 
 const Tickets = () => {
   const { state, dispatch } = useAppContext();
@@ -38,13 +39,7 @@ const Tickets = () => {
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const departments = Object.keys(state.hotelConfig?.deptSlaConfig || {
-    "Front Office": 4,
-    "Housekeeping": 6,
-    "Maintenance": 4,
-    "F&B": 8,
-    "Management": 24
-  });
+  const departments = DEPARTMENTS;
 
   const filterByDate = (items, dateField) => {
     if (!dateRange.start) return items;

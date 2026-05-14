@@ -165,6 +165,12 @@ const reducer = (state, action) => {
           needs_human_review: null
         } : r)
       };
+    case actions.REMOVE_REVIEW:
+      return {
+        ...state,
+        reviews: state.reviews.filter(r => r.review_id !== action.payload),
+        tickets: state.tickets.filter(t => t.review_id !== action.payload)
+      };
     default:
       return state;
   }

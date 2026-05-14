@@ -31,6 +31,7 @@ import {
   reanalyseReview
 } from "../api/apiClient";
 import { createTicketFromReview } from "../utils/ticketFactory";
+import { DEPARTMENTS } from "../utils/constants";
 
 const Reviews = () => {
   const { state, dispatch } = useAppContext();
@@ -61,13 +62,7 @@ const Reviews = () => {
 
   const confidenceThreshold = state.hotelConfig?.aiConfig?.confidenceThreshold || 75;
   const activePlatforms = state.hotelConfig?.platforms || ["Google", "TripAdvisor", "Booking.com", "Yelp"];
-  const departments = Object.keys(state.hotelConfig?.deptSlaConfig || {
-    "Front Office": 4,
-    "Housekeeping": 6,
-    "Maintenance": 4,
-    "F&B": 8,
-    "Management": 24
-  });
+  const departments = DEPARTMENTS;
 
   // Fetch reviews on mount to apply any updated settings/healing logic
   useEffect(() => {

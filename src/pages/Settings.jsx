@@ -3,6 +3,7 @@ import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import { getHotel, updateHotel, getStaff, addStaff, updateStaff, removeStaff, updateMe, runFullAnalysis } from "../api/apiClient";
 import { classifyAllPending } from "../utils/aiClassifier";
+import { DEPARTMENTS } from "../utils/constants";
 import { 
   Hotel, 
   Users, 
@@ -165,7 +166,7 @@ const Settings = () => {
     { id: "account", name: "Account", icon: User },
   ];
 
-  const departments = ["Front Office", "Housekeeping", "Maintenance", "F&B", "Management"];
+  const departments = DEPARTMENTS;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
