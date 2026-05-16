@@ -7,6 +7,10 @@ import {
   deleteAllReviews,
   scrapeGoogle,
   scrapeBooking,
+  scrapeExpedia,
+  scrapeAgoda,
+  scrapeHotels,
+  scrapeAirbnb,
 } from "../api/apiClient";
 import { classifyAllPending } from "../utils/aiClassifier";
 import { useAuth } from "../context/AuthContext";
@@ -48,7 +52,8 @@ const Import = () => {
     "Booking.com": "",
     "Hotels.com": "",
     Yelp: "",
-    Expedia: ""
+    Expedia: "",
+    Airbnb: ""
   });
   const [scrapingStatus, setScrapingStatus] = useState({}); // { [platform]: 'idle' | 'loading' | 'done' | 'error' }
 
@@ -57,7 +62,7 @@ const Import = () => {
   }, []);
 
   const handleScrape = async (platform) => {
-    if (platform !== "Booking.com" && platform !== "Google") {
+    if (platform !== "Booking.com" && platform !== "Google" && platform !== "Expedia" && platform !== "Agoda" && platform !== "Hotels.com" && platform !== "Airbnb") {
       return alert(`${platform} scraping is not implemented yet.`);
     }
 
@@ -95,7 +100,7 @@ const Import = () => {
           setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
           // alert("Browser opened! Please follow the steps in the automated window.");
         }
-      } else {
+      } else if (platform === "Booking.com") {
         const res = await scrapeBooking(urls[platform]);
         if (res.success && res.reviews) {
           setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
@@ -127,6 +132,114 @@ const Import = () => {
           });
         } else if (res.success) {
           setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+          if (res.message) alert(res.message);
+        }
+      } else if (platform === "Expedia") {
+        const res = await scrapeExpedia(urls[platform]);
+        if (res.success && res.reviews) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+
+          const mappedReviews = res.reviews.map((r, idx) => ({
+            review_id: `expedia_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+            reviewer_name: r.reviewerName || "Anonymous",
+            // Normalize rating to 5 if it looks like it's out of 10
+            rating: r.rating > 5 ? Number((r.rating / 2).toFixed(1)) : (r.rating || 5),
+            review_date: r.reviewDate || "Recent",
+            review_text: r.reviewText || "",
+            platform: "Expedia"
+          }));
+
+          setPreview({
+            valid: mappedReviews,
+            totalRows: mappedReviews.length,
+            validCount: mappedReviews.length,
+            duplicateCount: 0,
+            errorCount: 0,
+            errors: []
+          });
+        } else if (res.success) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+          if (res.message) alert(res.message);
+        }
+      } else if (platform === "Agoda") {
+        const res = await scrapeAgoda(urls[platform]);
+        if (res.success && res.reviews) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+
+          const mappedReviews = res.reviews.map((r, idx) => ({
+            review_id: `agoda_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+            reviewer_name: r.reviewerName || "Anonymous",
+            // Normalize rating to 5 if it looks like it's out of 10
+            rating: r.rating > 5 ? Number((r.rating / 2).toFixed(1)) : (r.rating || 5),
+            review_date: r.reviewDate || "Recent",
+            review_text: r.reviewText || "",
+            platform: "Agoda"
+          }));
+
+          setPreview({
+            valid: mappedReviews,
+            totalRows: mappedReviews.length,
+            validCount: mappedReviews.length,
+            duplicateCount: 0,
+            errorCount: 0,
+            errors: []
+          });
+        } else if (res.success) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+          if (res.message) alert(res.message);
+        }
+      } else if (platform === "Hotels.com") {
+        const res = await scrapeHotels(urls[platform]);
+        if (res.success && res.reviews) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+
+          const mappedReviews = res.reviews.map((r, idx) => ({
+            review_id: `hotels_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+            reviewer_name: r.reviewerName || "Anonymous",
+            // Normalize rating to 5 if it looks like it's out of 10
+            rating: r.rating > 5 ? Number((r.rating / 2).toFixed(1)) : (r.rating || 5),
+            review_date: r.reviewDate || "Recent",
+            review_text: r.reviewText || "",
+            platform: "Hotels.com"
+          }));
+
+          setPreview({
+            valid: mappedReviews,
+            totalRows: mappedReviews.length,
+            validCount: mappedReviews.length,
+            duplicateCount: 0,
+            errorCount: 0,
+            errors: []
+          });
+        } else if (res.success) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+          if (res.message) alert(res.message);
+        }
+      } else if (platform === "Airbnb") {
+        const res = await scrapeAirbnb(urls[platform]);
+        if (res.success && res.reviews) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+
+          const mappedReviews = res.reviews.map((r, idx) => ({
+            review_id: `airbnb_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+            reviewer_name: r.reviewerName || "Anonymous",
+            rating: r.rating || 5,
+            review_date: r.reviewDate || "Recent",
+            review_text: r.reviewText || "",
+            platform: "Airbnb"
+          }));
+
+          setPreview({
+            valid: mappedReviews,
+            totalRows: mappedReviews.length,
+            validCount: mappedReviews.length,
+            duplicateCount: 0,
+            errorCount: 0,
+            errors: []
+          });
+        } else if (res.success) {
+          setScrapingStatus(prev => ({ ...prev, [platform]: 'done' }));
+          if (res.message) alert(res.message);
         }
       }
     } catch (err) {
@@ -137,7 +250,7 @@ const Import = () => {
   };
 
   const handleScrapeAll = async () => {
-    const activePlatforms = Object.keys(urls).filter(p => urls[p] && (p === "Booking.com" || p === "Google"));
+    const activePlatforms = Object.keys(urls).filter(p => urls[p] && (p === "Booking.com" || p === "Google" || p === "Expedia" || p === "Agoda" || p === "Hotels.com" || p === "Airbnb"));
     // if (activePlatforms.length === 0) return alert("No supported platforms with URLs found.");
 
     for (const p of activePlatforms) {
@@ -322,7 +435,7 @@ const Import = () => {
       {!preview ? (
         activeTab === "scrape" ? (
           <div className="space-y-4">
-            {["Google", "Booking.com", "TripAdvisor", "Hotels.com", "Yelp", "Expedia"].map(platform => {
+            {["Google", "Booking.com", "TripAdvisor", "Hotels.com", "Yelp", "Expedia", "Agoda", "Airbnb"].map(platform => {
               // Only show if active in settings (default to showing if no config yet for UX)
               const isActive = !state.hotelConfig?.platforms || state.hotelConfig.platforms.includes(platform);
               if (!isActive) return null;
@@ -333,7 +446,9 @@ const Import = () => {
                 "Booking.com": { placeholder: "https://booking.com/hotel/...", help: "Paste your Booking.com property page URL", dot: "bg-blue-600" },
                 "Hotels.com": { placeholder: "https://hotels.com/ho...", help: "Paste your Hotels.com property page URL", dot: "bg-red-500" },
                 Yelp: { placeholder: "https://yelp.com/biz/...", help: "Paste your Yelp business page URL", dot: "bg-red-600" },
-                Expedia: { placeholder: "https://expedia.com/...", help: "Paste your Expedia property page URL", dot: "bg-amber-500" }
+                Expedia: { placeholder: "https://expedia.com/...", help: "Paste your Expedia property page URL", dot: "bg-amber-500" },
+                Agoda: { placeholder: "https://agoda.com/...", help: "Paste your Agoda property page URL", dot: "bg-indigo-500" },
+                Airbnb: { placeholder: "https://airbnb.com/rooms/...", help: "Paste your Airbnb property page URL", dot: "bg-rose-500" }
               };
 
               const platformData = platformDataMap[platform];
@@ -450,7 +565,7 @@ const Import = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {preview.valid.slice(0, 20).map(r => (
+                {preview.valid.slice(0, 60).map(r => (
                   <tr key={r.review_id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-400">{r.review_id}</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{r.reviewer_name}</td>

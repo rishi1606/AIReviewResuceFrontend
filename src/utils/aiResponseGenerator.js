@@ -22,7 +22,7 @@ export async function generateResponse(review, tone, hotelConfig) {
 
   try {
     const chatCompletion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.4,
       max_tokens: 300,
       messages: [

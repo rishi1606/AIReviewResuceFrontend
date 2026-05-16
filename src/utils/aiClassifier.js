@@ -18,43 +18,29 @@ export async function classifyReview(review, retryCount = 0) {
 
   try {
     const chatCompletion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.1,
       max_tokens: 1024,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: "You are an expert hotel operations analyst. Analyse guest hotel reviews and return structured JSON. Always respond with ONLY valid JSON."
+          content: "You are an expert hotel operations analyst. Extract core metadata from guest reviews. Respond ONLY with valid JSON."
         },
         {
           role: "user",
-          content: `Analyse this hotel guest review:
+          content: `Extract from this review:
 Review text: "${review.review_text}"
 Star rating: ${review.rating}
-Platform: ${review.platform}
-Guest name: ${review.reviewer_name}
 
-Return ONLY this JSON shape:
+Return ONLY this JSON:
 {
   "sentiment": "Positive|Negative|Mixed|Neutral",
-  "sentiment_reason": "",
-  "confidence": 0-100,
-  "departments": ["Front Office", "Reservations", "Concierge", "Guest Relations", "Housekeeping", "Laundry", "Maintenance", "Engineering", "IT Support", "Security", "Valet", "Parking", "Bell Desk", "Food & Beverage", "Restaurant", "Bar", "Room Service", "Kitchen", "Banquet", "Events", "Spa", "Gym", "Pool", "Sales", "Marketing", "Revenue Management", "Finance", "Billing", "Management", "Operations", "Human Resources", "Airport Shuttle", "Transportation", "WiFi & Internet", "Facilities", "Cleanliness", "Noise Control", "Accessibility", "Check-in Experience", "Check-out Experience"],
-  "primary_department": "",
-  "urgency": "High|Medium|Low|None",
-  "urgency_reason": "",
-  "issues": ["plain string of issue 1", "plain string of issue 2"],
-  "positive_aspects": ["plain string of aspect 1", "plain string of aspect 2"],
-  "requires_response": true,
-  "response_priority": "Urgent|Normal|Optional",
-  "suggested_action": "",
+  "primary_department": "Pick the most relevant from: [Front Office, Housekeeping, Maintenance, Food & Beverage, Spa, Gym, Management, Security, IT Support]",
+  "issues": ["list of specific complaints"],
+  "positive_aspects": ["list of positive highlights"],
   "is_factual_only": false,
-  "is_suspicious": false,
-  "suspicious_reason": "",
-  "guest_emotion": "Angry|Frustrated|Disappointed|Neutral|Satisfied|Delighted|Concerned|Anxious",
-  "escalation_risk": false,
-  "escalation_reason": ""
+  "is_suspicious": false
 }`
         }
       ]
@@ -128,20 +114,20 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
 
   for (let i = 0; i < needsAI.length; i += batchSize) {
     const batch = needsAI.slice(i, i + batchSize);
-    
+
     let results;
     try {
       results = await Promise.all(batch.map(r => classifyReview(r)));
     } catch (err) {
       if (err.message === "AI_TOKEN_LOW") {
-        dispatch({ 
-          type: "ADD_NOTIFICATION", 
-          payload: { 
-            message: "Ai analysis failed due to token low", 
+        dispatch({
+          type: "ADD_NOTIFICATION",
+          payload: {
+            message: "Ai analysis failed due to token low",
             type: "sla_breach", // Uses the red icon
             urgency: "High",
-            read: false 
-          } 
+            read: false
+          }
         });
         return; // Stop processing further
       }
@@ -174,7 +160,7 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
           return String(item);
         }).filter(i => i && i !== "null");
       };
-      
+
       const sanitizedResult = {
         ...result,
         issues: sanitizeArray(result.issues),
@@ -203,9 +189,9 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
 
         // --- Smart Clustering Logic ---
         // Find existing tickets from the same guest or same major issue
-        const similarTicket = tickets.find(t => 
-          (t.guest_name === review.reviewer_name || 
-           t.issues?.some(issue => result.issues?.includes(issue))) &&
+        const similarTicket = tickets.find(t =>
+          (t.guest_name === review.reviewer_name ||
+            t.issues?.some(issue => result.issues?.includes(issue))) &&
           t.status !== "Closed"
         );
 

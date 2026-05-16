@@ -60,6 +60,10 @@ export const reanalyseReview = (review_id) => apiClient.put(`/reviews/${review_i
 export const assignReviewStaff = (review_id, data) => apiClient.put(`/reviews/${review_id}/assign-staff`, data);
 export const scrapeGoogle = (url) => apiClient.post("/import/scrape-google", { url });
 export const scrapeBooking = (url) => apiClient.post("/import/scrape-booking", { url });
+export const scrapeExpedia = (url) => apiClient.post("/import/scrape-expedia", { url });
+export const scrapeAgoda = (url) => apiClient.post("/import/scrape-agoda", { url });
+export const scrapeHotels = (url) => apiClient.post("/import/scrape-hotels", { url });
+export const scrapeAirbnb = (url) => apiClient.post("/import/scrape-airbnb", { url });
 export const getImportHistory = () => apiClient.get("/import/history");
 export const runFullAnalysis = () => apiClient.post("/import/analyze-all");
 export const deleteAllReviews = () => apiClient.delete("/reviews/delete-all");

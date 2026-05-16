@@ -226,10 +226,11 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     return mapping[status] || "bg-slate-100 text-slate-600 border-slate-200";
   };
 
-  const conf = review.confidence || 0;
-  const isHighConfidence = conf >= confidenceThreshold;
-  const isMediumConfidence = conf >= 50 && conf < confidenceThreshold;
-  const isLowConfidence = conf < 50;
+  const conf = review.confidence;
+  const isClassified = !["NEW", "Pending AI"].includes(review.status);
+  const isHighConfidence = isClassified && conf !== null && conf !== undefined && conf >= confidenceThreshold;
+  const isMediumConfidence = isClassified && conf !== null && conf !== undefined && conf >= 50 && conf < confidenceThreshold;
+  const isLowConfidence = isClassified && (conf === null || conf === undefined || conf < 50);
 
   return (
     <div
@@ -295,7 +296,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
               </button>
             )}
             <div className="flex gap-1 items-center">
-              {[...Array(Math.floor(review.confidence / 20))].map((_, i) => (
+              {[...Array(Math.max(0, Math.floor((review.confidence || 0) / 20)))].map((_, i) => (
                 <div key={i} className={`w-1 h-1 rounded-full ${isLowConfidence ? "bg-red-400" : isMediumConfidence ? "bg-amber-400" : "bg-green-400"}`} />
               ))}
             </div>
