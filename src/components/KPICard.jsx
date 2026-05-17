@@ -9,8 +9,9 @@ const KPICard = ({ title, value, icon: Icon, trend, color, onClick }) => {
     amber: "bg-[#FFFBEB] text-[#F59E0B] border-[#FEF3C7]",
   };
 
+
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`glass-card p-6 border cursor-pointer hover:scale-[1.02] transition-all ${colorClasses[color] || colorClasses.indigo}`}
     >
