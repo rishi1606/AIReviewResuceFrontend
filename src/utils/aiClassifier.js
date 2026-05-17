@@ -36,11 +36,15 @@ Star rating: ${review.rating}
 Return ONLY this JSON:
 {
   "sentiment": "Positive|Negative|Mixed|Neutral",
+  "confidence": number 0-100,
   "primary_department": "Pick the most relevant from: [Front Office, Housekeeping, Maintenance, Food & Beverage, Spa, Gym, Management, Security, IT Support]",
+  "urgency": "High|Medium|Low",
+  "guest_emotion": "Angry|Frustrated|Disappointed|Neutral|Satisfied|Delighted|Concerned|Anxious",
   "issues": ["list of specific complaints"],
   "positive_aspects": ["list of positive highlights"],
   "is_factual_only": false,
-  "is_suspicious": false
+  "is_suspicious": false,
+  "escalation_risk": false
 }`
         }
       ]
