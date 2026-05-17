@@ -195,7 +195,7 @@ const Reviews = () => {
     const matchesTab = tab === "ALL" ? true :
       tab.toUpperCase() === "APPROVED" ? (r.status === "RESPONDED" || r.status === "Approved") :
         tab.toUpperCase() === "PENDING APPROVAL" ? r.status === "PENDING APPROVAL" :
-          tab.toUpperCase() === "SUSPICIOUS" ? (r.status === "Suspicious" || r.is_suspicious) :
+          tab.toUpperCase() === "SUSPICIOUS" ? (r.status === "Suspicious" || r.status === "ESCALATED" || r.is_suspicious || r.escalation_risk) :
             r.sentiment?.toUpperCase() === tab.toUpperCase();
 
     const matchesPlatform = platform === "ALL" ? true : r.platform === platform;
