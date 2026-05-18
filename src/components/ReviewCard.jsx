@@ -271,12 +271,21 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
 
       <div className="flex justify-between items-start mb-4">
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             <div className="flex text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} size={16} fill={i < review.rating ? "currentColor" : "none"} />
-              ))}
+              {(() => {
+                const displayRaw = review.raw_rating || (review.platform === "Booking.com" || review.platform === "Agoda" ? review.rating * 2 : review.rating);
+                const displayScale = review.raw_rating_scale || (review.platform === "Booking.com" || review.platform === "Agoda" ? 10 : 5);
+                const roundedRaw = Math.round(displayRaw);
+                return [...Array(displayScale)].map((_, i) => (
+                  <Star key={i} size={displayScale === 10 ? 11 : 14} fill={i < roundedRaw ? "currentColor" : "none"} />
+                ));
+              })()}
             </div>
+            <span className="text-[10px] font-black text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded-md border border-slate-200">
+              {review.raw_rating || (review.platform === "Booking.com" || review.platform === "Agoda" ? review.rating * 2 : review.rating)}/
+              {review.raw_rating_scale || (review.platform === "Booking.com" || review.platform === "Agoda" ? 10 : 5)}
+            </span>
             <span className="text-sm font-bold text-slate-900">{review.reviewer_name}</span>
             <span className="text-xs text-slate-500">
               {review.platform} • {isNaN(Date.parse(review.review_date)) ? review.review_date : new Date(review.review_date).toLocaleDateString()}
