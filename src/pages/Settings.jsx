@@ -582,7 +582,7 @@ const Settings = () => {
                     {/* Review Sync Schedule */}
                     <div className="pt-6 border-t border-slate-200 mt-6">
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Review Sync Schedule</label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-2xl border border-slate-100">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-2xl border border-slate-100">
                         <div className="space-y-2">
                           <label className="block text-xs font-bold text-slate-700">High Urgency (1-3★ reviews)</label>
                           <div className="flex items-center gap-3">
@@ -619,6 +619,26 @@ const Settings = () => {
                               <option value="6hr">6 hrs</option>
                               <option value="9hr">9 hrs</option>
                               <option value="12hr">12 hrs</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-slate-700">Max reviews per sync</label>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400 whitespace-nowrap">Limit to</span>
+                            <select
+                              value={prop.max_reviews_per_sync || 5}
+                              onChange={(e) => {
+                                const updatedProps = [...hotelFields.properties];
+                                updatedProps[idx].max_reviews_per_sync = parseInt(e.target.value);
+                                setHotelFields({ ...hotelFields, properties: updatedProps });
+                              }}
+                              className="flex-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                            >
+                              <option value={5}>5 reviews</option>
+                              <option value={10}>10 reviews</option>
+                              <option value={15}>15 reviews</option>
                             </select>
                           </div>
                         </div>
