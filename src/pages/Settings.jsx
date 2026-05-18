@@ -35,7 +35,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Clock,
-  ShieldAlert
+  ShieldAlert,
+  AlertTriangle
 } from "lucide-react";
 
 const Settings = () => {
@@ -71,6 +72,24 @@ const Settings = () => {
     const match = val.match(/^(\d+)hr$/);
     if (match) return parseInt(match[1]) * 60;
     return 0;
+  };
+
+  const getSyncTimeAgo = (timeString) => {
+    if (!timeString) return "Never";
+    const date = new Date(timeString);
+    const now = new Date();
+    const diffMs = now - date;
+    if (isNaN(diffMs) || diffMs < 0) return "Never";
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
   };
 
   const validateSettings = () => {
@@ -446,17 +465,31 @@ const Settings = () => {
                           🏨
                         </div>
                         <div className="space-y-2">
-                          <input
-                            type="text"
-                            value={prop.name}
-                            onChange={(e) => {
-                              const updatedProps = [...hotelFields.properties];
-                              updatedProps[idx].name = e.target.value;
-                              setHotelFields({ ...hotelFields, properties: updatedProps });
-                            }}
-                            className={`text-xl font-bold bg-transparent border-b ${!prop.name && errors.properties ? 'border-red-500 border-dashed text-red-600' : 'border-dashed border-slate-300 focus:border-indigo-500'} outline-none pb-1 placeholder-slate-300 w-[300px]`}
-                            placeholder="Property Name"
-                          />
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <input
+                              type="text"
+                              value={prop.name}
+                              onChange={(e) => {
+                                const updatedProps = [...hotelFields.properties];
+                                updatedProps[idx].name = e.target.value;
+                                setHotelFields({ ...hotelFields, properties: updatedProps });
+                              }}
+                              className={`text-xl font-bold bg-transparent border-b ${!prop.name && errors.properties ? 'border-red-500 border-dashed text-red-600' : 'border-dashed border-slate-300 focus:border-indigo-500'} outline-none pb-1 placeholder-slate-300 w-[200px] md:w-[250px]`}
+                              placeholder="Property Name"
+                            />
+                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-indigo-100 whitespace-nowrap animate-in zoom-in duration-300">
+                              [{prop.review_count || 0} reviews]
+                            </span>
+                            {prop.is_active ? (
+                              <span className="px-2.5 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-green-100 whitespace-nowrap animate-in zoom-in duration-300">
+                                [Active]
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider rounded-xl border border-slate-200 whitespace-nowrap animate-in zoom-in duration-300">
+                                [Inactive]
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
                             <input 
                               type="text"
@@ -536,8 +569,9 @@ const Settings = () => {
                                   className={`w-full p-3 text-xs bg-white border ${isError ? 'border-red-500' : 'border-slate-200'} rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all`}
                                   placeholder={`Paste ${platform} URL...`}
                                 />
-                                {url && isValid && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500" size={16} />}
-                                {isError && <X className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500" size={16} />}
+                                {url && isValid && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 animate-in zoom-in duration-300" size={16} />}
+                                {!url && <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 animate-in zoom-in duration-300" size={16} />}
+                                {isError && <X className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 animate-in zoom-in duration-300" size={16} />}
                               </div>
                             </div>
                           );
@@ -589,6 +623,33 @@ const Settings = () => {
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Sync Status Section */}
+                    <div className="mt-4 p-4 rounded-xl border border-slate-100 flex items-center justify-between bg-slate-50/50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500">Last synced:</span>
+                        <span className="text-xs font-black text-slate-700">
+                          {getSyncTimeAgo(prop.last_sync_time)}
+                        </span>
+                      </div>
+                      
+                      {/* Status Badges */}
+                      {(!prop.last_sync_status || prop.last_sync_status === "never") && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-amber-100">
+                          <AlertTriangle size={12} className="text-amber-500" /> Not verified yet ⚠️
+                        </div>
+                      )}
+                      {prop.last_sync_status === "success" && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-green-100">
+                          <CheckCircle2 size={12} className="text-green-500" /> Connected & Working ✅
+                        </div>
+                      )}
+                      {prop.last_sync_status === "failed" && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-red-100">
+                          <X size={12} className="text-red-500" /> Sync Failed ❌
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-6 flex justify-between items-center bg-white p-3 rounded-2xl border border-slate-100">
