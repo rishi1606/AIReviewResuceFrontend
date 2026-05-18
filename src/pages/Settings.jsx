@@ -409,12 +409,12 @@ const Settings = () => {
               </div>
               <div className="flex items-center gap-4 w-full md:w-auto">
                 <span className="text-sm font-bold text-slate-400">
-                  {(hotelFields.properties || []).length} / 10 properties
+                  {(hotelFields.properties || []).length} / 3 properties
                 </span>
                  <button
                   onClick={() => {
                     const currentProps = hotelFields.properties || [];
-                    if (currentProps.length >= 10) return alert("Maximum 10 properties allowed.");
+                    if (currentProps.length >= 3) return alert("Maximum 3 properties allowed.");
                     const newProp = {
                       name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {},
                       urgent_sync_interval: "2hr", low_sync_interval: "6hr"
