@@ -65,6 +65,14 @@ const Settings = () => {
     if (state.hotelConfig) setHotelFields(state.hotelConfig);
   }, [state.hotelConfig]);
 
+  const parseIntervalToMinutes = (val) => {
+    if (!val) return 0;
+    if (val === "30min") return 30;
+    const match = val.match(/^(\d+)hr$/);
+    if (match) return parseInt(match[1]) * 60;
+    return 0;
+  };
+
   const validateSettings = () => {
     const newErrors = {};
 
@@ -104,6 +112,13 @@ const Settings = () => {
         if (!p.name) newErrors.properties = `Property ${i + 1} name is required.`;
         if (!p.city) newErrors.properties = `Property ${i + 1} city is required.`;
         if (!p.rooms) newErrors.properties = `Property ${i + 1} number of rooms is required.`;
+        
+        // Validation rule: Low urgency sync must be less frequent than high urgency sync (low interval must be greater than high interval)
+        const urgentMins = parseIntervalToMinutes(p.urgent_sync_interval || "2hr");
+        const lowMins = parseIntervalToMinutes(p.low_sync_interval || "6hr");
+        if (lowMins <= urgentMins) {
+          newErrors.properties = "Low urgency sync must be less frequent than high urgency sync.";
+        }
         
         let hasOneUrl = false;
         if (p.platforms) {
@@ -377,12 +392,13 @@ const Settings = () => {
                 <span className="text-sm font-bold text-slate-400">
                   {(hotelFields.properties || []).length} / 10 properties
                 </span>
-                <button
+                 <button
                   onClick={() => {
                     const currentProps = hotelFields.properties || [];
                     if (currentProps.length >= 10) return alert("Maximum 10 properties allowed.");
                     const newProp = {
-                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {}
+                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {},
+                      urgent_sync_interval: "2hr", low_sync_interval: "6hr"
                     };
                     setHotelFields({ ...hotelFields, properties: [newProp, ...currentProps] });
                   }}
@@ -410,7 +426,8 @@ const Settings = () => {
                 <button
                   onClick={() => {
                     const newProp = {
-                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {}
+                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {},
+                      urgent_sync_interval: "2hr", low_sync_interval: "6hr"
                     };
                     setHotelFields({ ...hotelFields, properties: [newProp] });
                   }}
@@ -525,6 +542,52 @@ const Settings = () => {
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+
+                    {/* Review Sync Schedule */}
+                    <div className="pt-6 border-t border-slate-200 mt-6">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Review Sync Schedule</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-2xl border border-slate-100">
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-slate-700">High Urgency (1-3★ reviews)</label>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
+                            <select
+                              value={prop.urgent_sync_interval || "2hr"}
+                              onChange={(e) => {
+                                const updatedProps = [...hotelFields.properties];
+                                updatedProps[idx].urgent_sync_interval = e.target.value;
+                                setHotelFields({ ...hotelFields, properties: updatedProps });
+                              }}
+                              className="flex-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                            >
+                              <option value="2hr">2 hrs</option>
+                              <option value="3hr">3 hrs</option>
+                              <option value="4hr">4 hrs</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-slate-700">Low Urgency (4-5★ reviews)</label>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
+                            <select
+                              value={prop.low_sync_interval || "6hr"}
+                              onChange={(e) => {
+                                const updatedProps = [...hotelFields.properties];
+                                updatedProps[idx].low_sync_interval = e.target.value;
+                                setHotelFields({ ...hotelFields, properties: updatedProps });
+                              }}
+                              className="flex-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                            >
+                              <option value="6hr">6 hrs</option>
+                              <option value="9hr">9 hrs</option>
+                              <option value="12hr">12 hrs</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
