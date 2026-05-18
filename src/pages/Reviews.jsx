@@ -41,6 +41,7 @@ const Reviews = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [platform, setPlatform] = useState("ALL");
   const [department, setDepartment] = useState("ALL");
+  const [propertyFilter, setPropertyFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("NEWEST");
   const [dateRange, setDateRange] = useState({ label: "All Time", start: null, end: null });
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,6 +63,10 @@ const Reviews = () => {
 
   const confidenceThreshold = state.hotelConfig?.aiConfig?.confidenceThreshold || 75;
   const activePlatforms = state.hotelConfig?.platforms || ["Google", "TripAdvisor", "Booking.com", "Yelp"];
+  const activeProperties = Array.from(new Set([
+    ...(state.hotelConfig?.properties?.map(p => p.name) || []),
+    ...(state.reviews?.map(r => r.hotel_name).filter(Boolean) || [])
+  ]));
   const departments = DEPARTMENTS;
 
   // Fetch reviews on mount to apply any updated settings/healing logic
@@ -200,6 +205,7 @@ const Reviews = () => {
 
     const matchesPlatform = platform === "ALL" ? true : r.platform === platform;
     const matchesDept = department === "ALL" ? true : (r.primary_department || "").toUpperCase() === department.toUpperCase();
+    const matchesProperty = propertyFilter === "ALL" ? true : r.hotel_name === propertyFilter;
     const matchesConfidence = hideLowConfidence ? (r.confidence || 0) >= confidenceThreshold : true;
 
     const matchesDate = () => {
@@ -222,7 +228,7 @@ const Reviews = () => {
       r.reviewer_name.toLowerCase().includes(search.toLowerCase()) ||
       r.review_text.toLowerCase().includes(search.toLowerCase());
 
-    return matchesTab && matchesPlatform && matchesDept && matchesConfidence && matchesDate() && matchesSearch;
+    return matchesTab && matchesPlatform && matchesDept && matchesProperty && matchesConfidence && matchesDate() && matchesSearch;
   })
     .sort((a, b) => {
       switch (sortBy) {
@@ -442,6 +448,34 @@ const Reviews = () => {
                   className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${tab === t ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
                 >
                   {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative group/property">
+            <button
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${propertyFilter === "ALL" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
+            >
+              <Layers size={14} className={propertyFilter !== "ALL" ? "text-indigo-600" : "text-slate-400"} />
+              {propertyFilter === "ALL" ? "All Properties" : propertyFilter}
+              <ChevronDown size={14} className="ml-1 opacity-50" />
+            </button>
+
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/property:opacity-100 group-hover/property:visible transition-all z-50 transform origin-top-right group-hover/property:scale-100 scale-95">
+              <button
+                onClick={() => setPropertyFilter("ALL")}
+                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${propertyFilter === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+              >
+                ALL PROPERTIES
+              </button>
+              {activeProperties.map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPropertyFilter(p)}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${propertyFilter === p ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                >
+                  {p.toUpperCase()}
                 </button>
               ))}
             </div>
@@ -751,7 +785,9 @@ const Reviews = () => {
                             </div>
                             <span className="text-xs font-bold text-slate-900">{m.reviewer_name}</span>
                           </div>
-                          <span className="text-[10px] font-black text-slate-400">{new Date(m.review_date).toLocaleDateString()}</span>
+                          <span className="text-[10px] font-black text-slate-400">
+                            {isNaN(Date.parse(m.review_date)) ? m.review_date : new Date(m.review_date).toLocaleDateString()}
+                          </span>
                         </div>
                         <p className="text-xs text-slate-600 line-clamp-1 italic mb-2">"{m.review_text}"</p>
                         <div className="flex gap-2">

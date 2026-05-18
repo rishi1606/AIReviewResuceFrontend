@@ -95,6 +95,36 @@ const Settings = () => {
       }
     }
 
+    // Properties Validation
+    if (activeTab === "properties") {
+      const props = hotelFields.properties || [];
+      const allUrls = [];
+      for (let i = 0; i < props.length; i++) {
+        const p = props[i];
+        if (!p.name) newErrors.properties = `Property ${i + 1} name is required.`;
+        if (!p.city) newErrors.properties = `Property ${i + 1} city is required.`;
+        if (!p.rooms) newErrors.properties = `Property ${i + 1} number of rooms is required.`;
+        
+        let hasOneUrl = false;
+        if (p.platforms) {
+          for (const [plat, url] of Object.entries(p.platforms)) {
+            if (url) {
+              if (!url.startsWith("http")) {
+                newErrors.properties = `Invalid URL for ${plat} in property ${p.name || i + 1}. Please paste a valid hotel page URL.`;
+              } else {
+                hasOneUrl = true;
+                if (allUrls.includes(url)) {
+                  newErrors.properties = `Duplicate URL found: ${url}. Already added in another property.`;
+                }
+                allUrls.push(url);
+              }
+            }
+          }
+        }
+        if (!hasOneUrl) newErrors.properties = `Property ${p.name || i + 1} must have at least one platform URL.`;
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -161,6 +191,7 @@ const Settings = () => {
 
   const tabs = [
     { id: "hotel", name: "Hotel Profile", icon: Hotel },
+    { id: "properties", name: "Properties", icon: Building2 },
     { id: "staff", name: "Staff Management", icon: Users },
     { id: "ai", name: "AI & SLAs", icon: Shield },
     { id: "account", name: "Account", icon: User },
@@ -332,6 +363,208 @@ const Settings = () => {
                 Update Property Profile
               </button>
             </div>
+          </div>
+        )}
+
+        {activeTab === "properties" && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
+              <div>
+                <h3 className="text-2xl font-bold flex items-center gap-3"><Building2 className="text-indigo-600" /> Properties</h3>
+                <p className="text-sm text-slate-500">Manage your hotel properties and their review platform links.</p>
+              </div>
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <span className="text-sm font-bold text-slate-400">
+                  {(hotelFields.properties || []).length} / 10 properties
+                </span>
+                <button
+                  onClick={() => {
+                    const currentProps = hotelFields.properties || [];
+                    if (currentProps.length >= 10) return alert("Maximum 10 properties allowed.");
+                    const newProp = {
+                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {}
+                    };
+                    setHotelFields({ ...hotelFields, properties: [newProp, ...currentProps] });
+                  }}
+                  className="btn-primary text-xs flex items-center gap-2 whitespace-nowrap px-6 py-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all active:scale-95"
+                >
+                  <Plus size={16} /> Add Property
+                </button>
+              </div>
+            </div>
+
+            {errors.properties && (
+              <div className="p-4 bg-red-50 text-red-600 font-bold rounded-2xl border border-red-100 flex items-center gap-3">
+                <AlertCircle size={18} />
+                {errors.properties}
+              </div>
+            )}
+
+            {(hotelFields.properties || []).length === 0 ? (
+              <div className="py-20 text-center space-y-3">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
+                  <Building2 size={32} />
+                </div>
+                <p className="text-slate-900 font-bold">No properties added yet</p>
+                <p className="text-slate-500 text-sm">Add your first property to start collecting reviews</p>
+                <button
+                  onClick={() => {
+                    const newProp = {
+                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {}
+                    };
+                    setHotelFields({ ...hotelFields, properties: [newProp] });
+                  }}
+                  className="btn-primary mt-4"
+                >
+                  + Add Property
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {(hotelFields.properties || []).map((prop, idx) => (
+                  <div key={idx} className="p-6 bg-slate-50 border border-slate-200 rounded-[24px] shadow-sm relative overflow-hidden transition-all group hover:border-indigo-200">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm font-bold text-xl border border-slate-100">
+                          🏨
+                        </div>
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={prop.name}
+                            onChange={(e) => {
+                              const updatedProps = [...hotelFields.properties];
+                              updatedProps[idx].name = e.target.value;
+                              setHotelFields({ ...hotelFields, properties: updatedProps });
+                            }}
+                            className={`text-xl font-bold bg-transparent border-b ${!prop.name && errors.properties ? 'border-red-500 border-dashed text-red-600' : 'border-dashed border-slate-300 focus:border-indigo-500'} outline-none pb-1 placeholder-slate-300 w-[300px]`}
+                            placeholder="Property Name"
+                          />
+                          <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                            <input 
+                              type="text"
+                              value={prop.city}
+                              onChange={(e) => {
+                                const updatedProps = [...hotelFields.properties];
+                                updatedProps[idx].city = e.target.value;
+                                setHotelFields({ ...hotelFields, properties: updatedProps });
+                              }}
+                              className={`w-24 bg-transparent border-b ${!prop.city && errors.properties ? 'border-red-500' : 'border-dashed border-slate-300'} focus:border-indigo-500 outline-none placeholder-slate-300`}
+                              placeholder="City"
+                            />
+                            <span>· Rooms:</span>
+                            <input 
+                              type="number"
+                              value={prop.rooms || ""}
+                              onChange={(e) => {
+                                const updatedProps = [...hotelFields.properties];
+                                updatedProps[idx].rooms = e.target.value ? parseInt(e.target.value) : "";
+                                setHotelFields({ ...hotelFields, properties: updatedProps });
+                              }}
+                              className={`w-16 bg-transparent border-b ${!prop.rooms && errors.properties ? 'border-red-500' : 'border-dashed border-slate-300'} focus:border-indigo-500 outline-none placeholder-slate-300`}
+                              placeholder="150"
+                            />
+                            <span>·</span>
+                            <select
+                              value={prop.timezone || "IST"}
+                              onChange={(e) => {
+                                const updatedProps = [...hotelFields.properties];
+                                updatedProps[idx].timezone = e.target.value;
+                                setHotelFields({ ...hotelFields, properties: updatedProps });
+                              }}
+                              className="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none"
+                            >
+                              <option value="UTC">UTC</option>
+                              <option value="EST">EST</option>
+                              <option value="PST">PST</option>
+                              <option value="IST">IST</option>
+                              <option value="GST">GST</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const updatedProps = [...hotelFields.properties];
+                          updatedProps[idx].is_active = !updatedProps[idx].is_active;
+                          setHotelFields({ ...hotelFields, properties: updatedProps });
+                        }}
+                        className="transition-transform active:scale-90"
+                      >
+                        {prop.is_active ? <ToggleRight className="text-indigo-600" size={36} /> : <ToggleLeft className="text-slate-300" size={36} />}
+                      </button>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-200">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Platform Links</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {["Google", "Booking.com", "Agoda", "Airbnb", "Hotels.com"].map(platform => {
+                          const url = (prop.platforms && prop.platforms[platform]) || "";
+                          const isValid = url.startsWith("http");
+                          const isError = url.length > 0 && !isValid;
+                          
+                          return (
+                            <div key={platform} className="flex items-center gap-3">
+                              <div className={`w-24 text-xs font-bold ${url ? 'text-slate-700' : 'text-slate-400'}`}>{platform}</div>
+                              <div className="flex-1 relative">
+                                <input
+                                  type="url"
+                                  value={url}
+                                  onChange={(e) => {
+                                    const updatedProps = [...hotelFields.properties];
+                                    if (!updatedProps[idx].platforms) updatedProps[idx].platforms = {};
+                                    updatedProps[idx].platforms[platform] = e.target.value;
+                                    setHotelFields({ ...hotelFields, properties: updatedProps });
+                                  }}
+                                  className={`w-full p-3 text-xs bg-white border ${isError ? 'border-red-500' : 'border-slate-200'} rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all`}
+                                  placeholder={`Paste ${platform} URL...`}
+                                />
+                                {url && isValid && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500" size={16} />}
+                                {isError && <X className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500" size={16} />}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-between items-center bg-white p-3 rounded-2xl border border-slate-100">
+                      <button 
+                        onClick={async () => {
+                          if(!window.confirm("Delete this property?")) return;
+                          const updatedProps = [...hotelFields.properties];
+                          updatedProps.splice(idx, 1);
+                          const updatedHotelFields = { ...hotelFields, properties: updatedProps };
+                          setHotelFields(updatedHotelFields);
+
+                          setLoading(true);
+                          try {
+                            const res = await updateHotel(updatedHotelFields);
+                            dispatch({ type: "UPDATE_HOTEL_CONFIG", payload: res.data });
+                            alert("Property deleted successfully!");
+                          } catch (err) {
+                            alert(err.message);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition-all flex items-center gap-2"
+                      >
+                        <Trash2 size={16} /> Delete
+                      </button>
+                      <button 
+                        onClick={handleSaveHotel}
+                        disabled={loading}
+                        className="btn-primary text-xs py-2 px-6 flex items-center gap-2 shadow-sm"
+                      >
+                        {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        Save Property
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

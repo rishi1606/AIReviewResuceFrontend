@@ -278,7 +278,14 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
               ))}
             </div>
             <span className="text-sm font-bold text-slate-900">{review.reviewer_name}</span>
-            <span className="text-xs text-slate-500">{review.platform} • {new Date(review.review_date).toLocaleDateString()}</span>
+            <span className="text-xs text-slate-500">
+              {review.platform} • {isNaN(Date.parse(review.review_date)) ? review.review_date : new Date(review.review_date).toLocaleDateString()}
+            </span>
+            {review.hotel_name && (
+              <span className="bg-indigo-50 text-indigo-700 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider border border-indigo-100 flex items-center gap-1 shadow-sm">
+                🏢 {review.hotel_name}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusStyles(review.status)}`}>
@@ -304,12 +311,20 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
               {["NEW", "IN REVIEW", "RESPONDED", "CLOSED"].map((s, idx) => {
                 const statusSteps = ["NEW", "IN REVIEW", "RESPONDED", "CLOSED"];
                 const currentStep = statusSteps.indexOf(review.status);
-                const isActive = statusSteps.indexOf(s) <= currentStep && review.status !== "ESCALATED";
+                const isEscalatedOrSuspicious = ["ESCALATED", "Suspicious"].includes(review.status) || 
+                                                review.escalation || 
+                                                review.rating <= (state.hotelConfig?.aiConfig?.escalationRatingThreshold || 1);
+                const isActive = statusSteps.indexOf(s) <= currentStep && !isEscalatedOrSuspicious;
                 return (
                   <div key={s} title={s} className={`w-3 h-1 rounded-full ${isActive ? "bg-indigo-500" : "bg-slate-100"}`}></div>
                 );
               })}
-              {review.status === "ESCALATED" && <div className="w-12 h-1 bg-red-500 rounded-full animate-pulse"></div>}
+              {(review.status === "ESCALATED" || 
+                review.status === "Suspicious" || 
+                review.escalation || 
+                review.rating <= (state.hotelConfig?.aiConfig?.escalationRatingThreshold || 1)) && (
+                <div className="w-12 h-1 bg-red-500 rounded-full animate-pulse"></div>
+              )}
             </div>
           </div>
         </div>
