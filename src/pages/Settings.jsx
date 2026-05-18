@@ -548,7 +548,7 @@ const Settings = () => {
                     <div className="pt-6 border-t border-slate-200">
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Platform Links</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {["Google", "Booking.com", "Agoda", "Airbnb", "Hotels.com"].map(platform => {
+                        {["Google", "Booking.com", "Agoda"].map(platform => {
                           const url = (prop.platforms && prop.platforms[platform]) || "";
                           const isValid = url.startsWith("http");
                           const isError = url.length > 0 && !isValid;
