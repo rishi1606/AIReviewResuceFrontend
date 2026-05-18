@@ -45,7 +45,7 @@ const Import = () => {
   const { state, dispatch } = useAppContext();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("scrape");
+  const [activeTab, setActiveTab] = useState("csv");
   const [urls, setUrls] = useState({
     Google: "",
     TripAdvisor: "",
@@ -418,12 +418,12 @@ const Import = () => {
       </div>
 
       <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl w-fit">
-        <button
+        {/* <button
           onClick={() => setActiveTab("scrape")}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === "scrape" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
         >
           <CloudUpload size={18} /> Scrape platforms
-        </button>
+        </button> */}
         <button
           onClick={() => setActiveTab("csv")}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === "csv" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
