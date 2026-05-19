@@ -232,7 +232,7 @@ const TicketDetailPanel = ({ ticket, onClose, staff }) => {
             <Lock size={16} />
           </div>
         )}
-
+        {console.log(ticket, 'kdkdkdk')}
         {ticket.status === "Open" && (
           <button
             disabled={isFlagged || loading}

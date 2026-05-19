@@ -12,6 +12,7 @@ import Reviews from "./pages/Reviews";
 import Tickets from "./pages/Tickets";
 import Import from "./pages/Import";
 import Analytics from "./pages/Analytics";
+import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
               <Route path="tickets" element={<Tickets />} />
               <Route path="import" element={<Import />} />
               <Route path="analytics" element={<Analytics />} />
+              <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
               <Route index element={<Navigate to="dashboard" />} />
             </Route>

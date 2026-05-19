@@ -1,16 +1,17 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Ticket, 
-  Upload, 
-  BarChart3, 
-  Settings, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Ticket,
+  Upload,
+  BarChart3,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -25,14 +26,15 @@ const Sidebar = () => {
   };
 
   const isStaff = currentUser?.role === "staff";
-  
+
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Reviews", path: "/reviews", icon: MessageSquare },
     { name: "Tickets", path: "/tickets", icon: Ticket },
     ...(!isStaff ? [
       { name: "Import", path: "/import", icon: Upload },
-      { name: "Analytics", path: "/analytics", icon: BarChart3 }
+      // { name: "Analytics", path: "/analytics", icon: BarChart3 },
+      { name: "Reports", path: "/reports", icon: FileText }
     ] : []),
     { name: "Settings", path: "/settings", icon: Settings },
   ];
@@ -51,7 +53,7 @@ const Sidebar = () => {
           <NavLink
             key={item.path}
             to={item.path}
-            className={({ isActive }) => 
+            className={({ isActive }) =>
               `sidebar-link ${isActive ? "sidebar-link-active" : ""} ${collapsed ? "justify-center px-0" : ""}`
             }
           >
@@ -82,7 +84,7 @@ const Sidebar = () => {
         </button>
       </div>
 
-      <button 
+      <button
         onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-20 bg-white border border-slate-200 rounded-full p-1 text-slate-500 shadow-md hover:text-indigo-600 transition-colors"
       >

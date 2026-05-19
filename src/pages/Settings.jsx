@@ -68,9 +68,10 @@ const Settings = () => {
 
   const parseIntervalToMinutes = (val) => {
     if (!val) return 0;
-    if (val === "30min") return 30;
-    const match = val.match(/^(\d+)hr$/);
-    if (match) return parseInt(match[1]) * 60;
+    const matchMin = val.match(/^(\d+)min$/);
+    if (matchMin) return parseInt(matchMin[1]);
+    const matchHr = val.match(/^(\d+)hr$/);
+    if (matchHr) return parseInt(matchHr[1]) * 60;
     return 0;
   };
 
@@ -80,14 +81,14 @@ const Settings = () => {
     const now = new Date();
     const diffMs = now - date;
     if (isNaN(diffMs) || diffMs < 0) return "Never";
-    
+
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins} mins ago`;
-    
+
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
-    
+
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
   };
@@ -131,14 +132,14 @@ const Settings = () => {
         if (!p.name) newErrors.properties = `Property ${i + 1} name is required.`;
         if (!p.city) newErrors.properties = `Property ${i + 1} city is required.`;
         if (!p.rooms) newErrors.properties = `Property ${i + 1} number of rooms is required.`;
-        
+
         // Validation rule: Low urgency sync must be less frequent than high urgency sync (low interval must be greater than high interval)
         const urgentMins = parseIntervalToMinutes(p.urgent_sync_interval || "2hr");
         const lowMins = parseIntervalToMinutes(p.low_sync_interval || "6hr");
         if (lowMins <= urgentMins) {
           newErrors.properties = "Low urgency sync must be less frequent than high urgency sync.";
         }
-        
+
         let hasOneUrl = false;
         if (p.platforms) {
           for (const [plat, url] of Object.entries(p.platforms)) {
@@ -164,7 +165,13 @@ const Settings = () => {
   };
 
   const handleSaveHotel = async () => {
-    if (!validateSettings()) return;
+    if (!validateSettings()) {
+      // Small timeout to allow errors state to update
+      setTimeout(() => {
+        alert("Please fix the validation errors before saving.");
+      }, 100);
+      return;
+    }
     setLoading(true);
     try {
       const res = await updateHotel(hotelFields);
@@ -374,8 +381,8 @@ const Settings = () => {
                           setHotelFields({ ...hotelFields, platforms: updated });
                         }}
                         className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all ${isActive
-                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105"
-                            : "bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100"
+                          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105"
+                          : "bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100"
                           }`}
                       >
                         {isActive && <Check size={16} />}
@@ -411,7 +418,7 @@ const Settings = () => {
                 <span className="text-sm font-bold text-slate-400">
                   {(hotelFields.properties || []).length} / 3 properties
                 </span>
-                 <button
+                <button
                   onClick={() => {
                     const currentProps = hotelFields.properties || [];
                     if (currentProps.length >= 3) return alert("Maximum 3 properties allowed.");
@@ -491,7 +498,7 @@ const Settings = () => {
                             )}
                           </div>
                           <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
-                            <input 
+                            <input
                               type="text"
                               value={prop.city}
                               onChange={(e) => {
@@ -503,7 +510,7 @@ const Settings = () => {
                               placeholder="City"
                             />
                             <span>· Rooms:</span>
-                            <input 
+                            <input
                               type="number"
                               value={prop.rooms || ""}
                               onChange={(e) => {
@@ -533,7 +540,7 @@ const Settings = () => {
                           </div>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => {
                           const updatedProps = [...hotelFields.properties];
                           updatedProps[idx].is_active = !updatedProps[idx].is_active;
@@ -548,11 +555,11 @@ const Settings = () => {
                     <div className="pt-6 border-t border-slate-200">
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Platform Links</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {["Google", "Booking.com", "Agoda"].map(platform => {
+                        {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
                           const url = (prop.platforms && prop.platforms[platform]) || "";
                           const isValid = url.startsWith("http");
                           const isError = url.length > 0 && !isValid;
-                          
+
                           return (
                             <div key={platform} className="flex items-center gap-3">
                               <div className={`w-24 text-xs font-bold ${url ? 'text-slate-700' : 'text-slate-400'}`}>{platform}</div>
@@ -596,6 +603,7 @@ const Settings = () => {
                               }}
                               className="flex-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                             >
+                              <option value="2min">2 mins</option>
                               <option value="2hr">2 hrs</option>
                               <option value="3hr">3 hrs</option>
                               <option value="4hr">4 hrs</option>
@@ -653,7 +661,7 @@ const Settings = () => {
                           {getSyncTimeAgo(prop.last_sync_time)}
                         </span>
                       </div>
-                      
+
                       {/* Status Badges */}
                       {(!prop.last_sync_status || prop.last_sync_status === "never") && (
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-amber-100">
@@ -673,9 +681,9 @@ const Settings = () => {
                     </div>
 
                     <div className="mt-6 flex justify-between items-center bg-white p-3 rounded-2xl border border-slate-100">
-                      <button 
+                      <button
                         onClick={async () => {
-                          if(!window.confirm("Delete this property?")) return;
+                          if (!window.confirm("Delete this property?")) return;
                           const updatedProps = [...hotelFields.properties];
                           updatedProps.splice(idx, 1);
                           const updatedHotelFields = { ...hotelFields, properties: updatedProps };
@@ -696,7 +704,7 @@ const Settings = () => {
                       >
                         <Trash2 size={16} /> Delete
                       </button>
-                      <button 
+                      <button
                         onClick={handleSaveHotel}
                         disabled={loading}
                         className="btn-primary text-xs py-2 px-6 flex items-center gap-2 shadow-sm"
@@ -763,8 +771,8 @@ const Settings = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <p className="font-bold text-slate-900">{s.name}</p>
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${s.role === 'gm' ? 'bg-amber-100 text-amber-700' :
-                            s.role === 'dept_head' ? 'bg-indigo-100 text-indigo-700' :
-                              'bg-slate-100 text-slate-600'
+                          s.role === 'dept_head' ? 'bg-indigo-100 text-indigo-700' :
+                            'bg-slate-100 text-slate-600'
                           }`}>
                           {s.role === 'gm' ? 'GM' : s.role === 'dept_head' ? 'Dept Head' : 'Staff'}
                         </span>
