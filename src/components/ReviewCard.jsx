@@ -465,26 +465,28 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
       )}
 
       {/* AI Proposal Section */}
-      {review.status !== "RESPONDED" && !isLowConfidence && (
+      {review.status !== "RESPONDED" && (!isLowConfidence || isEditing || proposal) && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs">
               <MessageSquare size={14} />
-              AI PROPOSAL
+              {isLowConfidence ? "MANUAL DRAFT" : "AI PROPOSAL"}
             </div>
             <div className="flex items-center gap-2">
-              <select
-                disabled={isGenerating}
-                value={tone}
-                onChange={(e) => handleGenerate(e.target.value)}
-                className="text-[10px] font-black bg-slate-50 border-none rounded-lg focus:ring-0 cursor-pointer disabled:opacity-50"
-              >
-                <option>Formal</option>
-                <option>Empathetic</option>
-                <option>Apologetic</option>
-                <option>Promotional</option>
-                <option>Escalation</option>
-              </select>
+              {!isLowConfidence && (
+                <select
+                  disabled={isGenerating}
+                  value={tone}
+                  onChange={(e) => handleGenerate(e.target.value)}
+                  className="text-[10px] font-black bg-slate-50 border-none rounded-lg focus:ring-0 cursor-pointer disabled:opacity-50"
+                >
+                  <option>Formal</option>
+                  <option>Empathetic</option>
+                  <option>Apologetic</option>
+                  <option>Promotional</option>
+                  <option>Escalation</option>
+                </select>
+              )}
               {!isEditing && (
                 <button onClick={() => setIsEditing(true)} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors">
                   <Pencil size={14} />
@@ -585,7 +587,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         </div>
       )}
 
-      {isLowConfidence && review.status !== "RESPONDED" && (
+      {isLowConfidence && review.status !== "RESPONDED" && !isEditing && !proposal && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 flex flex-col items-center gap-2 text-center">
             <Pencil size={24} className="text-slate-300" />
