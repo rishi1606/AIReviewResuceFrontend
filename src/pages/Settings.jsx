@@ -42,13 +42,15 @@ import {
 const Settings = () => {
   const { state, dispatch, refreshData } = useAppContext();
   const { currentUser, logout, updateUser } = useAuth();
-  const [activeTab, setActiveTab] = useState("ai"); // Default to AI for this task
+  const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
+  const [activeTab, setActiveTab] = useState(isScopedUser ? "account" : "ai"); // Default to AI, except for scoped users
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [newStaff, setNewStaff] = useState({
     name: "",
     email: "",
+    password: "",
     department: "Front Office",
     role: "staff"
   });
@@ -238,6 +240,8 @@ const Settings = () => {
     { id: "account", name: "Account", icon: User },
   ];
 
+  const visibleTabs = tabs.filter(t => !isScopedUser || t.id === "account");
+
   const departments = DEPARTMENTS;
 
   return (
@@ -260,7 +264,7 @@ const Settings = () => {
       </div>
 
       <div className="flex gap-2 p-1.5 bg-white rounded-3xl border border-slate-200 overflow-x-auto shadow-sm">
-        {tabs.map(t => (
+        {visibleTabs.map(t => (
           <button
             key={t.id}
             onClick={() => {
@@ -743,7 +747,7 @@ const Settings = () => {
                 <button
                   onClick={() => {
                     setEditingStaff(null);
-                    setNewStaff({ name: "", email: "", department: "Front Office", role: "staff" });
+                    setNewStaff({ name: "", email: "", password: "", department: "Front Office", role: "staff" });
                     setIsModalOpen(true);
                   }}
                   className="btn-primary text-xs flex items-center gap-2 whitespace-nowrap px-6"
@@ -789,7 +793,7 @@ const Settings = () => {
                     <button
                       onClick={() => {
                         setEditingStaff(s);
-                        setNewStaff({ name: s.name, email: s.email, department: s.department, role: s.role });
+                        setNewStaff({ name: s.name, email: s.email, password: "", department: s.department, role: s.role });
                         setIsModalOpen(true);
                       }}
                       className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
@@ -1033,7 +1037,7 @@ const Settings = () => {
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                   />
                 </div>
-                <div>
+                <div className={editingStaff ? "md:col-span-2" : ""}>
                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Email Address</label>
                   <input
                     type="email"
@@ -1043,7 +1047,20 @@ const Settings = () => {
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                   />
                 </div>
-                <div>
+                {!editingStaff && (
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Password</label>
+                    <input
+                      type="password"
+                      required
+                      value={newStaff.password || ""}
+                      onChange={e => setNewStaff({ ...newStaff, password: e.target.value })}
+                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                )}
+                <div className="md:col-span-2">
                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Department</label>
                   <select
                     value={newStaff.department}

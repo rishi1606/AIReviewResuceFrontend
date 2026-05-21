@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
+import { useAuth } from "../context/AuthContext";
 import ReviewCard from "../components/ReviewCard";
 import {
   Search,
@@ -35,12 +36,17 @@ import { DEPARTMENTS } from "../utils/constants";
 
 const Reviews = () => {
   const { state, dispatch } = useAppContext();
+  const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState("ALL");
   const [selectedIds, setSelectedIds] = useState([]);
   const [platform, setPlatform] = useState("ALL");
-  const [department, setDepartment] = useState("ALL");
+  
+  const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
+  const [department, setDepartment] = useState(
+    isScopedUser && currentUser?.department ? currentUser.department : "ALL"
+  );
   const [propertyFilter, setPropertyFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("NEWEST");
   const [dateRange, setDateRange] = useState({ label: "All Time", start: null, end: null });
@@ -511,30 +517,33 @@ const Reviews = () => {
 
           <div className="relative group/dept">
             <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${department === "ALL" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
+              disabled={isScopedUser}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${isScopedUser ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed" : department === "ALL" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
             >
-              <Briefcase size={14} className={department !== "ALL" ? "text-indigo-600" : "text-slate-400"} />
-              {department === "ALL" ? "All Departments" : department}
-              <ChevronDown size={14} className="ml-1 opacity-50" />
+              <Briefcase size={14} className={isScopedUser ? "text-slate-400" : department !== "ALL" ? "text-indigo-600" : "text-slate-400"} />
+              {isScopedUser ? `${currentUser?.department} (Locked)` : department === "ALL" ? "All Departments" : department}
+              {!isScopedUser && <ChevronDown size={14} className="ml-1 opacity-50" />}
             </button>
 
-            <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/dept:opacity-100 group-hover/dept:visible transition-all z-50 transform origin-top-right group-hover/dept:scale-100 scale-95">
-              <button
-                onClick={() => setDepartment("ALL")}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${department === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
-              >
-                ALL DEPARTMENTS
-              </button>
-              {departments.map(d => (
+            {!isScopedUser && (
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/dept:opacity-100 group-hover/dept:visible transition-all z-50 transform origin-top-right group-hover/dept:scale-100 scale-95">
                 <button
-                  key={d}
-                  onClick={() => setDepartment(d)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${department === d ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                  onClick={() => setDepartment("ALL")}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${department === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
                 >
-                  {d.toUpperCase()}
+                  ALL DEPARTMENTS
                 </button>
-              ))}
-            </div>
+                {departments.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setDepartment(d)}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${department === d ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                  >
+                    {d.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="relative group/sort">

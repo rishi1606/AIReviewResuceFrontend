@@ -31,8 +31,11 @@ const Tickets = () => {
   const stats = useDerivedStats();
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [search, setSearch] = useState("");
+  const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
   const [filter, setFilter] = useState("ALL");
-  const [deptFilter, setDeptFilter] = useState("ALL DEPARTMENTS");
+  const [deptFilter, setDeptFilter] = useState(
+    isScopedUser && currentUser?.department ? currentUser.department.toUpperCase() : "ALL DEPARTMENTS"
+  );
   const [urgencyFilter, setUrgencyFilter] = useState("ALL URGENCY");
   const [assigneeFilter, setAssigneeFilter] = useState("ALL STAFF");
   const [dateRange, setDateRange] = useState({ label: "All Time", start: null, end: null });
@@ -172,16 +175,31 @@ const Tickets = () => {
           {/* Department Filter */}
           <div className="relative">
             <select
+              disabled={isScopedUser}
               value={deptFilter}
               onChange={(e) => setDeptFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black px-5 py-3.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-100 transition-all appearance-none pr-10 uppercase tracking-widest"
+              className={`border rounded-2xl text-[10px] font-black px-5 py-3.5 outline-none tracking-widest uppercase transition-all ${
+                isScopedUser
+                  ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed pr-5"
+                  : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 cursor-pointer pr-10 focus:ring-2 focus:ring-indigo-500"
+              }`}
             >
-              <option>ALL DEPARTMENTS</option>
-              {departments.map(d => (
-                <option key={d} value={d.toUpperCase()}>{d.toUpperCase()}</option>
-              ))}
+              {isScopedUser ? (
+                <option value={currentUser.department.toUpperCase()}>
+                  {currentUser.department.toUpperCase()} (LOCKED)
+                </option>
+              ) : (
+                <>
+                  <option value="ALL DEPARTMENTS">ALL DEPARTMENTS</option>
+                  {departments.map(d => (
+                    <option key={d} value={d.toUpperCase()}>{d.toUpperCase()}</option>
+                  ))}
+                </>
+              )}
             </select>
-            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+            {!isScopedUser && (
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+            )}
           </div>
 
           {/* Status Filter */}

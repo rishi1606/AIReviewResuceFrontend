@@ -33,9 +33,8 @@ const Sidebar = () => {
     { name: "Tickets", path: "/tickets", icon: Ticket },
     ...(!isStaff ? [
       { name: "Import", path: "/import", icon: Upload },
-      // { name: "Analytics", path: "/analytics", icon: BarChart3 },
-      { name: "Reports", path: "/reports", icon: FileText }
     ] : []),
+    { name: "Reports", path: "/reports", icon: FileText },
     { name: "Settings", path: "/settings", icon: Settings },
   ];
 
