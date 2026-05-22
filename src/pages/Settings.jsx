@@ -136,8 +136,8 @@ const Settings = () => {
         if (!p.rooms) newErrors.properties = `Property ${i + 1} number of rooms is required.`;
 
         // Validation rule: Low urgency sync must be less frequent than high urgency sync (low interval must be greater than high interval)
-        const urgentMins = parseIntervalToMinutes(p.urgent_sync_interval || "2hr");
-        const lowMins = parseIntervalToMinutes(p.low_sync_interval || "6hr");
+        const urgentMins = parseIntervalToMinutes(p.urgent_sync_interval || "5hr");
+        const lowMins = parseIntervalToMinutes(p.low_sync_interval || "10hr");
         if (lowMins <= urgentMins) {
           newErrors.properties = "Low urgency sync must be less frequent than high urgency sync.";
         }
@@ -345,17 +345,15 @@ const Settings = () => {
                     onChange={e => setHotelFields({ ...hotelFields, timezone: e.target.value })}
                     className="w-full p-4 pl-12 bg-slate-50 border border-slate-200 rounded-[20px] focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700 appearance-none transition-all"
                   >
-                    <option value="UTC">UTC (London/Reykjavik)</option>
-                    <option value="EST">EST (New York/Miami)</option>
-                    <option value="PST">PST (Los Angeles/Vancouver)</option>
+
                     <option value="IST">IST (New Delhi/Mumbai)</option>
-                    <option value="GST">GST (Dubai/Abu Dhabi)</option>
+
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                 </div>
               </div>
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Escalation Email <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
@@ -367,12 +365,12 @@ const Settings = () => {
                     placeholder="gm@hotel.com"
                   />
                 </div>
-              </div>
+              </div> */}
 
               <div className="md:col-span-2 space-y-4 pt-4">
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Active Review Platforms</label>
                 <div className="flex flex-wrap gap-3">
-                  {["Google", "TripAdvisor", "Booking.com", "Expedia", "Hotels.com", "Agoda", "Airbnb"].map(platform => {
+                  {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
                     const isActive = (hotelFields.platforms || []).includes(platform);
                     return (
                       <button
@@ -428,7 +426,7 @@ const Settings = () => {
                     if (currentProps.length >= 3) return alert("Maximum 3 properties allowed.");
                     const newProp = {
                       name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {},
-                      urgent_sync_interval: "2hr", low_sync_interval: "6hr"
+                      urgent_sync_interval: "5hr", low_sync_interval: "10hr"
                     };
                     setHotelFields({ ...hotelFields, properties: [newProp, ...currentProps] });
                   }}
@@ -457,7 +455,7 @@ const Settings = () => {
                   onClick={() => {
                     const newProp = {
                       name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {},
-                      urgent_sync_interval: "2hr", low_sync_interval: "6hr"
+                      urgent_sync_interval: "5hr", low_sync_interval: "10hr"
                     };
                     setHotelFields({ ...hotelFields, properties: [newProp] });
                   }}
@@ -535,11 +533,9 @@ const Settings = () => {
                               }}
                               className="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none"
                             >
-                              <option value="UTC">UTC</option>
-                              <option value="EST">EST</option>
-                              <option value="PST">PST</option>
+
                               <option value="IST">IST</option>
-                              <option value="GST">GST</option>
+
                             </select>
                           </div>
                         </div>
@@ -596,42 +592,27 @@ const Settings = () => {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-2xl border border-slate-100">
                         <div className="space-y-2">
                           <label className="block text-xs font-bold text-slate-700">High Urgency (1-3★ reviews)</label>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
-                            <select
-                              value={prop.urgent_sync_interval || "2hr"}
-                              onChange={(e) => {
-                                const updatedProps = [...hotelFields.properties];
-                                updatedProps[idx].urgent_sync_interval = e.target.value;
-                                setHotelFields({ ...hotelFields, properties: updatedProps });
-                              }}
-                              className="flex-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                            >
-                              <option value="2min">2 mins</option>
-                              <option value="2hr">2 hrs</option>
-                              <option value="3hr">3 hrs</option>
-                              <option value="4hr">4 hrs</option>
-                            </select>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
+                              <div className="flex-1 p-3 text-xs bg-slate-100 border border-slate-200 rounded-xl font-black text-slate-400 text-center select-none cursor-not-allowed">
+                                5 hrs
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-medium mt-1">⚠️ Fixed frequency</p>
                           </div>
                         </div>
 
                         <div className="space-y-2">
                           <label className="block text-xs font-bold text-slate-700">Low Urgency (4-5★ reviews)</label>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
-                            <select
-                              value={prop.low_sync_interval || "6hr"}
-                              onChange={(e) => {
-                                const updatedProps = [...hotelFields.properties];
-                                updatedProps[idx].low_sync_interval = e.target.value;
-                                setHotelFields({ ...hotelFields, properties: updatedProps });
-                              }}
-                              className="flex-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                            >
-                              <option value="6hr">6 hrs</option>
-                              <option value="9hr">9 hrs</option>
-                              <option value="12hr">12 hrs</option>
-                            </select>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
+                              <div className="flex-1 p-3 text-xs bg-slate-100 border border-slate-200 rounded-xl font-black text-slate-400 text-center select-none cursor-not-allowed">
+                                10 hrs
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-medium mt-1">⚠️ Fixed frequency</p>
                           </div>
                         </div>
 
@@ -924,7 +905,7 @@ const Settings = () => {
                   </div>
                 </div>
 
-                <div className="space-y-6">
+                {/* <div className="space-y-6">
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Default Response Tone</label>
                     <div className="grid grid-cols-3 gap-2">
@@ -939,7 +920,7 @@ const Settings = () => {
                       ))}
                     </div>
                   </div>
-                </div>
+                </div> */}
               </div>
             </section>
 

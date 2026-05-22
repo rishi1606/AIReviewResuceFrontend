@@ -67,7 +67,7 @@ export default function Reports() {
 
   const departments = useMemo(() => {
     const depts = new Set();
-    tickets.forEach(t => depts.add(t.assigned_department));
+    tickets.forEach(t => depts.add(t.department));
     return Array.from(depts).filter(Boolean);
   }, [tickets]);
 
@@ -77,7 +77,7 @@ export default function Reports() {
 
     // Property
     if (selectedProperty !== 'All') {
-      filtered = filtered.filter(r => r.property_name === selectedProperty);
+      filtered = filtered.filter(r => (r.hotel_name || r.property_name) === selectedProperty);
     }
 
     // Platform
@@ -108,10 +108,14 @@ export default function Reports() {
     let filtered = [...tickets];
 
     if (selectedProperty !== 'All') {
-      filtered = filtered.filter(t => t.review_id?.property_name === selectedProperty);
+      filtered = filtered.filter(t => {
+        const assocReview = reviews.find(r => r.review_id === t.review_id);
+        const propName = assocReview?.hotel_name || assocReview?.property_name;
+        return propName === selectedProperty;
+      });
     }
     if (selectedDepartment !== 'All') {
-      filtered = filtered.filter(t => t.assigned_department === selectedDepartment);
+      filtered = filtered.filter(t => t.department === selectedDepartment);
     }
 
     // Date Range
@@ -139,8 +143,9 @@ export default function Reports() {
   const ratingDist = useMemo(() => {
     const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     filteredReviews.forEach(r => {
-      if (r.normalised_rating >= 1 && r.normalised_rating <= 5) {
-        dist[Math.round(r.normalised_rating)]++;
+      const ratingVal = r.normalised_rating !== undefined ? r.normalised_rating : r.rating;
+      if (ratingVal >= 1 && ratingVal <= 5) {
+        dist[Math.round(ratingVal)]++;
       }
     });
     return Object.keys(dist).map(k => ({ rating: `${k} Star`, count: dist[k] }));
@@ -167,7 +172,8 @@ export default function Reports() {
     filteredReviews.forEach(r => {
       if (!r.platform) return;
       if (!platMap[r.platform]) platMap[r.platform] = { sum: 0, count: 0 };
-      platMap[r.platform].sum += (r.normalised_rating || 0);
+      const ratingVal = r.normalised_rating !== undefined ? r.normalised_rating : r.rating;
+      platMap[r.platform].sum += (ratingVal || 0);
       platMap[r.platform].count += 1;
     });
     return Object.keys(platMap).map(p => ({
@@ -209,7 +215,7 @@ export default function Reports() {
   const ticketsByDept = useMemo(() => {
     const map = {};
     filteredTickets.forEach(t => {
-      const d = t.assigned_department || 'Unassigned';
+      const d = t.department || 'Unassigned';
       map[d] = (map[d] || 0) + 1;
     });
     return Object.keys(map).map(k => ({ department: k, count: map[k] }));
@@ -318,19 +324,19 @@ export default function Reports() {
         {/* Tabs */}
         {viewMode === 'charts' && (
           <div className="flex items-center gap-6 mt-6 border-b border-slate-200">
-            <button 
+            <button
               onClick={() => setActiveTab('reviews')}
               className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'reviews' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-indigo-600'}`}
             >Reviews</button>
-            <button 
+            <button
               onClick={() => setActiveTab('urgency')}
               className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'urgency' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-indigo-600'}`}
             >Urgency & AI</button>
-            <button 
+            <button
               onClick={() => setActiveTab('tickets')}
               className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'tickets' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-indigo-600'}`}
             >Tickets & SLA</button>
-            <button 
+            <button
               onClick={() => setActiveTab('staff')}
               className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'staff' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-indigo-600'}`}
             >Staff & Assignments</button>
@@ -343,252 +349,317 @@ export default function Reports() {
           {/* REVIEWS REPORTS */}
           {activeTab === 'reviews' && (
             <section id="reviews" className="mb-12 animate-in slide-in-from-bottom-2 fade-in duration-500">
-            <h2 className="text-lg font-black text-slate-800 mb-1">Reviews Performance</h2>
-            <p className="text-sm text-slate-500 mb-6">Rating distributions, sentiment breakdown, and platform averages.</p>
+              <h2 className="text-lg font-black text-slate-800 mb-1">Reviews Performance</h2>
+              <p className="text-sm text-slate-500 mb-6">Rating distributions, sentiment breakdown, and platform averages.</p>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-              {/* Rating Distribution */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Rating Distribution (1-5 Stars)</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={ratingDist} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="rating" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                {/* Rating Distribution */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Rating Distribution (1-5 Stars)</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ratingDist} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="rating" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
 
-              {/* Sentiment Donut */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Sentiment Breakdown</h3>
-                <div className="h-64 relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={sentimentData}
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {sentimentData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={SENTIMENT_COLORS[entry.name]} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                {/* Sentiment Donut */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Sentiment Breakdown</h3>
+                  <div className="h-64 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={sentimentData}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {sentimentData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={SENTIMENT_COLORS[entry.name]} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
 
-              {/* Platform Averages */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm col-span-1 lg:col-span-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Average Rating by Platform</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={platformAvg} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="platform" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <YAxis domain={[0, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      <Bar dataKey="avg" fill="#06b6d4" radius={[4, 4, 0, 0]} maxBarSize={60} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                {/* Platform Averages */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm col-span-1 lg:col-span-3">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Average Rating by Platform</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={platformAvg} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="platform" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis domain={[0, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Bar dataKey="avg" fill="#06b6d4" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
 
-            </div>
-          </section>
+              </div>
+            </section>
           )}
 
           {/* URGENCY & AI REPORTS */}
           {activeTab === 'urgency' && (
-          <section id="urgency" className="mb-12 animate-in slide-in-from-bottom-2 fade-in duration-500">
-            <h2 className="text-lg font-black text-slate-800 mb-1">Urgency & AI Performance</h2>
-            <p className="text-sm text-slate-500 mb-6">AI draft accuracy, confidence scores, and high urgency alerts.</p>
+            <section id="urgency" className="mb-12 animate-in slide-in-from-bottom-2 fade-in duration-500">
+              <h2 className="text-lg font-black text-slate-800 mb-1">Urgency & AI Performance</h2>
+              <p className="text-sm text-slate-500 mb-6">AI draft accuracy, confidence scores, and high urgency alerts.</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                {/* <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">AI Draft Acceptance</h3>
                 <div className="flex items-end justify-between">
                   <span className="text-3xl font-black text-slate-800">{aiStats.acceptanceRate}%</span>
                   <span className="flex items-center text-xs font-bold text-green-500 mb-1"><TrendingUp size={14} className="mr-1" /> +4%</span>
                 </div>
-              </div>
+              </div> */}
 
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                {/* <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">AI Draft Edit Rate</h3>
                 <div className="flex items-end justify-between">
                   <span className="text-3xl font-black text-slate-800">{aiStats.editRate}%</span>
                   <span className="flex items-center text-xs font-bold text-slate-400 mb-1">~</span>
                 </div>
-              </div>
+              </div> */}
 
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Low Confidence Flags</h3>
-                <div className="flex items-end justify-between">
-                  <span className="text-3xl font-black text-slate-800">{aiStats.lowConf}</span>
-                  <span className="flex items-center text-xs font-bold text-amber-500 mb-1">Reviews</span>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Low Confidence Flags</h3>
+                  <div className="flex items-end justify-between">
+                    <span className="text-3xl font-black text-slate-800">{aiStats.lowConf}</span>
+                    <span className="flex items-center text-xs font-bold text-amber-500 mb-1">Reviews</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between bg-gradient-to-br from-indigo-50 to-white">
+                  <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">High Urgency Volume</h3>
+                  <div className="flex items-end justify-between">
+                    <span className="text-3xl font-black text-indigo-900">{filteredReviews.filter(r => r.urgency === 'High').length}</span>
+                    <span className="flex items-center text-xs font-bold text-indigo-600 mb-1">Total</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between bg-gradient-to-br from-indigo-50 to-white">
-                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">High Urgency Volume</h3>
-                <div className="flex items-end justify-between">
-                  <span className="text-3xl font-black text-indigo-900">{filteredReviews.filter(r => r.urgency === 'High').length}</span>
-                  <span className="flex items-center text-xs font-bold text-indigo-600 mb-1">Total</span>
+              {/* High Urgency Reviews Table */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xs font-bold text-red-500 flex items-center gap-2 uppercase tracking-wider">
+                    <AlertTriangle size={16} /> Flagged High Urgency Reviews
+                  </h3>
+                  <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-lg">{highUrgencyReviews.length} Flagged</span>
                 </div>
-              </div>
-            </div>
 
-            {/* High Urgency Reviews Table */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xs font-bold text-red-500 flex items-center gap-2 uppercase tracking-wider">
-                  <AlertTriangle size={16} /> Flagged High Urgency Reviews
-                </h3>
-                <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-lg">{highUrgencyReviews.length} Flagged</span>
-              </div>
-              
-              {highUrgencyReviews.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle2 className="mx-auto text-green-400 mb-2" size={32} />
-                  <p className="text-sm font-bold text-slate-600">All caught up!</p>
-                  <p className="text-xs text-slate-400">No high urgency reviews.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-xs text-slate-400 uppercase tracking-wider">
-                        <th className="pb-3 font-semibold">Reviewer</th>
-                        <th className="pb-3 font-semibold">Rating</th>
-                        <th className="pb-3 font-semibold">Sentiment</th>
-                        <th className="pb-3 font-semibold text-right">Age</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {highUrgencyReviews.map(r => (
-                        <tr key={r._id} className="hover:bg-slate-50">
-                          <td className="py-3 font-medium text-slate-700">
-                            {r.reviewer_name || 'Anonymous'}
-                            <div className="text-[10px] text-slate-400 mt-0.5">{r.hotel_name || r.property_name} • {r.platform}</div>
-                          </td>
-                          <td className="py-3">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-xs font-bold border border-red-100">
-                              {r.normalised_rating} ★
-                            </span>
-                          </td>
-                          <td className="py-3">
-                            <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase">
-                              {r.sentiment || 'N/A'}
-                            </span>
-                          </td>
-                          <td className="py-3 text-right">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 rounded-md text-[10px] font-bold">
-                              <Clock size={12} /> {Math.round((new Date() - new Date(r.createdAt || r.imported_at)) / (1000 * 60 * 60))} hrs ago
-                            </span>
-                          </td>
+                {highUrgencyReviews.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CheckCircle2 className="mx-auto text-green-400 mb-2" size={32} />
+                    <p className="text-sm font-bold text-slate-600">All caught up!</p>
+                    <p className="text-xs text-slate-400">No high urgency reviews.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-xs text-slate-400 uppercase tracking-wider">
+                          <th className="pb-3 font-semibold">Reviewer</th>
+                          <th className="pb-3 font-semibold">Rating</th>
+                          <th className="pb-3 font-semibold">Sentiment</th>
+                          <th className="pb-3 font-semibold text-right">Age</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {highUrgencyReviews.map(r => (
+                          <tr key={r._id} className="hover:bg-slate-50">
+                            <td className="py-3 font-medium text-slate-700">
+                              {r.reviewer_name || 'Anonymous'}
+                              <div className="text-[10px] text-slate-400 mt-0.5">{r.hotel_name || r.property_name} • {r.platform}</div>
+                            </td>
+                            <td className="py-3">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-xs font-bold border border-red-100">
+                                {r.normalised_rating !== undefined ? r.normalised_rating : r.rating} ★
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase">
+                                {r.sentiment || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="py-3 text-right">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 rounded-md text-[10px] font-bold">
+                                <Clock size={12} /> {Math.round((new Date() - new Date(r.createdAt || r.imported_at)) / (1000 * 60 * 60))} hrs ago
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </section>
           )}
 
           {/* TICKETS REPORTS */}
           {activeTab === 'tickets' && (
-          <section id="tickets" className="mb-12 animate-in slide-in-from-bottom-2 fade-in duration-500">
-            <h2 className="text-lg font-black text-slate-800 mb-1">Tickets & SLA Metrics</h2>
-            <p className="text-sm text-slate-500 mb-6">Resolution times, stage bottlenecks, and departmental load.</p>
+            <section id="tickets" className="mb-12 animate-in slide-in-from-bottom-2 fade-in duration-500">
+              <h2 className="text-lg font-black text-slate-800 mb-1">Tickets & SLA Metrics</h2>
+              <p className="text-sm text-slate-500 mb-6">Resolution times, stage bottlenecks, and departmental load.</p>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
-              {/* Tickets by Dept */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Tickets by Department</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={ticketsByDept} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                      <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <YAxis dataKey="department" type="category" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569', fontWeight: 600 }} />
-                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={32} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                {/* Tickets by Dept */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Tickets by Department</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ticketsByDept} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis dataKey="department" type="category" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569', fontWeight: 600 }} />
+                        <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={32} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Ticket Status */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Ticket Stage Breakdown</h3>
+                  <div className="h-64 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={ticketStatusData}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {ticketStatusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#cbd5e1'} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 
-              {/* Ticket Status */}
+              {/* SLA Breaches */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Ticket Stage Breakdown</h3>
-                <div className="h-64 relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={ticketStatusData}
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {ticketStatusData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#cbd5e1'} />
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <AlertCircle size={16} /> Currently Overdue Tickets
+                  </h3>
+                  <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-lg">{overdueTickets.length} Breaches</span>
+                </div>
+
+                {overdueTickets.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-sm font-bold text-slate-600">Great job!</p>
+                    <p className="text-xs text-slate-400">All open tickets are within SLA.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-xs text-slate-400 uppercase tracking-wider">
+                          <th className="pb-3 font-semibold">Ticket ID</th>
+                          <th className="pb-3 font-semibold">Department</th>
+                          <th className="pb-3 font-semibold">Property</th>
+                          <th className="pb-3 font-semibold text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {overdueTickets.map(t => (
+                          <tr key={t._id} className="hover:bg-slate-50">
+                            <td className="py-3 font-medium text-slate-700">#{t._id.slice(-6).toUpperCase()}</td>
+                            <td className="py-3 text-slate-600">{t.department || '-'}</td>
+                            <td className="py-3 text-slate-600">
+                              {(() => {
+                                const assocReview = reviews.find(r => r.review_id === t.review_id);
+                                return assocReview?.hotel_name || assocReview?.property_name || '-';
+                              })()}
+                            </td>
+                            <td className="py-3 text-right">
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700">
+                                {t.status}
+                              </span>
+                            </td>
+                          </tr>
                         ))}
-                      </Pie>
-                      <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            </div>
+            </section>
+          )}
 
-            {/* SLA Breaches */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <AlertCircle size={16} /> Currently Overdue Tickets
-                </h3>
-                <span className="px-3 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-lg">{overdueTickets.length} Breaches</span>
-              </div>
+          {/* STAFF & ASSIGNMENTS REPORTS */}
+          {activeTab === 'staff' && (
+            <section id="staff" className="mb-12 animate-in slide-in-from-bottom-2 fade-in duration-500">
+              <h2 className="text-lg font-black text-slate-800 mb-1">Staff & Assignments</h2>
+              <p className="text-sm text-slate-500 mb-6">Track team workload and resolution progress.</p>
 
-              {overdueTickets.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-sm font-bold text-slate-600">Great job!</p>
-                  <p className="text-xs text-slate-400">All open tickets are within SLA.</p>
-                </div>
-              ) : (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead>
-                      <tr className="border-b border-slate-100 text-xs text-slate-400 uppercase tracking-wider">
-                        <th className="pb-3 font-semibold">Ticket ID</th>
-                        <th className="pb-3 font-semibold">Department</th>
-                        <th className="pb-3 font-semibold">Property</th>
-                        <th className="pb-3 font-semibold text-right">Status</th>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                        <th className="p-4 font-bold">Staff Member</th>
+                        <th className="p-4 font-bold text-center">Open Tickets</th>
+                        <th className="p-4 font-bold text-center">Resolved</th>
+                        <th className="p-4 font-bold text-center">Closed</th>
+                        <th className="p-4 font-bold text-center text-indigo-600">Total Load</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {overdueTickets.map(t => (
-                        <tr key={t._id} className="hover:bg-slate-50">
-                          <td className="py-3 font-medium text-slate-700">#{t._id.slice(-6).toUpperCase()}</td>
-                          <td className="py-3 text-slate-600">{t.assigned_department || '-'}</td>
-                          <td className="py-3 text-slate-600">{t.review_id?.property_name || '-'}</td>
-                          <td className="py-3 text-right">
-                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700">
-                              {t.status}
+                    <tbody className="divide-y divide-slate-100">
+                      {staffAssignments.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" className="p-12 text-center">
+                            <p className="text-sm font-bold text-slate-500">No staff assignments found.</p>
+                          </td>
+                        </tr>
+                      ) : staffAssignments.map(s => (
+                        <tr key={s.name} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4 font-medium text-slate-800">
+                            {s.name}
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={`inline-flex items-center justify-center min-w-[32px] h-6 rounded-full text-xs font-bold ${s.open > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
+                              {s.open}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={`inline-flex items-center justify-center min-w-[32px] h-6 rounded-full text-xs font-bold ${s.resolved > 0 ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
+                              {s.resolved}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={`inline-flex items-center justify-center min-w-[32px] h-6 rounded-full text-xs font-bold ${s.closed > 0 ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400'}`}>
+                              {s.closed}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className="inline-flex items-center justify-center min-w-[32px] h-6 rounded-full bg-indigo-50 text-indigo-700 text-xs font-black">
+                              {s.total}
                             </span>
                           </td>
                         </tr>
@@ -596,68 +667,8 @@ export default function Reports() {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
-          </section>
-          )}
-
-          {/* STAFF & ASSIGNMENTS REPORTS */}
-          {activeTab === 'staff' && (
-          <section id="staff" className="mb-12 animate-in slide-in-from-bottom-2 fade-in duration-500">
-            <h2 className="text-lg font-black text-slate-800 mb-1">Staff & Assignments</h2>
-            <p className="text-sm text-slate-500 mb-6">Track team workload and resolution progress.</p>
-            
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                      <th className="p-4 font-bold">Staff Member</th>
-                      <th className="p-4 font-bold text-center">Open Tickets</th>
-                      <th className="p-4 font-bold text-center">Resolved</th>
-                      <th className="p-4 font-bold text-center">Closed</th>
-                      <th className="p-4 font-bold text-center text-indigo-600">Total Load</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {staffAssignments.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="p-12 text-center">
-                          <p className="text-sm font-bold text-slate-500">No staff assignments found.</p>
-                        </td>
-                      </tr>
-                    ) : staffAssignments.map(s => (
-                      <tr key={s.name} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-4 font-medium text-slate-800">
-                          {s.name}
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className={`inline-flex items-center justify-center min-w-[32px] h-6 rounded-full text-xs font-bold ${s.open > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
-                            {s.open}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className={`inline-flex items-center justify-center min-w-[32px] h-6 rounded-full text-xs font-bold ${s.resolved > 0 ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-                            {s.resolved}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className={`inline-flex items-center justify-center min-w-[32px] h-6 rounded-full text-xs font-bold ${s.closed > 0 ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400'}`}>
-                            {s.closed}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className="inline-flex items-center justify-center min-w-[32px] h-6 rounded-full bg-indigo-50 text-indigo-700 text-xs font-black">
-                            {s.total}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
-            </div>
-          </section>
+            </section>
           )}
 
         </div>
@@ -701,7 +712,7 @@ export default function Reports() {
                       </td>
                       <td className="p-4">
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-lg text-xs font-black border border-amber-100">
-                          {r.normalised_rating} ★
+                          {r.normalised_rating !== undefined ? r.normalised_rating : r.rating} ★
                         </span>
                       </td>
                       <td className="p-4 font-medium text-slate-600">{r.hotel_name}</td>

@@ -44,10 +44,10 @@ const Dashboard = () => {
             <TrendingUp size={18} />
             Import Reviews
           </button>
-          <button onClick={() => navigate("/reviews")} className="btn-primary flex items-center gap-2">
+          {/* <button onClick={() => navigate("/reviews")} className="btn-primary flex items-center gap-2">
             <Zap size={18} />
             AI Workspace
-          </button>
+          </button> */}
         </div>
       </div>
 
