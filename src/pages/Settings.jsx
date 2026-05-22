@@ -236,7 +236,7 @@ const Settings = () => {
     { id: "hotel", name: "Hotel Profile", icon: Hotel },
     { id: "properties", name: "Properties", icon: Building2 },
     { id: "staff", name: "Staff Management", icon: Users },
-    { id: "ai", name: "AI & SLAs", icon: Shield },
+    { id: "ai", name: "SLAs", icon: Shield },
     { id: "account", name: "Account", icon: User },
   ];
 
@@ -881,7 +881,7 @@ const Settings = () => {
 
             {/* Section 2: AI Settings */}
             <section className="space-y-6 pt-6 border-t">
-              <h3 className="text-xl font-bold flex items-center gap-3"><Zap className="text-indigo-600" /> AI Insights & Proposals</h3>
+              <h3 className="text-xl font-bold flex items-center gap-3"><Zap className="text-indigo-600" /> Insights & Proposals</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 <div className="space-y-4">
