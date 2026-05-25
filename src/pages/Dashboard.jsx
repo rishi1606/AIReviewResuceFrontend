@@ -45,13 +45,22 @@ const Dashboard = () => {
   ];
   // --- NEW: filtered reviews based on selections ---
   const filteredReviews = (state.reviews || []).filter(r => {
-    const platformMatch = selectedPlatform === "All" || r.platform === selectedPlatform;
-    const propertyMatch = selectedProperty === "All" || r.hotel_name === selectedProperty;
+    const platformMatch =
+      selectedPlatform === "All" ||
+      r.platform === selectedPlatform;
+
+    const propertyMatch =
+      selectedProperty === "All" ||
+      r.hotel_name === selectedProperty;
+
     return platformMatch && propertyMatch;
   });
 
-  const urgentEscalations = stats.urgentEscalations;
-  const recentReviews = filteredReviews.slice(0, 5); // use filtered
+  const urgentEscalations = filteredReviews.filter(
+    r => r.escalation_risk
+  ).length;
+
+  const recentReviews = filteredReviews.slice(0, 5);
 
   // --- NEW: filtered mini-stats derived from filteredReviews ---
   const filteredStats = {
