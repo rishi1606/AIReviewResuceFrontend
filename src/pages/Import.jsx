@@ -48,12 +48,13 @@ const Import = () => {
   const [activeTab, setActiveTab] = useState("csv");
   const [urls, setUrls] = useState({
     Google: "",
-    TripAdvisor: "",
+    // TripAdvisor: "",
     "Booking.com": "",
-    "Hotels.com": "",
-    Yelp: "",
-    Expedia: "",
-    Airbnb: ""
+    // "Hotels.com": "",
+    // Yelp: "",
+    // Expedia: "",
+    Airbnb: "",
+    Agoda: "",
   });
   const [scrapingStatus, setScrapingStatus] = useState({}); // { [platform]: 'idle' | 'loading' | 'done' | 'error' }
 
@@ -250,7 +251,7 @@ const Import = () => {
   };
 
   const handleScrapeAll = async () => {
-    const activePlatforms = Object.keys(urls).filter(p => urls[p] && (p === "Booking.com" || p === "Google" || p === "Expedia" || p === "Agoda" || p === "Hotels.com" || p === "Airbnb"));
+    const activePlatforms = Object.keys(urls).filter(p => urls[p] && (p === "Booking.com" || p === "Google" || p === "Agoda" || p === "Airbnb"));
     // if (activePlatforms.length === 0) return alert("No supported platforms with URLs found.");
 
     for (const p of activePlatforms) {
@@ -435,18 +436,18 @@ const Import = () => {
       {!preview ? (
         activeTab === "scrape" ? (
           <div className="space-y-4">
-            {["Google", "Booking.com", "TripAdvisor", "Hotels.com", "Yelp", "Expedia", "Agoda", "Airbnb"].map(platform => {
+            {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
               // Only show if active in settings (default to showing if no config yet for UX)
               const isActive = !state.hotelConfig?.platforms || state.hotelConfig.platforms.includes(platform);
               if (!isActive) return null;
 
               const platformDataMap = {
                 Google: { placeholder: "https://g.page/your-business", help: "Paste your Google Business Profile URL", dot: "bg-blue-500" },
-                TripAdvisor: { placeholder: "https://tripadvisor.com/Hotel_Review", help: "Paste your TripAdvisor property page URL", dot: "bg-emerald-500" },
+                // TripAdvisor: { placeholder: "https://tripadvisor.com/Hotel_Review", help: "Paste your TripAdvisor property page URL", dot: "bg-emerald-500" },
                 "Booking.com": { placeholder: "https://booking.com/hotel/...", help: "Paste your Booking.com property page URL", dot: "bg-blue-600" },
-                "Hotels.com": { placeholder: "https://hotels.com/ho...", help: "Paste your Hotels.com property page URL", dot: "bg-red-500" },
-                Yelp: { placeholder: "https://yelp.com/biz/...", help: "Paste your Yelp business page URL", dot: "bg-red-600" },
-                Expedia: { placeholder: "https://expedia.com/...", help: "Paste your Expedia property page URL", dot: "bg-amber-500" },
+                // "Hotels.com": { placeholder: "https://hotels.com/ho...", help: "Paste your Hotels.com property page URL", dot: "bg-red-500" },
+                // Yelp: { placeholder: "https://yelp.com/biz/...", help: "Paste your Yelp business page URL", dot: "bg-red-600" },
+                // Expedia: { placeholder: "https://expedia.com/...", help: "Paste your Expedia property page URL", dot: "bg-amber-500" },
                 Agoda: { placeholder: "https://agoda.com/...", help: "Paste your Agoda property page URL", dot: "bg-indigo-500" },
                 Airbnb: { placeholder: "https://airbnb.com/rooms/...", help: "Paste your Airbnb property page URL", dot: "bg-rose-500" }
               };

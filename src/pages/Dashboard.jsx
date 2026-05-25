@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
@@ -19,50 +19,149 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, AreaChart, Area, Cell
 } from 'recharts';
+import GlobalSearch from "../components/GlobalSearch";
 
 const Dashboard = () => {
   const stats = useDerivedStats();
   const { state } = useAppContext();
   const navigate = useNavigate();
-
   const { currentUser } = useAuth();
-  const isStaff = currentUser?.role === "staff";
+
+  // --- NEW: filter state ---
+  const [selectedPlatform, setSelectedPlatform] = useState("All");
+  const [selectedProperty, setSelectedProperty] = useState("All");
+
+  // --- NEW: derive unique platforms & properties from reviews ---
+  const platforms = ["All", ...new Set((state.reviews || []).map(r => r.platform).filter(Boolean))];
+  const properties = ["All", ...new Set((state.reviews || []).map(r => r.hotel_name).filter(Boolean))];
+
+  // --- NEW: filtered reviews based on selections ---
+  const filteredReviews = (state.reviews || []).filter(r => {
+    const platformMatch = selectedPlatform === "All" || r.platform === selectedPlatform;
+    const propertyMatch = selectedProperty === "All" || r.hotel_name === selectedProperty;
+    return platformMatch && propertyMatch;
+  });
 
   const urgentEscalations = stats.urgentEscalations;
-  const recentReviews = state.reviews.slice(0, 5);
+  const recentReviews = filteredReviews.slice(0, 5); // use filtered
+
+  // --- NEW: filtered mini-stats derived from filteredReviews ---
+  const filteredStats = {
+    totalReviews: filteredReviews.length,
+    avgRating: filteredReviews.length
+      ? (filteredReviews.reduce((s, r) => s + (r.rating || 0), 0) / filteredReviews.length).toFixed(1)
+      : "0.0",
+    criticalCount: filteredReviews.filter(r => r.urgency === "High").length,
+    escalationRisks: filteredReviews.filter(r => r.escalation_risk).length,
+    mixedCount: filteredReviews.filter(r => r.sentiment === "Mixed").length,
+    neutralCount: filteredReviews.filter(r => r.sentiment === "Neutral").length,
+    approvedCount: filteredReviews.filter(r => r.status === "Approved").length,
+    suspiciousCount: filteredReviews.filter(r => r.is_suspicious).length,
+    sentimentDistribution: ["Positive", "Negative", "Mixed", "Neutral"].map(name => ({
+      name,
+      count: filteredReviews.filter(r => r.sentiment === name).length,
+    })),
+    departmentBreakdown: filteredReviews.reduce((acc, r) => {
+      const dept = r.primary_department;
+      if (dept) acc[dept] = (acc[dept] || 0) + 1;
+      return acc;
+    }, {}),
+  };
+
+  const isFiltered = selectedPlatform !== "All" || selectedProperty !== "All";
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Left: title + filters */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Hotel Performance</h1>
-          <p className="text-slate-500 dark:text-slate-400">Here's what's happening at {state.hotelConfig?.hotel_name || "your hotel"} today.</p>
+          <p className="text-slate-500 dark:text-slate-400">
+            Here's what's happening at {state.hotelConfig?.hotel_name || "your hotel"} today.
+          </p>
+
+          {/* --- NEW: Filter dropdowns below title --- */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {/* Property filter */}
+            <div className="relative">
+              <select
+                value={selectedProperty}
+                onChange={(e) => setSelectedProperty(e.target.value)}
+                className={`h-8 pl-3 pr-7 text-xs rounded-lg border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${selectedProperty !== "All"
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 font-medium"
+                  : "border-slate-200 bg-white text-slate-600"
+                  }`}
+              >
+                {properties.map(p => (
+                  <option key={p} value={p}>{p === "All" ? "All Properties" : p}</option>
+                ))}
+              </select>
+              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {/* Platform filter */}
+            <div className="relative">
+              <select
+                value={selectedPlatform}
+                onChange={(e) => setSelectedPlatform(e.target.value)}
+                className={`h-8 pl-3 pr-7 text-xs rounded-lg border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${selectedPlatform !== "All"
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 font-medium"
+                  : "border-slate-200 bg-white text-slate-600"
+                  }`}
+              >
+                {platforms.map(p => (
+                  <option key={p} value={p}>{p === "All" ? "All Platforms" : p}</option>
+                ))}
+              </select>
+              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {/* Clear filters badge */}
+            {isFiltered && (
+              <button
+                onClick={() => { setSelectedPlatform("All"); setSelectedProperty("All"); }}
+                className="h-8 px-3 text-xs rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-1"
+              >
+                ✕ Clear filters
+              </button>
+            )}
+
+            {/* Active filter pill */}
+            {isFiltered && (
+              <span className="text-xs text-slate-400">
+                Showing <span className="font-medium text-slate-600">{filteredReviews.length}</span> of <span className="font-medium text-slate-600">{state.reviews.length}</span> reviews
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/import")} className="btn-secondary flex items-center gap-2">
+
+        {/* Right: search + button */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <GlobalSearch />
+          <button onClick={() => navigate("/import")} className="btn-secondary flex items-center gap-2 whitespace-nowrap">
             <TrendingUp size={18} />
             Import Reviews
           </button>
-          {/* <button onClick={() => navigate("/reviews")} className="btn-primary flex items-center gap-2">
-            <Zap size={18} />
-            AI Workspace
-          </button> */}
         </div>
       </div>
 
-      {/* KPI Grid */}
+      {/* KPI Grid — now uses filteredStats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Total Reviews"
-          value={stats.totalReviews}
+          value={filteredStats.totalReviews}
           icon={MessageSquare}
           color="indigo"
           onClick={() => navigate("/reviews")}
         />
         <KPICard
           title="Avg Rating"
-          value={stats.avgRating}
+          value={filteredStats.avgRating}
           icon={Star}
           trend={+2.4}
           color="amber"
@@ -70,16 +169,16 @@ const Dashboard = () => {
         />
         <KPICard
           title="Critical Issues"
-          value={stats.criticalCount}
+          value={filteredStats.criticalCount}
           icon={AlertTriangle}
-          color={stats.criticalCount > 0 ? "red" : "indigo"}
+          color={filteredStats.criticalCount > 0 ? "red" : "indigo"}
           onClick={() => navigate("/tickets?filter=urgency:High,status:Open")}
         />
         <KPICard
           title="Escalation Risk"
-          value={stats.escalationRisks}
+          value={filteredStats.escalationRisks}
           icon={Zap}
-          color={stats.escalationRisks > 0 ? "red" : "indigo"}
+          color={filteredStats.escalationRisks > 0 ? "red" : "indigo"}
           onClick={() => navigate("/reviews?filter=escalation:true")}
         />
       </div>
@@ -88,14 +187,14 @@ const Dashboard = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <KPICard
           title="Mixed Reviews"
-          value={stats.mixedCount}
+          value={filteredStats.mixedCount}
           icon={MessageSquare}
           color="amber"
           onClick={() => navigate("/reviews?filter=sentiment:Mixed")}
         />
         <KPICard
           title="Neutral"
-          value={stats.neutralCount}
+          value={filteredStats.neutralCount}
           icon={TrendingUp}
           color="slate"
           onClick={() => navigate("/reviews?filter=sentiment:Neutral")}
@@ -109,14 +208,14 @@ const Dashboard = () => {
         />
         <KPICard
           title="Approved"
-          value={stats.approvedCount}
+          value={filteredStats.approvedCount}
           icon={CheckCircle2}
           color="blue"
           onClick={() => navigate("/reviews?filter=status:Approved")}
         />
         <KPICard
           title="Flagged"
-          value={stats.suspiciousCount}
+          value={filteredStats.suspiciousCount}
           icon={Flag}
           color="red"
           onClick={() => navigate("/reviews?tab=SUSPICIOUS")}
@@ -135,7 +234,8 @@ const Dashboard = () => {
               </select>
             </div>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.sentimentDistribution}>
+              {/* now uses filteredStats.sentimentDistribution */}
+              <BarChart data={filteredStats.sentimentDistribution}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
@@ -143,18 +243,9 @@ const Dashboard = () => {
                   cursor={{ fill: '#F8FAFC' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                 />
-                <Bar
-                  dataKey="count"
-                  radius={[6, 6, 0, 0]}
-                  barSize={40}
-                >
-                  {stats.sentimentDistribution.map((entry, index) => {
-                    const colors = {
-                      Positive: '#10B981',
-                      Negative: '#EF4444',
-                      Mixed: '#F59E0B',
-                      Neutral: '#64748B'
-                    };
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={40}>
+                  {filteredStats.sentimentDistribution.map((entry, index) => {
+                    const colors = { Positive: '#10B981', Negative: '#EF4444', Mixed: '#F59E0B', Neutral: '#64748B' };
                     return <Cell key={`cell-${index}`} fill={colors[entry.name] || '#6366F1'} />;
                   })}
                 </Bar>
@@ -195,21 +286,22 @@ const Dashboard = () => {
             <div className="glass-card p-6">
               <h3 className="text-lg font-bold mb-4">Department Load</h3>
               <div className="space-y-4">
-                {Object.entries(stats.departmentBreakdown).map(([dept, count]) => (
+                {/* now uses filteredStats.departmentBreakdown */}
+                {Object.entries(filteredStats.departmentBreakdown).map(([dept, count]) => (
                   <div key={dept}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="font-medium">{dept}</span>
                       <span className="text-slate-500">{count} Tickets</span>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-indigo-600 rounded-full"
-                        style={{ width: `${(count / stats.totalReviews) * 100}%` }}
-                      ></div>
+                        style={{ width: `${(count / filteredStats.totalReviews) * 100}%` }}
+                      />
                     </div>
                   </div>
                 ))}
-                {Object.keys(stats.departmentBreakdown).length === 0 && (
+                {Object.keys(filteredStats.departmentBreakdown).length === 0 && (
                   <p className="text-center py-8 text-slate-400 italic">No data yet</p>
                 )}
               </div>
@@ -217,7 +309,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Sidebar Section */}
+        {/* Sidebar — Recent Reviews uses filteredReviews */}
         <div className="space-y-8">
           <div className="glass-card p-6">
             <div className="flex justify-between items-center mb-6">
@@ -228,7 +320,7 @@ const Dashboard = () => {
               {recentReviews.length > 0 ? recentReviews.map(r => (
                 <div key={r.review_id} className="group cursor-pointer" onClick={() => navigate(`/reviews?highlight=${r.review_id}`)}>
                   <div className="flex gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-slate-900 shadow-sm ${r.rating >= 4 ? "bg-green-500" : r.rating === 3 ? "bg-amber-500" : "bg-red-500"}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm ${r.rating >= 4 ? "bg-green-500" : r.rating === 3 ? "bg-amber-500" : "bg-red-500"}`}>
                       {r.rating}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -241,22 +333,11 @@ const Dashboard = () => {
               )) : (
                 <div className="text-center py-12 text-slate-400">
                   <MessageSquare size={32} className="mx-auto mb-2 opacity-20" />
-                  <p>No reviews yet</p>
+                  <p>No reviews match filters</p>
                 </div>
               )}
             </div>
           </div>
-
-          {/* <div className="bg-[#EEF2FF] border border-[#E0E7FF] rounded-2xl p-6 text-[#4F46E5] shadow-sm">
-            <Zap className="mb-4 text-[#818CF8]" size={32} />
-            <h3 className="text-xl font-bold mb-2">AI Insights</h3>
-            <p className="text-[#6366F1] text-sm mb-6 leading-relaxed">
-              Reviews about <b>Maintenance</b> have increased by 15% this week. Suggested: Check HVAC service logs for the 3rd floor.
-            </p>
-            <button className="w-full py-3 bg-white text-[#4F46E5] border border-[#E0E7FF] rounded-xl font-bold hover:bg-[#F8FAFC] transition-colors shadow-sm">
-              VIEW FULL REPORT
-            </button>
-          </div> */}
         </div>
       </div>
     </div>

@@ -109,9 +109,7 @@ const Settings = () => {
       if (!hotelFields.city) {
         newErrors.city = "City is required";
       }
-      if (!hotelFields.contact_email || !hotelFields.contact_email.includes("@")) {
-        newErrors.contact_email = "Valid contact email is required for escalations";
-      }
+
     }
 
     // AI & SLA Validation

@@ -33,7 +33,7 @@ function validateRows(rows, existingReviews) {
     const rating = parseInt(row.rating);
     if (isNaN(rating) || rating < 1 || rating > 5) rowErrors.push("rating must be integer 1-5");
 
-    const validPlatforms = ["Google", "Yelp", "TripAdvisor", "Booking.com", "Expedia"];
+    const validPlatforms = ["Google", "Agoda", "Airbnb", "Booking.com"];
     if (!validPlatforms.includes(row.platform)) rowErrors.push("platform must be one of: " + validPlatforms.join(", "));
 
     duplicateIds.add(row.review_id);
@@ -58,7 +58,7 @@ function validateRows(rows, existingReviews) {
 export function generateCSVTemplate() {
   const headers = ["review_id", "reviewer_name", "rating", "review_text", "review_date", "stay_date", "platform", "platform_review_id", "room_number", "guest_email", "photo_urls", "reviewer_language", "loyalty_tier", "hotel_name"];
   const example1 = ["rev001", "John Smith", "2", "The room was not clean and the AC was broken.", "2024-05-01", "2024-04-30", "Google", "google_abc123", "302", "john@example.com", "", "en", "Gold", "The Grand Hotel"];
-  const example2 = ["rev002", "Sarah Johnson", "5", "Incredible stay! Staff were amazing and room was spotless.", "2024-05-02", "2024-05-01", "TripAdvisor", "ta_xyz789", "101", "sarah@example.com", "", "en", "None", "The Grand Hotel"];
+  const example2 = ["rev002", "Sarah Johnson", "5", "Incredible stay! Staff were amazing and room was spotless.", "2024-05-02", "2024-05-01", "Agoda", "ta_xyz789", "101", "sarah@example.com", "", "en", "None", "The Grand Hotel"];
   const csv = [headers, example1, example2].map(row => row.join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);

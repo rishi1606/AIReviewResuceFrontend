@@ -42,7 +42,7 @@ const Reviews = () => {
   const [tab, setTab] = useState("ALL");
   const [selectedIds, setSelectedIds] = useState([]);
   const [platform, setPlatform] = useState("ALL");
-  
+
   const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
   const [department, setDepartment] = useState(
     isScopedUser && currentUser?.department ? currentUser.department : "ALL"
@@ -68,7 +68,8 @@ const Reviews = () => {
   const tabs = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Pending Approval", "Approved", "Suspicious"];
 
   const confidenceThreshold = state.hotelConfig?.aiConfig?.confidenceThreshold || 75;
-  const activePlatforms = state.hotelConfig?.platforms || ["Google", "TripAdvisor", "Booking.com", "Yelp"];
+  const VALID_PLATFORMS = ["Google", "Booking.com", "Agoda", "Airbnb"];
+  const activePlatforms = (state.hotelConfig?.platforms || VALID_PLATFORMS).filter(p => VALID_PLATFORMS.includes(p));
   const activeProperties = Array.from(new Set([
     ...(state.hotelConfig?.properties?.map(p => p.name) || []),
     ...(state.reviews?.map(r => r.hotel_name).filter(Boolean) || [])
@@ -216,7 +217,7 @@ const Reviews = () => {
 
     const matchesDate = () => {
       if (!dateRange.start && !dateRange.end) return true;
-      const rDate = new Date(r.review_date);
+      const rDate = new Date(r.createdAt || r.imported_at || r.review_date);
       rDate.setHours(0, 0, 0, 0);
 
       const start = dateRange.start ? new Date(dateRange.start) : null;
@@ -239,7 +240,7 @@ const Reviews = () => {
     .sort((a, b) => {
       switch (sortBy) {
         case "OLDEST":
-          return new Date(a.review_date) - new Date(b.review_date);
+          return new Date(a.createdAt || a.imported_at || a.review_date) - new Date(b.createdAt || b.imported_at || b.review_date);
         case "LOWEST_RATING":
           return a.rating - b.rating;
         case "HIGHEST_RISK":
@@ -250,7 +251,7 @@ const Reviews = () => {
           return bUnassigned - aUnassigned;
         case "NEWEST":
         default:
-          return new Date(b.review_date) - new Date(a.review_date);
+          return new Date(b.createdAt || b.imported_at || b.review_date) - new Date(a.createdAt || a.imported_at || a.review_date);
       }
     });
 
@@ -573,7 +574,7 @@ const Reviews = () => {
               ))}
             </div>
           </div>
-          
+
           <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>
 
 

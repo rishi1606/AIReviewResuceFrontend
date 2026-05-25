@@ -32,7 +32,7 @@ const reducer = (state, action) => {
     case actions.UPDATE_REVIEW:
       const reviewObj = action.payload.data || action.payload; // Support both full response and direct object
       const ticketObj = action.payload.ticket;
-      
+
       const updatedTickets = [...state.tickets];
       if (ticketObj) {
         const idx = updatedTickets.findIndex(t => t.ticket_id === ticketObj.ticket_id);
@@ -42,10 +42,10 @@ const reducer = (state, action) => {
         // Fallback for simple assignee updates if no ticket object returned
         const idx = updatedTickets.findIndex(t => t.review_id === reviewObj.review_id);
         if (idx > -1) {
-          updatedTickets[idx] = { 
-            ...updatedTickets[idx], 
-            assignee_id: reviewObj.assignee_id, 
-            assignee_name: reviewObj.assignee_name 
+          updatedTickets[idx] = {
+            ...updatedTickets[idx],
+            assignee_id: reviewObj.assignee_id,
+            assignee_name: reviewObj.assignee_name
           };
         }
       }
@@ -57,13 +57,13 @@ const reducer = (state, action) => {
     case actions.APPROVE_RESPONSE:
       return {
         ...state,
-        reviews: state.reviews.map(r => r.review_id === action.payload.review_id ? { 
-          ...r, 
-          status: "Approved", 
+        reviews: state.reviews.map(r => r.review_id === action.payload.review_id ? {
+          ...r,
+          status: "Approved",
           response_text: action.payload.response_text,
           response_tone: action.payload.response_tone,
           approved_by: action.payload.approved_by,
-          approved_at: action.payload.approved_at 
+          approved_at: action.payload.approved_at
         } : r),
         responses: {
           ...state.responses,
@@ -75,10 +75,10 @@ const reducer = (state, action) => {
             return {
               ...t,
               status: "Pending Verification",
-              status_history: [...(t.status_history || []), { 
-                status: "Pending Verification", 
-                changed_by: "System — Response Approved", 
-                timestamp: Date.now() 
+              status_history: [...(t.status_history || []), {
+                status: "Pending Verification",
+                changed_by: "System — Response Approved",
+                timestamp: Date.now()
               }]
             };
           }
@@ -88,19 +88,19 @@ const reducer = (state, action) => {
     case actions.FLAG_SUSPICIOUS:
       return {
         ...state,
-        reviews: state.reviews.map(r => r.review_id === action.payload.review_id ? { 
-          ...r, 
-          is_suspicious: true, 
-          status: "Suspicious", 
-          suspicious_reason: action.payload.suspicious_reason 
+        reviews: state.reviews.map(r => r.review_id === action.payload.review_id ? {
+          ...r,
+          is_suspicious: true,
+          status: "Suspicious",
+          suspicious_reason: action.payload.suspicious_reason
         } : r)
       };
     case actions.ADD_INTERNAL_NOTE_TO_REVIEW:
       return {
         ...state,
-        reviews: state.reviews.map(r => r.review_id === action.payload.review_id ? { 
-          ...r, 
-          internal_notes: [...(r.internal_notes || []), action.payload.note] 
+        reviews: state.reviews.map(r => r.review_id === action.payload.review_id ? {
+          ...r,
+          internal_notes: [...(r.internal_notes || []), action.payload.note]
         } : r)
       };
     case actions.CREATE_CLUSTER_TICKET:
@@ -154,8 +154,8 @@ const reducer = (state, action) => {
     case actions.REANALYSE_REVIEW:
       return {
         ...state,
-        reviews: state.reviews.map(r => r.review_id === action.payload ? { 
-          ...r, 
+        reviews: state.reviews.map(r => r.review_id === action.payload ? {
+          ...r,
           status: "Pending AI",
           sentiment: null,
           confidence: null,
