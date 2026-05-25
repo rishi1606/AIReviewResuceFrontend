@@ -33,8 +33,16 @@ const Dashboard = () => {
 
   // --- NEW: derive unique platforms & properties from reviews ---
   const platforms = ["All", ...new Set((state.reviews || []).map(r => r.platform).filter(Boolean))];
-  const properties = ["All", ...new Set((state.reviews || []).map(r => r.hotel_name).filter(Boolean))];
-
+  const properties = [
+    "All",
+    ...new Set(
+      (
+        state?.hotelConfig?.properties || []
+      )
+        .map(property => property.name)
+        .filter(Boolean)
+    )
+  ];
   // --- NEW: filtered reviews based on selections ---
   const filteredReviews = (state.reviews || []).filter(r => {
     const platformMatch = selectedPlatform === "All" || r.platform === selectedPlatform;
