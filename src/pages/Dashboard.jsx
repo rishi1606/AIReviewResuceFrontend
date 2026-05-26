@@ -162,7 +162,7 @@ const Dashboard = () => {
               icon={Star}
 
               color="amber"
-              onClick={() => navigate("/analytics")}
+
             />
             {/* <KPICard
               title="Critical Issues"
