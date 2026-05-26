@@ -1,187 +1,320 @@
 import React, { useState, useEffect } from "react";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
-import { getHotel, updateHotel, getStaff, addStaff, updateStaff, removeStaff, updateMe, runFullAnalysis } from "../api/apiClient";
-import { classifyAllPending } from "../utils/aiClassifier";
-import { DEPARTMENTS } from "../utils/constants";
 import {
-  Hotel,
-  Users,
-  Shield,
-  Bell,
-  Settings as SettingsIcon,
-  Plus,
-  Trash2,
-  Save,
-  CheckCircle2,
-  Lock,
-  User,
-  X,
-  Sparkles,
-  Loader2,
-  Globe,
-  Mail,
-  MapPin,
-  Building2,
-  Filter,
-  Edit2,
-  UserMinus,
-  UserCheck,
-  Search,
-  ChevronDown,
-  AlertCircle,
-  Zap,
-  Check,
-  ToggleLeft,
-  ToggleRight,
-  Clock,
-  ShieldAlert,
-  AlertTriangle
+  getHotel, updateHotel, getStaff, addStaff, updateStaff,
+  removeStaff, updateMe, runFullAnalysis
+} from "../api/apiClient";
+import { DEPARTMENTS } from "../utils/constants";
+import { SettingsSkeleton } from "../components/Skeleton";
+import {
+  Hotel, Users, Shield, Settings as SettingsIcon, Plus, Trash2, Save,
+  CheckCircle2, Lock, User, X, Sparkles, Loader2, Globe, Mail,
+  MapPin, Building2, Filter, Edit2, UserMinus, UserCheck, Search,
+  ChevronDown, AlertCircle, Zap, Check, ToggleLeft, ToggleRight,
+  Clock, ShieldAlert, AlertTriangle
 } from "lucide-react";
+import Import from "../pages/Import"
 
+/* ─── Shared token palette (pastel / soft) ────────────────────────────── */
+const C = {
+  pageBg: "#F6F7FB",
+  cardBg: "#FFFFFF",
+  border: "#E8EBF4",
+  borderFocus: "#A5B4FC",
+  textPrimary: "#2D3A5A",
+  textMuted: "#8892AA",
+  textLabel: "#6B7899",
+  accent: "#6366F1",
+  accentSoft: "#EEF0FD",
+  accentText: "#4F46E5",
+  success: "#22C55E",
+  successSoft: "#F0FDF4",
+  successBorder: "#BBF7D0",
+  warn: "#F59E0B",
+  warnSoft: "#FFFBEB",
+  warnBorder: "#FDE68A",
+  danger: "#EF4444",
+  dangerSoft: "#FEF2F2",
+  dangerBorder: "#FECACA",
+  tabActive: "#EEF0FD",
+  inputBg: "#F8F9FC",
+};
+
+/* ─── Inline field error ─────────────────────────────────────────────── */
+const FieldError = ({ msg }) =>
+  msg ? (
+    <p style={{
+      color: C.danger, fontSize: 11, fontWeight: 700,
+      marginTop: 5, display: "flex", alignItems: "center", gap: 4
+    }}>
+      <AlertCircle size={12} /> {msg}
+    </p>
+  ) : null;
+
+/* ─── Banner error ───────────────────────────────────────────────────── */
+const BannerError = ({ msg }) =>
+  msg ? (
+    <div style={{
+      background: C.dangerSoft, border: `1px solid ${C.dangerBorder}`,
+      borderRadius: 14, padding: "12px 16px", display: "flex",
+      alignItems: "center", gap: 10, color: C.danger,
+      fontWeight: 700, fontSize: 13
+    }}>
+      <AlertCircle size={16} /> {msg}
+    </div>
+  ) : null;
+
+/* ─── Banner success ─────────────────────────────────────────────────── */
+const BannerSuccess = ({ msg }) =>
+  msg ? (
+    <div style={{
+      background: C.successSoft, border: `1px solid ${C.successBorder}`,
+      borderRadius: 14, padding: "12px 16px", display: "flex",
+      alignItems: "center", gap: 10, color: "#15803D",
+      fontWeight: 700, fontSize: 13
+    }}>
+      <CheckCircle2 size={16} /> {msg}
+    </div>
+  ) : null;
+
+/* ─── Input ──────────────────────────────────────────────────────────── */
+const Input = ({ icon: Icon, error, ...props }) => (
+  <div style={{ position: "relative" }}>
+    {Icon && (
+      <Icon size={17} style={{
+        position: "absolute", left: 14,
+        top: "50%", transform: "translateY(-50%)", color: C.textMuted, pointerEvents: "none"
+      }} />
+    )}
+    <input
+      {...props}
+      style={{
+        width: "100%", padding: Icon ? "13px 14px 13px 42px" : "13px 14px",
+        background: C.inputBg,
+        border: `1.5px solid ${error ? C.danger : C.border}`,
+        borderRadius: 14, outline: "none", fontWeight: 600,
+        fontSize: 14, color: C.textPrimary, boxSizing: "border-box",
+        transition: "border-color .2s",
+        ...props.style
+      }}
+      onFocus={e => { e.target.style.borderColor = error ? C.danger : C.borderFocus }}
+      onBlur={e => { e.target.style.borderColor = error ? C.danger : C.border }}
+    />
+  </div>
+);
+
+/* ─── Select ─────────────────────────────────────────────────────────── */
+const Select = ({ icon: Icon, children, ...props }) => (
+  <div style={{ position: "relative" }}>
+    {Icon && (
+      <Icon size={17} style={{
+        position: "absolute", left: 14,
+        top: "50%", transform: "translateY(-50%)", color: C.textMuted, pointerEvents: "none"
+      }} />
+    )}
+    <select
+      {...props}
+      style={{
+        width: "100%", padding: Icon ? "13px 42px 13px 42px" : "13px 42px 13px 14px",
+        background: C.inputBg, border: `1.5px solid ${C.border}`,
+        borderRadius: 14, outline: "none", fontWeight: 600,
+        fontSize: 14, color: C.textPrimary, appearance: "none",
+        boxSizing: "border-box", cursor: "pointer"
+      }}
+    >
+      {children}
+    </select>
+    <ChevronDown size={15} style={{
+      position: "absolute", right: 14,
+      top: "50%", transform: "translateY(-50%)", color: C.textMuted, pointerEvents: "none"
+    }} />
+  </div>
+);
+
+/* ─── Label ──────────────────────────────────────────────────────────── */
+const Label = ({ children, required }) => (
+  <label style={{
+    display: "block", fontSize: 11, fontWeight: 800,
+    color: C.textLabel, textTransform: "uppercase",
+    letterSpacing: "0.08em", marginBottom: 8
+  }}>
+    {children} {required && <span style={{ color: C.danger }}>*</span>}
+  </label>
+);
+
+/* ─── PrimaryButton ──────────────────────────────────────────────────── */
+const PrimaryBtn = ({ children, loading, style = {}, ...props }) => (
+  <button
+    {...props}
+    style={{
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      padding: "13px 28px", background: C.accent, color: "#fff",
+      border: "none", borderRadius: 14, fontWeight: 700, fontSize: 14,
+      cursor: props.disabled ? "not-allowed" : "pointer",
+      opacity: props.disabled ? 0.6 : 1,
+      boxShadow: "0 4px 14px rgba(99,102,241,.25)",
+      transition: "all .2s", ...style
+    }}
+    onMouseEnter={e => { if (!props.disabled) e.currentTarget.style.background = "#4F46E5" }}
+    onMouseLeave={e => { e.currentTarget.style.background = C.accent }}
+  >
+    {loading ? <Loader2 size={16} className="animate-spin" /> : children}
+  </button>
+);
+
+/* ─── GhostBtn ───────────────────────────────────────────────────────── */
+const GhostBtn = ({ children, style = {}, ...props }) => (
+  <button
+    {...props}
+    style={{
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+      padding: "11px 20px", background: "transparent", color: C.textMuted,
+      border: `1.5px solid ${C.border}`, borderRadius: 14, fontWeight: 600,
+      fontSize: 13, cursor: "pointer", transition: "all .15s", ...style
+    }}
+    onMouseEnter={e => { e.currentTarget.style.background = C.inputBg }}
+    onMouseLeave={e => { e.currentTarget.style.background = "transparent" }}
+  >
+    {children}
+  </button>
+);
+
+/* ──────────────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+────────────────────────────────────────────────────────────────────── */
 const Settings = () => {
-  const { state, dispatch, refreshData } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const { currentUser, logout, updateUser } = useAuth();
+
   const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
-  const [activeTab, setActiveTab] = useState(isScopedUser ? "account" : "ai"); // Default to AI, except for scoped users
+  const [activeTab, setActiveTab] = useState(isScopedUser ? "account" : "ai");
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [newStaff, setNewStaff] = useState({
-    name: "",
-    email: "",
-    password: "",
-    department: "Front Office",
-    role: "staff"
+    name: "", email: "", password: "", department: "Front Office", role: "staff"
   });
-
   const [hotelFields, setHotelFields] = useState(state.hotelConfig || {});
   const [profileFields, setProfileFields] = useState({
-    name: currentUser?.name || "",
-    email: currentUser?.email || ""
+    name: currentUser?.name || "", email: currentUser?.email || ""
   });
-
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [errors, setErrors] = useState({});
+  const [globalError, setGlobalError] = useState("");
+  const [globalSuccess, setGlobalSuccess] = useState("");
 
   useEffect(() => {
     if (state.hotelConfig) setHotelFields(state.hotelConfig);
   }, [state.hotelConfig]);
 
+  const flashSuccess = (msg) => {
+    setGlobalSuccess(msg);
+    setGlobalError("");
+    setTimeout(() => setGlobalSuccess(""), 4000);
+  };
+  const flashError = (msg) => {
+    setGlobalError(msg);
+    setGlobalSuccess("");
+    setTimeout(() => setGlobalError(""), 5000);
+  };
+
+  /* ─── Unique ID generator for new properties ──────────────────────── */
+  const genUid = () => "_new_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+
+  /* ─── Immutable property update helper ─────────────────────────────── */
+  const updateProperty = (idx, patch) => {
+    const updated = hotelFields.properties.map((p, i) =>
+      i === idx ? { ...p, ...patch } : p
+    );
+    setHotelFields({ ...hotelFields, properties: updated });
+  };
+
   const parseIntervalToMinutes = (val) => {
     if (!val) return 0;
-    const matchMin = val.match(/^(\d+)min$/);
-    if (matchMin) return parseInt(matchMin[1]);
-    const matchHr = val.match(/^(\d+)hr$/);
-    if (matchHr) return parseInt(matchHr[1]) * 60;
+    const m = val.match(/^(\d+)min$/);
+    if (m) return parseInt(m[1]);
+    const h = val.match(/^(\d+)hr$/);
+    if (h) return parseInt(h[1]) * 60;
     return 0;
   };
 
-  const getSyncTimeAgo = (timeString) => {
-    if (!timeString) return "Never";
-    const date = new Date(timeString);
-    const now = new Date();
-    const diffMs = now - date;
-    if (isNaN(diffMs) || diffMs < 0) return "Never";
-
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} mins ago`;
-
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
-
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+  const getSyncTimeAgo = (ts) => {
+    if (!ts) return "Never";
+    const diff = Date.now() - new Date(ts);
+    if (isNaN(diff) || diff < 0) return "Never";
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "Just now";
+    if (m < 60) return `${m} min ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
   };
 
   const validateSettings = () => {
-    const newErrors = {};
-
-    // Hotel Profile Validation
+    const e = {};
     if (activeTab === "hotel") {
-      if (!hotelFields.hotel_name || hotelFields.hotel_name.length < 3) {
-        newErrors.hotel_name = "Hotel name must be at least 3 characters";
-      }
-      if (!hotelFields.number_of_rooms || isNaN(hotelFields.number_of_rooms)) {
-        newErrors.number_of_rooms = "Valid number of rooms is required";
-      }
-      if (!hotelFields.city) {
-        newErrors.city = "City is required";
-      }
-
+      if (!hotelFields.hotel_name || hotelFields.hotel_name.length < 3)
+        e.hotel_name = "Hotel name must be at least 3 characters";
+      if (!hotelFields.number_of_rooms || isNaN(hotelFields.number_of_rooms))
+        e.number_of_rooms = "Valid number of rooms is required";
+      if (!hotelFields.city) e.city = "City is required";
     }
-
-    // AI & SLA Validation
     if (activeTab === "ai") {
       const { high, medium, low } = hotelFields.slaConfig || {};
-      if (parseInt(high) >= parseInt(medium)) {
-        newErrors.sla = "High urgency SLA must be less than Medium urgency SLA";
-      }
-      if (parseInt(medium) >= parseInt(low)) {
-        newErrors.sla = "Medium urgency SLA must be less than Low urgency SLA";
-      }
+      if (parseInt(high) >= parseInt(medium))
+        e.sla = "High SLA must be less than Medium SLA";
+      if (parseInt(medium) >= parseInt(low))
+        e.sla = "Medium SLA must be less than Low SLA";
     }
-
-    // Properties Validation
     if (activeTab === "properties") {
       const props = hotelFields.properties || [];
       const allUrls = [];
       for (let i = 0; i < props.length; i++) {
         const p = props[i];
-        if (!p.name) newErrors.properties = `Property ${i + 1} name is required.`;
-        if (!p.city) newErrors.properties = `Property ${i + 1} city is required.`;
-        if (!p.rooms) newErrors.properties = `Property ${i + 1} number of rooms is required.`;
-
-        // Validation rule: Low urgency sync must be less frequent than high urgency sync (low interval must be greater than high interval)
+        if (!p.name) { e.properties = `Property ${i + 1}: name required`; break; }
+        if (!p.city) { e.properties = `Property ${i + 1}: city required`; break; }
+        if (!p.rooms) { e.properties = `Property ${i + 1}: rooms required`; break; }
         const urgentMins = parseIntervalToMinutes(p.urgent_sync_interval || "5hr");
         const lowMins = parseIntervalToMinutes(p.low_sync_interval || "10hr");
         if (lowMins <= urgentMins) {
-          newErrors.properties = "Low urgency sync must be less frequent than high urgency sync.";
+          e.properties = "Low urgency sync must be less frequent than high urgency sync"; break;
         }
-
-        let hasOneUrl = false;
+        let hasUrl = false;
         if (p.platforms) {
           for (const [plat, url] of Object.entries(p.platforms)) {
             if (url) {
               if (!url.startsWith("http")) {
-                newErrors.properties = `Invalid URL for ${plat} in property ${p.name || i + 1}. Please paste a valid hotel page URL.`;
-              } else {
-                hasOneUrl = true;
-                if (allUrls.includes(url)) {
-                  newErrors.properties = `Duplicate URL found: ${url}. Already added in another property.`;
-                }
-                allUrls.push(url);
+                e.properties = `Invalid URL for ${plat} in property ${p.name || i + 1}`; break;
               }
+              hasUrl = true;
+              if (allUrls.includes(url)) {
+                e.properties = `Duplicate URL: ${url}`; break;
+              }
+              allUrls.push(url);
             }
           }
         }
-        if (!hasOneUrl) newErrors.properties = `Property ${p.name || i + 1} must have at least one platform URL.`;
+        if (!hasUrl) { e.properties = `Property ${p.name || i + 1} needs at least one platform URL`; break; }
       }
     }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSaveHotel = async () => {
     if (!validateSettings()) {
-      // Small timeout to allow errors state to update
-      setTimeout(() => {
-        alert("Please fix the validation errors before saving.");
-      }, 100);
+      flashError("Please fix the errors below before saving.");
       return;
     }
     setLoading(true);
     try {
       const res = await updateHotel(hotelFields);
       dispatch({ type: "UPDATE_HOTEL_CONFIG", payload: res.data });
-      alert("Settings saved successfully!");
+      flashSuccess("Settings saved successfully!");
     } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
+      flashError(err.message);
+    } finally { setLoading(false); }
   };
 
   const handleStaffSubmit = async (e) => {
@@ -197,24 +330,10 @@ const Settings = () => {
       }
       setIsModalOpen(false);
       setEditingStaff(null);
+      flashSuccess("Staff member saved!");
     } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRunAnalysis = async () => {
-    if (!window.confirm("This will re-run AI analysis on all pending reviews. Continue?")) return;
-    setLoading(true);
-    try {
-      await runFullAnalysis();
-      alert("Background analysis started!");
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
+      flashError(err.message);
+    } finally { setLoading(false); }
   };
 
   const handleSaveProfile = async () => {
@@ -222,861 +341,832 @@ const Settings = () => {
     try {
       const res = await updateMe(profileFields);
       updateUser(res.data);
-      alert("Profile updated!");
+      flashSuccess("Profile updated!");
     } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
+      flashError(err.message);
+    } finally { setLoading(false); }
   };
 
   const tabs = [
     { id: "hotel", name: "Hotel Profile", icon: Hotel },
     { id: "properties", name: "Properties", icon: Building2 },
-    { id: "staff", name: "Staff Management", icon: Users },
-    { id: "ai", name: "SLAs", icon: Shield },
+    { id: "ai", name: "Rules", icon: Shield },
     { id: "account", name: "Account", icon: User },
+    { id: "import", name: "Import Reviews", icon: User },
   ];
-
   const visibleTabs = tabs.filter(t => !isScopedUser || t.id === "account");
-
   const departments = DEPARTMENTS;
 
+  if (state.isAppLoading) return <SettingsSkeleton />;
+
+  /* ─── styles ─────────────────────────────────────── */
+  const s = {
+    page: {
+      maxWidth: 880, margin: "0 auto", padding: "36px 0 80px",
+      fontFamily: "'DM Sans', system-ui, sans-serif"
+    },
+    heading: { fontSize: 28, fontWeight: 800, color: C.textPrimary, margin: 0 },
+    subheading: { fontSize: 14, color: C.textMuted, margin: "4px 0 0" },
+    tabBar: {
+      display: "flex", gap: 6, padding: 6,
+      background: "#fff", borderRadius: 20,
+      border: `1.5px solid ${C.border}`,
+      boxShadow: "0 1px 6px rgba(0,0,0,.04)",
+      overflowX: "auto", marginTop: 28
+    },
+    tab: (active) => ({
+      display: "flex", alignItems: "center", gap: 8,
+      padding: "10px 20px", borderRadius: 14,
+      border: "none", cursor: "pointer", fontWeight: 700,
+      fontSize: 13, whiteSpace: "nowrap", transition: "all .2s",
+      background: active ? C.accent : "transparent",
+      color: active ? "#fff" : C.textMuted,
+      boxShadow: active ? "0 3px 10px rgba(99,102,241,.2)" : "none"
+    }),
+    card: {
+      background: "#fff", borderRadius: 24,
+      border: `1.5px solid ${C.border}`,
+      boxShadow: "0 2px 16px rgba(45,58,90,.06)",
+      padding: 36, marginTop: 20
+    },
+    sectionHead: {
+      display: "flex", alignItems: "center", gap: 12,
+      paddingBottom: 20, borderBottom: `1.5px solid ${C.border}`,
+      marginBottom: 28
+    },
+    iconBox: (color = "#6366F1", bg = "#EEF0FD") => ({
+      width: 44, height: 44, borderRadius: 14,
+      background: bg, color, display: "flex",
+      alignItems: "center", justifyContent: "center"
+    }),
+    sectionTitle: { fontSize: 20, fontWeight: 800, color: C.textPrimary, margin: 0 },
+    sectionSub: { fontSize: 13, color: C.textMuted, margin: "2px 0 0" },
+    grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 },
+    field: { display: "flex", flexDirection: "column" },
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex justify-between items-center">
+    <div style={s.page}>
+      {/* Page Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-          <p className="text-slate-500">Global configuration for ReviewRescue.</p>
+          <h1 style={s.heading}>Settings</h1>
+          <p style={s.subheading}>Global configuration for ReviewRescue</p>
         </div>
-        {activeTab === "ai" && (
-          <button
-            onClick={handleRunAnalysis}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all active:scale-95"
-          >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-            Run Full Analysis
-          </button>
-        )}
       </div>
 
-      <div className="flex gap-2 p-1.5 bg-white rounded-3xl border border-slate-200 overflow-x-auto shadow-sm">
+      {/* Tab Bar */}
+      <div style={s.tabBar}>
         {visibleTabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => {
-              setActiveTab(t.id);
-              setErrors({});
-            }}
-            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === t.id ? "bg-slate-900 text-white shadow-xl" : "text-slate-500 hover:bg-slate-50"}`}
-          >
-            <t.icon size={18} />
-            {t.name}
+          <button key={t.id} style={s.tab(activeTab === t.id)}
+            onClick={() => { setActiveTab(t.id); setErrors({}); setGlobalError(""); setGlobalSuccess(""); }}>
+            <t.icon size={16} /> {t.name}
           </button>
         ))}
       </div>
 
-      <div className="glass-card p-10 bg-white border border-slate-100 shadow-sm min-h-[600px] relative">
+      {/* Global banners */}
+      {(globalError || globalSuccess) && (
+        <div style={{ marginTop: 16 }}>
+          <BannerError msg={globalError} />
+          <BannerSuccess msg={globalSuccess} />
+        </div>
+      )}
+
+      {/* ── Card ── */}
+      <div style={s.card}>
+
+        {/* ════════════ HOTEL PROFILE ════════════ */}
         {activeTab === "hotel" && (
-          <div className="space-y-10">
-            <div className="flex items-center gap-3 border-b pb-6">
-              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm">
-                <Building2 size={28} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div style={s.sectionHead}>
+              <div style={s.iconBox()}>
+                <Building2 size={22} />
               </div>
               <div>
-                <h3 className="text-2xl font-bold">Hotel Profile</h3>
-                <p className="text-sm text-slate-500">Public information and core property settings.</p>
+                <p style={s.sectionTitle}>Hotel Profile</p>
+                <p style={s.sectionSub}>Public information and core property settings</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Hotel Name <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                  <input
-                    type="text"
-                    value={hotelFields.hotel_name || ""}
-                    onChange={e => setHotelFields({ ...hotelFields, hotel_name: e.target.value })}
-                    className={`w-full p-4 pl-12 bg-slate-50 border ${errors.hotel_name ? 'border-red-500' : 'border-slate-200'} rounded-[20px] focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700 transition-all`}
-                    placeholder="Grand Plaza Hotel"
-                  />
-                </div>
-                {errors.hotel_name && <p className="text-red-500 text-[10px] font-bold mt-2 uppercase tracking-wider">{errors.hotel_name}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">City <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                  <input
-                    type="text"
-                    value={hotelFields.city || ""}
-                    onChange={e => setHotelFields({ ...hotelFields, city: e.target.value })}
-                    className={`w-full p-4 pl-12 bg-slate-50 border ${errors.city ? 'border-red-500' : 'border-slate-200'} rounded-[20px] focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700 transition-all`}
-                    placeholder="New York"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Property Size (Rooms) <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <Hotel className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                  <input
-                    type="number"
-                    value={hotelFields.number_of_rooms || ""}
-                    onChange={e => setHotelFields({ ...hotelFields, number_of_rooms: e.target.value })}
-                    className={`w-full p-4 pl-12 bg-slate-50 border ${errors.number_of_rooms ? 'border-red-500' : 'border-slate-200'} rounded-[20px] focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700 transition-all`}
-                    placeholder="150"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Operational Timezone</label>
-                <div className="relative">
-                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                  <select
-                    value={hotelFields.timezone || "UTC"}
-                    onChange={e => setHotelFields({ ...hotelFields, timezone: e.target.value })}
-                    className="w-full p-4 pl-12 bg-slate-50 border border-slate-200 rounded-[20px] focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700 appearance-none transition-all"
-                  >
-
-                    <option value="IST">IST (New Delhi/Mumbai)</option>
-
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                </div>
-              </div>
-
-              {/* <div className="space-y-2">
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Escalation Email <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                  <input
-                    type="email"
-                    value={hotelFields.contact_email || ""}
-                    onChange={e => setHotelFields({ ...hotelFields, contact_email: e.target.value })}
-                    className={`w-full p-4 pl-12 bg-slate-50 border ${errors.contact_email ? 'border-red-500' : 'border-slate-200'} rounded-[20px] focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700 transition-all`}
-                    placeholder="gm@hotel.com"
-                  />
-                </div>
-              </div> */}
-
-              <div className="md:col-span-2 space-y-4 pt-4">
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Active Review Platforms</label>
-                <div className="flex flex-wrap gap-3">
-                  {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
-                    const isActive = (hotelFields.platforms || []).includes(platform);
-                    return (
-                      <button
-                        key={platform}
-                        onClick={() => {
-                          const current = hotelFields.platforms || [];
-                          const updated = isActive
-                            ? current.filter(p => p !== platform)
-                            : [...current, platform];
-                          setHotelFields({ ...hotelFields, platforms: updated });
-                        }}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all ${isActive
-                          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105"
-                          : "bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100"
-                          }`}
-                      >
-                        {isActive && <Check size={16} />}
-                        {platform}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            {/* Hotel Name */}
+            <div style={{ gridColumn: "1/-1" }}>
+              <Label required>Hotel Name</Label>
+              <Input icon={Building2} error={errors.hotel_name}
+                type="text" placeholder="Grand Plaza Hotel"
+                value={hotelFields.hotel_name || ""}
+                onChange={e => setHotelFields({ ...hotelFields, hotel_name: e.target.value })} />
+              <FieldError msg={errors.hotel_name} />
             </div>
 
-            <div className="pt-6 border-t border-slate-50">
-              <button
-                onClick={handleSaveHotel}
-                disabled={loading}
-                className="btn-primary w-full md:w-auto px-16 py-5 flex items-center justify-center gap-3 shadow-2xl shadow-indigo-200"
-              >
-                {loading ? <Loader2 className="animate-spin" /> : <Save />}
-                Update Property Profile
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "properties" && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
+            <div style={s.grid2}>
+              {/* City */}
               <div>
-                <h3 className="text-2xl font-bold flex items-center gap-3"><Building2 className="text-indigo-600" /> Properties</h3>
-                <p className="text-sm text-slate-500">Manage your hotel properties and their review platform links.</p>
+                <Label required>City</Label>
+                <Input icon={MapPin} error={errors.city}
+                  type="text" placeholder="New York"
+                  value={hotelFields.city || ""}
+                  onChange={e => setHotelFields({ ...hotelFields, city: e.target.value })} />
+                <FieldError msg={errors.city} />
               </div>
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                <span className="text-sm font-bold text-slate-400">
-                  {(hotelFields.properties || []).length} / 3 properties
-                </span>
-                <button
-                  onClick={() => {
-                    const currentProps = hotelFields.properties || [];
-                    if (currentProps.length >= 3) return alert("Maximum 3 properties allowed.");
-                    const newProp = {
-                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {},
-                      urgent_sync_interval: "5hr", low_sync_interval: "10hr"
-                    };
-                    setHotelFields({ ...hotelFields, properties: [newProp, ...currentProps] });
-                  }}
-                  className="btn-primary text-xs flex items-center gap-2 whitespace-nowrap px-6 py-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all active:scale-95"
-                >
-                  <Plus size={16} /> Add Property
-                </button>
+
+              {/* Rooms */}
+              <div>
+                <Label required>Property Size (Rooms)</Label>
+                <Input icon={Hotel} error={errors.number_of_rooms}
+                  type="number" placeholder="150"
+                  value={hotelFields.number_of_rooms || ""}
+                  onChange={e => setHotelFields({ ...hotelFields, number_of_rooms: e.target.value })} />
+                <FieldError msg={errors.number_of_rooms} />
+              </div>
+
+              {/* Timezone */}
+              <div>
+                <Label>Operational Timezone</Label>
+                <Select icon={Globe}
+                  value={hotelFields.timezone || "IST"}
+                  onChange={e => setHotelFields({ ...hotelFields, timezone: e.target.value })}>
+                  <option value="IST">IST (New Delhi / Mumbai)</option>
+                </Select>
               </div>
             </div>
 
-            {errors.properties && (
-              <div className="p-4 bg-red-50 text-red-600 font-bold rounded-2xl border border-red-100 flex items-center gap-3">
-                <AlertCircle size={18} />
-                {errors.properties}
-              </div>
-            )}
-
-            {(hotelFields.properties || []).length === 0 ? (
-              <div className="py-20 text-center space-y-3">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
-                  <Building2 size={32} />
-                </div>
-                <p className="text-slate-900 font-bold">No properties added yet</p>
-                <p className="text-slate-500 text-sm">Add your first property to start collecting reviews</p>
-                <button
-                  onClick={() => {
-                    const newProp = {
-                      name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {},
-                      urgent_sync_interval: "5hr", low_sync_interval: "10hr"
-                    };
-                    setHotelFields({ ...hotelFields, properties: [newProp] });
-                  }}
-                  className="btn-primary mt-4"
-                >
-                  + Add Property
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {(hotelFields.properties || []).map((prop, idx) => (
-                  <div key={idx} className="p-6 bg-slate-50 border border-slate-200 rounded-[24px] shadow-sm relative overflow-hidden transition-all group hover:border-indigo-200">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-white text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm font-bold text-xl border border-slate-100">
-                          🏨
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <input
-                              type="text"
-                              value={prop.name}
-                              onChange={(e) => {
-                                const updatedProps = [...hotelFields.properties];
-                                updatedProps[idx].name = e.target.value;
-                                setHotelFields({ ...hotelFields, properties: updatedProps });
-                              }}
-                              className={`text-xl font-bold bg-transparent border-b ${!prop.name && errors.properties ? 'border-red-500 border-dashed text-red-600' : 'border-dashed border-slate-300 focus:border-indigo-500'} outline-none pb-1 placeholder-slate-300 w-[200px] md:w-[250px]`}
-                              placeholder="Property Name"
-                            />
-                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-indigo-100 whitespace-nowrap animate-in zoom-in duration-300">
-                              [{prop.review_count || 0} reviews]
-                            </span>
-                            {prop.is_active ? (
-                              <span className="px-2.5 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-green-100 whitespace-nowrap animate-in zoom-in duration-300">
-                                [Active]
-                              </span>
-                            ) : (
-                              <span className="px-2.5 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider rounded-xl border border-slate-200 whitespace-nowrap animate-in zoom-in duration-300">
-                                [Inactive]
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
-                            <input
-                              type="text"
-                              value={prop.city}
-                              onChange={(e) => {
-                                const updatedProps = [...hotelFields.properties];
-                                updatedProps[idx].city = e.target.value;
-                                setHotelFields({ ...hotelFields, properties: updatedProps });
-                              }}
-                              className={`w-24 bg-transparent border-b ${!prop.city && errors.properties ? 'border-red-500' : 'border-dashed border-slate-300'} focus:border-indigo-500 outline-none placeholder-slate-300`}
-                              placeholder="City"
-                            />
-                            <span>· Rooms:</span>
-                            <input
-                              type="number"
-                              value={prop.rooms || ""}
-                              onChange={(e) => {
-                                const updatedProps = [...hotelFields.properties];
-                                updatedProps[idx].rooms = e.target.value ? parseInt(e.target.value) : "";
-                                setHotelFields({ ...hotelFields, properties: updatedProps });
-                              }}
-                              className={`w-16 bg-transparent border-b ${!prop.rooms && errors.properties ? 'border-red-500' : 'border-dashed border-slate-300'} focus:border-indigo-500 outline-none placeholder-slate-300`}
-                              placeholder="150"
-                            />
-                            <span>·</span>
-                            <select
-                              value={prop.timezone || "IST"}
-                              onChange={(e) => {
-                                const updatedProps = [...hotelFields.properties];
-                                updatedProps[idx].timezone = e.target.value;
-                                setHotelFields({ ...hotelFields, properties: updatedProps });
-                              }}
-                              className="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none"
-                            >
-
-                              <option value="IST">IST</option>
-
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const updatedProps = [...hotelFields.properties];
-                          updatedProps[idx].is_active = !updatedProps[idx].is_active;
-                          setHotelFields({ ...hotelFields, properties: updatedProps });
-                        }}
-                        className="transition-transform active:scale-90"
-                      >
-                        {prop.is_active ? <ToggleRight className="text-indigo-600" size={36} /> : <ToggleLeft className="text-slate-300" size={36} />}
-                      </button>
-                    </div>
-
-                    <div className="pt-6 border-t border-slate-200">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Platform Links</label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
-                          const url = (prop.platforms && prop.platforms[platform]) || "";
-                          const isValid = url.startsWith("http");
-                          const isError = url.length > 0 && !isValid;
-
-                          return (
-                            <div key={platform} className="flex items-center gap-3">
-                              <div className={`w-24 text-xs font-bold ${url ? 'text-slate-700' : 'text-slate-400'}`}>{platform}</div>
-                              <div className="flex-1 relative">
-                                <input
-                                  type="url"
-                                  value={url}
-                                  onChange={(e) => {
-                                    const updatedProps = [...hotelFields.properties];
-                                    if (!updatedProps[idx].platforms) updatedProps[idx].platforms = {};
-                                    updatedProps[idx].platforms[platform] = e.target.value;
-                                    setHotelFields({ ...hotelFields, properties: updatedProps });
-                                  }}
-                                  className={`w-full p-3 text-xs bg-white border ${isError ? 'border-red-500' : 'border-slate-200'} rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all`}
-                                  placeholder={`Paste ${platform} URL...`}
-                                />
-                                {url && isValid && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 animate-in zoom-in duration-300" size={16} />}
-                                {!url && <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 animate-in zoom-in duration-300" size={16} />}
-                                {isError && <X className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 animate-in zoom-in duration-300" size={16} />}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Review Sync Schedule */}
-                    <div className="pt-6 border-t border-slate-200 mt-6">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Review Sync Schedule</label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-2xl border border-slate-100">
-                        <div className="space-y-2">
-                          <label className="block text-xs font-bold text-slate-700">High Urgency (1-3★ reviews)</label>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
-                              <div className="flex-1 p-3 text-xs bg-slate-100 border border-slate-200 rounded-xl font-black text-slate-400 text-center select-none cursor-not-allowed">
-                                5 hrs
-                              </div>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-medium mt-1">⚠️ Fixed frequency</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="block text-xs font-bold text-slate-700">Low Urgency (4-5★ reviews)</label>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-400 whitespace-nowrap">Sync every</span>
-                              <div className="flex-1 p-3 text-xs bg-slate-100 border border-slate-200 rounded-xl font-black text-slate-400 text-center select-none cursor-not-allowed">
-                                10 hrs
-                              </div>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-medium mt-1">⚠️ Fixed frequency</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="block text-xs font-bold text-slate-700">Max reviews per sync</label>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-slate-400 whitespace-nowrap">Limit to</span>
-                            <select
-                              value={prop.max_reviews_per_sync || 5}
-                              onChange={(e) => {
-                                const updatedProps = [...hotelFields.properties];
-                                updatedProps[idx].max_reviews_per_sync = parseInt(e.target.value);
-                                setHotelFields({ ...hotelFields, properties: updatedProps });
-                              }}
-                              className="flex-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                            >
-                              <option value={5}>5 reviews</option>
-                              <option value={10}>10 reviews</option>
-                              <option value={15}>15 reviews</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sync Status Section */}
-                    <div className="mt-4 p-4 rounded-xl border border-slate-100 flex items-center justify-between bg-slate-50/50">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-500">Last synced:</span>
-                        <span className="text-xs font-black text-slate-700">
-                          {getSyncTimeAgo(prop.last_sync_time)}
-                        </span>
-                      </div>
-
-                      {/* Status Badges */}
-                      {(!prop.last_sync_status || prop.last_sync_status === "never") && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-amber-100">
-                          <AlertTriangle size={12} className="text-amber-500" /> Not verified yet ⚠️
-                        </div>
-                      )}
-                      {prop.last_sync_status === "success" && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-green-100">
-                          <CheckCircle2 size={12} className="text-green-500" /> Connected & Working ✅
-                        </div>
-                      )}
-                      {prop.last_sync_status === "failed" && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-wider rounded-full border border-red-100">
-                          <X size={12} className="text-red-500" /> Sync Failed ❌
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-6 flex justify-between items-center bg-white p-3 rounded-2xl border border-slate-100">
-                      <button
-                        onClick={async () => {
-                          if (!window.confirm("Delete this property?")) return;
-                          const updatedProps = [...hotelFields.properties];
-                          updatedProps.splice(idx, 1);
-                          const updatedHotelFields = { ...hotelFields, properties: updatedProps };
-                          setHotelFields(updatedHotelFields);
-
-                          setLoading(true);
-                          try {
-                            const res = await updateHotel(updatedHotelFields);
-                            dispatch({ type: "UPDATE_HOTEL_CONFIG", payload: res.data });
-                            alert("Property deleted successfully!");
-                          } catch (err) {
-                            alert(err.message);
-                          } finally {
-                            setLoading(false);
-                          }
-                        }}
-                        className="text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition-all flex items-center gap-2"
-                      >
-                        <Trash2 size={16} /> Delete
-                      </button>
-                      <button
-                        onClick={handleSaveHotel}
-                        disabled={loading}
-                        className="btn-primary text-xs py-2 px-6 flex items-center gap-2 shadow-sm"
-                      >
-                        {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        Save Property
-                      </button>
-                    </div>
-                  </div>
+            {/* Active Platforms — static read-only chips */}
+            <div>
+              <Label>Active Review Platforms</Label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
+                {["Agoda", "Booking.com", "Google Hotels", "Airbnb"].map(p => (
+                  <span key={p} style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "7px 16px", background: C.accentSoft,
+                    color: C.accentText, borderRadius: 20,
+                    fontSize: 13, fontWeight: 700,
+                    border: `1px solid ${C.borderFocus}`
+                  }}>
+                    <CheckCircle2 size={13} /> {p}
+                  </span>
                 ))}
               </div>
-            )}
+              <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>
+                Platform links are configured per-property in the Properties tab.
+              </p>
+            </div>
+
+            <div style={{ paddingTop: 8, borderTop: `1.5px solid ${C.border}` }}>
+              <PrimaryBtn loading={loading} onClick={handleSaveHotel}
+                style={{ minWidth: 220 }}>
+                <Save size={16} /> Update Property Profile
+              </PrimaryBtn>
+            </div>
           </div>
         )}
 
-        {activeTab === "staff" && (
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
-              <div>
-                <h3 className="text-2xl font-bold flex items-center gap-3"><Users className="text-indigo-600" /> Staff Management</h3>
-                <p className="text-sm text-slate-500">Manage team members, roles, and permissions.</p>
+        {/* ════════════ PROPERTIES ════════════ */}
+        {activeTab === "properties" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ ...s.sectionHead, alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <p style={s.sectionTitle}>Properties</p>
+                <p style={s.sectionSub}>Manage hotel properties and their review platform links</p>
               </div>
-              <div className="flex gap-3 w-full md:w-auto">
-                <div className="relative flex-1 md:w-48">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <select
-                    value={deptFilter}
-                    onChange={e => setDeptFilter(e.target.value)}
-                    className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
-                  >
-                    <option value="ALL">All Departments</option>
-                    {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
-                <button
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted }}>
+                  {(hotelFields.properties || []).length} / 3
+                </span>
+                <PrimaryBtn style={{ padding: "9px 18px", fontSize: 13 }}
                   onClick={() => {
-                    setEditingStaff(null);
-                    setNewStaff({ name: "", email: "", password: "", department: "Front Office", role: "staff" });
-                    setIsModalOpen(true);
-                  }}
-                  className="btn-primary text-xs flex items-center gap-2 whitespace-nowrap px-6"
-                >
-                  <Plus size={16} /> Add Member
-                </button>
+                    const cur = hotelFields.properties || [];
+                    if (cur.length >= 3) { flashError("Maximum 3 properties allowed."); return; }
+                    setHotelFields({
+                      ...hotelFields, properties: [
+                        {
+                          _uid: genUid(), name: "", city: "", rooms: "", timezone: "IST", is_active: true,
+                          platforms: {}, urgent_sync_interval: "5hr", low_sync_interval: "10hr"
+                        },
+                        ...cur.map(p => ({ ...p }))
+                      ]
+                    });
+                  }}>
+                  <Plus size={15} /> Add Property
+                </PrimaryBtn>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              {state.staff.filter(s => deptFilter === "ALL" || s.department === deptFilter).length === 0 ? (
-                <div className="py-20 text-center space-y-3">
-                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
-                    <Users size={32} />
-                  </div>
-                  <p className="text-slate-400 font-medium">No staff members found matching your filter.</p>
+            <BannerError msg={errors.properties} />
+
+            {(hotelFields.properties || []).length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px" }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: "50%",
+                  background: C.accentSoft, display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  margin: "0 auto 16px", color: C.accent
+                }}>
+                  <Building2 size={28} />
                 </div>
-              ) : state.staff.filter(s => deptFilter === "ALL" || s.department === deptFilter).map(s => (
-                <div key={s._id} className={`p-5 bg-white border ${s.status === 'disabled' ? 'opacity-60 grayscale bg-slate-50' : 'hover:border-indigo-200 shadow-sm'} border-slate-100 rounded-[24px] flex justify-between items-center group transition-all`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 ${s.status === 'disabled' ? 'bg-slate-200 text-slate-500' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'} rounded-2xl flex items-center justify-center font-bold text-xl`}>
-                      {s.avatar_initials || s.name[0]}
-                    </div>
+                <p style={{ fontWeight: 700, color: C.textPrimary, margin: 0 }}>No properties yet</p>
+                <p style={{ color: C.textMuted, fontSize: 13, marginTop: 6 }}>Add your first property to start collecting reviews</p>
+                <PrimaryBtn style={{ margin: "20px auto 0" }}
+                  onClick={() => setHotelFields({
+                    ...hotelFields, properties: [
+                      {
+                        _uid: genUid(), name: "", city: "", rooms: "", timezone: "IST", is_active: true,
+                        platforms: {}, urgent_sync_interval: "5hr", low_sync_interval: "10hr"
+                      }
+                    ]
+                  })}>
+                  <Plus size={15} /> Add Property
+                </PrimaryBtn>
+              </div>
+            ) : (hotelFields.properties || []).map((prop, idx) => (
+              <div key={prop._uid || prop._id || idx} style={{
+                background: C.inputBg, border: `1.5px solid ${C.border}`,
+                borderRadius: 20, padding: 24,
+                opacity: prop.is_active ? 1 : 0.65,
+                transition: "all .2s"
+              }}>
+                {/* Property Header */}
+                <div style={{
+                  display: "flex", justifyContent: "space-between",
+                  alignItems: "flex-start", marginBottom: 20
+                }}>
+                  <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                    <div style={{ fontSize: 28 }}>🏨</div>
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-bold text-slate-900">{s.name}</p>
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${s.role === 'gm' ? 'bg-amber-100 text-amber-700' :
-                          s.role === 'dept_head' ? 'bg-indigo-100 text-indigo-700' :
-                            'bg-slate-100 text-slate-600'
-                          }`}>
-                          {s.role === 'gm' ? 'GM' : s.role === 'dept_head' ? 'Dept Head' : 'Staff'}
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <input type="text" value={prop.name} placeholder="Property Name"
+                          onChange={e => updateProperty(idx, { name: e.target.value })}
+                          style={{
+                            fontSize: 17, fontWeight: 800, background: "transparent",
+                            border: "none", borderBottom: `2px dashed ${C.border}`,
+                            outline: "none", color: C.textPrimary,
+                            width: 200, paddingBottom: 3
+                          }} />
+                        <span style={{
+                          padding: "3px 10px", background: C.accentSoft,
+                          color: C.accentText, borderRadius: 20, fontSize: 10,
+                          fontWeight: 800, textTransform: "uppercase"
+                        }}>
+                          {state.reviews?.filter(r => r.hotel_name === prop.name).length || 0} reviews
                         </span>
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${s.inviteStatus === 'Active' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                          }`}>
-                          {s.inviteStatus || 'Pending'}
+                        <span style={{
+                          padding: "3px 10px",
+                          background: prop.is_active ? C.successSoft : C.inputBg,
+                          color: prop.is_active ? "#15803D" : C.textMuted,
+                          border: `1px solid ${prop.is_active ? C.successBorder : C.border}`,
+                          borderRadius: 20, fontSize: 10, fontWeight: 800, textTransform: "uppercase"
+                        }}>
+                          {prop.is_active ? "Active" : "Inactive"}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 font-medium">{s.email} • <span className="text-indigo-600 font-bold">{s.department}</span></p>
+                      <div style={{
+                        display: "flex", gap: 10, alignItems: "center",
+                        marginTop: 8, flexWrap: "wrap"
+                      }}>
+                        <input type="text" value={prop.city} placeholder="City"
+                          onChange={e => updateProperty(idx, { city: e.target.value })}
+                          style={{
+                            width: 90, background: "transparent", border: "none",
+                            borderBottom: `1.5px dashed ${C.border}`, outline: "none",
+                            fontSize: 13, color: C.textMuted, fontWeight: 600
+                          }} />
+                        <span style={{ color: C.border }}>·</span>
+                        <input type="number" value={prop.rooms || ""} placeholder="Rooms"
+                          onChange={e => updateProperty(idx, { rooms: e.target.value ? parseInt(e.target.value) : "" })}
+                          style={{
+                            width: 60, background: "transparent", border: "none",
+                            borderBottom: `1.5px dashed ${C.border}`, outline: "none",
+                            fontSize: 13, color: C.textMuted, fontWeight: 600
+                          }} />
+                        <span style={{ fontSize: 13, color: C.textMuted }}>rooms</span>
+                      </div>
                     </div>
                   </div>
+                  {/* Toggle */}
+                  <button style={{ background: "none", border: "none", cursor: "pointer" }}
+                    onClick={() => updateProperty(idx, { is_active: !prop.is_active })}>
+                    {prop.is_active
+                      ? <ToggleRight size={36} color={C.accent} />
+                      : <ToggleLeft size={36} color={C.border} />}
+                  </button>
+                </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => {
-                        setEditingStaff(s);
-                        setNewStaff({ name: s.name, email: s.email, password: "", department: s.department, role: s.role });
-                        setIsModalOpen(true);
-                      }}
-                      className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const newStatus = s.status === "active" ? "disabled" : "active";
-                        const res = await updateStaff(s._id, { status: newStatus });
-                        dispatch({ type: "UPDATE_STAFF_MEMBER", payload: res.data });
-                      }}
-                      className={`p-2.5 rounded-xl transition-all ${s.status === 'active' ? 'text-slate-400 hover:text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}
-                    >
-                      {s.status === 'active' ? <UserMinus size={18} /> : <UserCheck size={18} />}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (s.role === 'gm') return alert("Cannot delete General Manager");
-                        if (!window.confirm("Delete staff member?")) return;
-                        await removeStaff(s._id);
-                        dispatch({ type: "REMOVE_STAFF_MEMBER", payload: s._id });
-                      }}
-                      disabled={s.role === 'gm'}
-                      className={`p-2.5 rounded-xl transition-all ${s.role === 'gm' ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'}`}
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                {/* Platform Links */}
+                <div style={{ paddingTop: 18, borderTop: `1.5px solid ${C.border}` }}>
+                  <Label>Platform Links</Label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
+                      const url = (prop.platforms && prop.platforms[platform]) || "";
+                      const isValid = url.startsWith("http");
+                      const isErr = url.length > 0 && !isValid;
+                      return (
+                        <div key={platform} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{
+                            width: 90, fontSize: 12, fontWeight: 700,
+                            color: url ? C.textPrimary : C.textMuted
+                          }}>{platform}</span>
+                          <div style={{ flex: 1, position: "relative" }}>
+                            <input type="url" value={url}
+                              placeholder={`${platform} URL…`}
+                              onChange={e => updateProperty(idx, {
+                                platforms: { ...(prop.platforms || {}), [platform]: e.target.value }
+                              })}
+                              style={{
+                                width: "100%", padding: "10px 36px 10px 12px",
+                                background: "#fff", border: `1.5px solid ${isErr ? C.danger : C.border}`,
+                                borderRadius: 12, outline: "none", fontSize: 12,
+                                fontWeight: 600, color: C.textPrimary, boxSizing: "border-box"
+                              }} />
+                            <span style={{
+                              position: "absolute", right: 10, top: "50%",
+                              transform: "translateY(-50%)"
+                            }}>
+                              {url && isValid && <CheckCircle2 size={14} color={C.success} />}
+                              {!url && <AlertTriangle size={14} color={C.warn} />}
+                              {isErr && <X size={14} color={C.danger} />}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Sync Schedule */}
+                <div style={{ paddingTop: 18, borderTop: `1.5px solid ${C.border}`, marginTop: 18 }}>
+                  <Label>Review Sync Schedule</Label>
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 16, background: "#fff", padding: 20,
+                    borderRadius: 16, border: `1.5px solid ${C.border}`
+                  }}>
+                    {[
+                      { label: "High Urgency (1–3★)", val: "5 hrs", fixed: true },
+                      { label: "Low Urgency (4–5★)", val: "10 hrs", fixed: true }
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, marginBottom: 8 }}>{item.label}</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, color: C.textMuted }}>Every</span>
+                          <div style={{
+                            flex: 1, padding: "9px 12px", background: C.inputBg,
+                            border: `1.5px solid ${C.border}`, borderRadius: 10,
+                            fontSize: 12, fontWeight: 800, color: C.textMuted,
+                            textAlign: "center"
+                          }}>{item.val}</div>
+                        </div>
+                        <p style={{ fontSize: 10, color: C.textMuted, marginTop: 5 }}>⚠️ Fixed</p>
+                      </div>
+                    ))}
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, marginBottom: 8 }}>Max per sync</p>
+                      <Select value={prop.max_reviews_per_sync || 5}
+                        onChange={e => updateProperty(idx, { max_reviews_per_sync: parseInt(e.target.value) })}>
+                        <option value={5}>5 reviews</option>
+                        <option value={10}>10 reviews</option>
+                        <option value={15}>15 reviews</option>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sync Status */}
+                <div style={{
+                  marginTop: 14, padding: "12px 16px",
+                  background: "#fff", borderRadius: 14,
+                  border: `1.5px solid ${C.border}`,
+                  display: "flex", justifyContent: "space-between", alignItems: "center"
+                }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted }}>Last synced:</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.textPrimary }}>
+                      {getSyncTimeAgo(prop.last_sync_time)}
+                    </span>
+                  </div>
+                  {(!prop.last_sync_status || prop.last_sync_status === "never") && (
+                    <span style={{
+                      padding: "4px 12px", background: C.warnSoft,
+                      color: "#92400E", border: `1px solid ${C.warnBorder}`,
+                      borderRadius: 20, fontSize: 10, fontWeight: 800
+                    }}>
+                      ⚠️ Not verified
+                    </span>
+                  )}
+                  {prop.last_sync_status === "success" && (
+                    <span style={{
+                      padding: "4px 12px", background: C.successSoft,
+                      color: "#15803D", border: `1px solid ${C.successBorder}`,
+                      borderRadius: 20, fontSize: 10, fontWeight: 800
+                    }}>
+                      ✅ Connected
+                    </span>
+                  )}
+                  {prop.last_sync_status === "failed" && (
+                    <span style={{
+                      padding: "4px 12px", background: C.dangerSoft,
+                      color: "#B91C1C", border: `1px solid ${C.dangerBorder}`,
+                      borderRadius: 20, fontSize: 10, fontWeight: 800
+                    }}>
+                      ❌ Sync Failed
+                    </span>
+                  )}
+                </div>
+
+                {/* Property Actions */}
+                <div style={{
+                  marginTop: 16, display: "flex",
+                  justifyContent: "space-between", alignItems: "center",
+                  background: C.inputBg, padding: "10px 14px",
+                  borderRadius: 14, border: `1.5px solid ${C.border}`
+                }}>
+                  <button style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "8px 14px", background: "transparent", border: "none",
+                    borderRadius: 10, cursor: "pointer", fontSize: 12,
+                    fontWeight: 700, color: C.textMuted, transition: "all .15s"
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.color = C.danger; e.currentTarget.style.background = C.dangerSoft; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
+                    onClick={async () => {
+                      if (!window.confirm("Delete this property?")) return;
+                      const p = [...hotelFields.properties];
+                      p.splice(idx, 1);
+                      const updated = { ...hotelFields, properties: p };
+                      setHotelFields(updated);
+                      setLoading(true);
+                      try {
+                        const res = await updateHotel(updated);
+                        dispatch({ type: "UPDATE_HOTEL_CONFIG", payload: res.data });
+                        flashSuccess("Property deleted.");
+                      } catch (err) { flashError(err.message); }
+                      finally { setLoading(false); }
+                    }}>
+                    <Trash2 size={14} /> Delete
+                  </button>
+                  <PrimaryBtn loading={loading} style={{ padding: "9px 20px", fontSize: 13 }}
+                    onClick={handleSaveHotel}>
+                    <Save size={14} /> Save Property
+                  </PrimaryBtn>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
+        {/* ════════════ RULES / AI ════════════ */}
         {activeTab === "ai" && (
-          <div className="space-y-12">
-            {/* Section 1: SLAs */}
-            <section className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold flex items-center gap-3"><Clock className="text-indigo-600" /> Response SLAs</h3>
-                {errors.sla && <div className="flex items-center gap-2 text-red-500 text-xs font-bold bg-red-50 px-3 py-1.5 rounded-full border border-red-100 animate-bounce"><AlertCircle size={14} /> {errors.sla}</div>}
-              </div>
-
-              <div className="bg-slate-50 p-8 rounded-[32px] border border-slate-100">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Urgency-Based Deadlines (Hours)</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-bold text-slate-700">High Urgency</label>
-                      <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-black">CRITICAL</span>
-                    </div>
-                    <input
-                      type="number"
-                      value={hotelFields.slaConfig?.high || 4}
-                      onChange={e => setHotelFields({ ...hotelFields, slaConfig: { ...(hotelFields.slaConfig || {}), high: e.target.value } })}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-lg"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Medium Urgency</label>
-                    <input
-                      type="number"
-                      value={hotelFields.slaConfig?.medium || 24}
-                      onChange={e => setHotelFields({ ...hotelFields, slaConfig: { ...(hotelFields.slaConfig || {}), medium: e.target.value } })}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-lg"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Low Urgency</label>
-                    <input
-                      type="number"
-                      value={hotelFields.slaConfig?.low || 72}
-                      onChange={e => setHotelFields({ ...hotelFields, slaConfig: { ...(hotelFields.slaConfig || {}), low: e.target.value } })}
-                      className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-lg"
-                    />
-                  </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+            {/* AI Confidence */}
+            <div style={{
+              borderRadius: 20, border: `1.5px solid ${C.border}`,
+              background: "#fff", padding: 28, position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute", top: -30, right: -30, width: 120, height: 120,
+                background: "rgba(99,102,241,.07)", borderRadius: "50%", filter: "blur(20px)"
+              }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+                <div style={{ ...s.iconBox(), background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
+                  <Zap size={20} color="#fff" />
+                </div>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 800, color: C.textPrimary, margin: 0 }}>
+                    Insights & Proposals
+                  </p>
+                  <p style={{ fontSize: 13, color: C.textMuted, margin: "2px 0 0" }}>
+                    AI automation confidence & review controls
+                  </p>
                 </div>
               </div>
 
-              <div className="bg-indigo-50/50 p-8 rounded-[32px] border border-indigo-100/50">
-                <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-6">Department-Specific Overrides (Hours)</p>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {departments.map(dept => (
-                    <div key={dept} className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase truncate block">{dept}</label>
-                      <input
-                        type="number"
-                        value={hotelFields.deptSlaConfig?.[dept] || 4}
-                        onChange={e => setHotelFields({
-                          ...hotelFields,
-                          deptSlaConfig: {
-                            ...(hotelFields.deptSlaConfig || {}),
-                            [dept]: e.target.value
-                          }
-                        })}
-                        className="w-full p-3 bg-white border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-center"
-                      />
-                    </div>
-                  ))}
+              {/* Threshold row */}
+              <div style={{
+                display: "flex", justifyContent: "space-between",
+                alignItems: "center", marginBottom: 14
+              }}>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, margin: 0 }}>
+                    Confidence Threshold
+                  </p>
+                  <p style={{ fontSize: 12, color: C.textMuted, margin: "3px 0 0" }}>
+                    Minimum AI confidence for auto-approval
+                  </p>
+                </div>
+                <div style={{
+                  padding: "10px 20px", background: C.accentSoft,
+                  border: `1.5px solid ${C.borderFocus}`, borderRadius: 14
+                }}>
+                  <span style={{ fontSize: 28, fontWeight: 900, color: C.accent }}>
+                    {hotelFields.aiConfig?.confidenceThreshold || 75}%
+                  </span>
                 </div>
               </div>
-            </section>
 
-            {/* Section 2: AI Settings */}
-            <section className="space-y-6 pt-6 border-t">
-              <h3 className="text-xl font-bold flex items-center gap-3"><Zap className="text-indigo-600" /> Insights & Proposals</h3>
+              <input type="range" min="0" max="100"
+                value={hotelFields.aiConfig?.confidenceThreshold || 75}
+                onChange={e => setHotelFields({
+                  ...hotelFields,
+                  aiConfig: { ...(hotelFields.aiConfig || {}), confidenceThreshold: e.target.value }
+                })}
+                style={{ width: "100%", accentColor: C.accent, cursor: "pointer", height: 6 }} />
+              <div style={{
+                display: "flex", justifyContent: "space-between",
+                fontSize: 10, color: C.textMuted, fontWeight: 600,
+                marginTop: 6, paddingInline: 2
+              }}>
+                {["0%", "25%", "50%", "75%", "100%"].map(v => <span key={v}>{v}</span>)}
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-end">
-                    <label className="text-sm font-bold text-slate-700">Confidence Threshold</label>
-                    <span className="text-2xl font-black text-indigo-600">{hotelFields.aiConfig?.confidenceThreshold || 75}%</span>
+              {/* Info box */}
+              <div style={{
+                marginTop: 18, padding: 16, borderRadius: 14,
+                background: C.warnSoft, border: `1.5px solid ${C.warnBorder}`,
+                display: "flex", gap: 12
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10, background: "#fff",
+                  border: `1px solid ${C.warnBorder}`, display: "flex",
+                  alignItems: "center", justifyContent: "center", flexShrink: 0
+                }}>
+                  <AlertCircle size={17} color={C.warn} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#92400E", margin: 0 }}>
+                    Threshold Impact
+                  </p>
+                  <p style={{ fontSize: 12, color: "#A16207", marginTop: 4 }}>
+                    Reviews below <strong>{hotelFields.aiConfig?.confidenceThreshold || 75}%</strong> confidence
+                    will be flagged for manual review and won't be auto-approved.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Safety Rules */}
+            <div style={{ paddingTop: 8, borderTop: `1.5px solid ${C.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                <ShieldAlert size={20} color={C.accent} />
+                <p style={{ fontSize: 17, fontWeight: 800, color: C.textPrimary, margin: 0 }}>
+                  Automated Safety Rules
+                </p>
+              </div>
+              <div style={{
+                background: C.inputBg, border: `1.5px solid ${C.border}`,
+                borderRadius: 16, padding: 20,
+                display: "flex", justifyContent: "space-between", alignItems: "center"
+              }}>
+                <div>
+                  <p style={{ fontWeight: 700, color: C.textPrimary, margin: 0 }}>Auto-Escalate Rating</p>
+                  <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                    Automatically flag reviews at or below this rating
+                  </p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.textMuted }}>≤</span>
+                  <input type="number" min="1" max="5"
+                    value={hotelFields.aiConfig?.escalationRatingThreshold || 2}
+                    onChange={e => setHotelFields({
+                      ...hotelFields,
+                      aiConfig: { ...(hotelFields.aiConfig || {}), escalationRatingThreshold: e.target.value }
+                    })}
+                    style={{
+                      width: 60, padding: "10px 0", textAlign: "center",
+                      background: "#fff", border: `1.5px solid ${C.borderFocus}`,
+                      borderRadius: 12, fontWeight: 900, fontSize: 18,
+                      color: C.accent, outline: "none"
+                    }} />
+                </div>
+              </div>
+            </div>
+
+            {errors.sla && <FieldError msg={errors.sla} />}
+
+            <PrimaryBtn loading={loading} onClick={handleSaveHotel}
+              style={{ alignSelf: "stretch", padding: "14px", fontSize: 15 }}>
+              <Check size={17} /> Save AI & Rules
+            </PrimaryBtn>
+          </div>
+        )}
+
+        {/* ════════════ ACCOUNT ════════════ */}
+        {activeTab === "account" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div style={s.sectionHead}>
+              <div style={s.iconBox("#6366F1", "#EEF0FD")}>
+                <User size={20} />
+              </div>
+              <div>
+                <p style={s.sectionTitle}>Account Settings</p>
+                <p style={s.sectionSub}>Update your display name and email address</p>
+              </div>
+            </div>
+
+            <div style={{ ...s.grid2, gridTemplateColumns: "1fr" }}>
+              <div>
+                <Label>Display Name</Label>
+                <Input type="text" value={profileFields.name}
+                  onChange={e => setProfileFields({ ...profileFields, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input disabled icon={Mail} type="email" value={profileFields.email}
+                  onChange={e => setProfileFields({ ...profileFields, email: e.target.value })} />
+              </div>
+            </div>
+
+            <PrimaryBtn loading={loading} onClick={handleSaveProfile}
+              style={{ alignSelf: "flex-start", padding: "13px 32px" }}>
+              <Save size={16} /> Update Profile
+            </PrimaryBtn>
+          </div>
+        )}
+
+        {activeTab === "import" && (<>
+          <Import />
+        </>)}
+
+        {/* ════════════ STAFF (hidden but preserved) ════════════ */}
+        {activeTab === "staff" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ ...s.sectionHead, justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={s.iconBox()}><Users size={20} /></div>
+                <div>
+                  <p style={s.sectionTitle}>Staff Management</p>
+                  <p style={s.sectionSub}>Manage team members, roles and permissions</p>
+                </div>
+              </div>
+              <PrimaryBtn style={{ padding: "9px 18px", fontSize: 13 }}
+                onClick={() => {
+                  setEditingStaff(null);
+                  setNewStaff({ name: "", email: "", password: "", department: "Front Office", role: "staff" });
+                  setIsModalOpen(true);
+                }}>
+                <Plus size={15} /> Add Member
+              </PrimaryBtn>
+            </div>
+
+            {(state.staff || []).map(s => (
+              <div key={s._id} style={{
+                padding: 18, background: "#fff",
+                border: `1.5px solid ${C.border}`, borderRadius: 18,
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                opacity: s.status === "disabled" ? 0.55 : 1
+              }}>
+                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                  <div style={{
+                    width: 46, height: 46, borderRadius: 14,
+                    background: s.status === "disabled" ? C.inputBg : C.accentSoft,
+                    color: s.status === "disabled" ? C.textMuted : C.accent,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontWeight: 800, fontSize: 18
+                  }}>
+                    {(s.avatar_initials || s.name[0])}
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={hotelFields.aiConfig?.confidenceThreshold || 75}
-                    onChange={e => setHotelFields({ ...hotelFields, aiConfig: { ...(hotelFields.aiConfig || {}), confidenceThreshold: e.target.value } })}
-                    className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-indigo-600"
-                  />
-                  <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <AlertCircle className="text-amber-500 shrink-0" size={18} />
-                    <p className="text-xs text-amber-700 leading-relaxed">
-                      <b>Threshold Impact:</b> Reviews analysed with confidence below {hotelFields.aiConfig?.confidenceThreshold || 75}% will be flagged for human review and won't be auto-approved.
+                  <div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontWeight: 700, color: C.textPrimary }}>{s.name}</span>
+                      <span style={{
+                        padding: "2px 8px", borderRadius: 6, fontSize: 10,
+                        fontWeight: 800, textTransform: "uppercase",
+                        background: s.role === "gm" ? "#FEF9C3" : s.role === "dept_head" ? C.accentSoft : C.inputBg,
+                        color: s.role === "gm" ? "#854D0E" : s.role === "dept_head" ? C.accentText : C.textMuted
+                      }}>
+                        {s.role === "gm" ? "GM" : s.role === "dept_head" ? "Dept Head" : "Staff"}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: C.textMuted, margin: "4px 0 0" }}>
+                      {s.email} · <span style={{ color: C.accentText, fontWeight: 700 }}>{s.department}</span>
                     </p>
                   </div>
                 </div>
-
-                {/* <div className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Default Response Tone</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {["Formal", "Empathetic", "Concise"].map(tone => (
-                        <button
-                          key={tone}
-                          onClick={() => setHotelFields({ ...hotelFields, aiConfig: { ...(hotelFields.aiConfig || {}), defaultTone: tone } })}
-                          className={`py-3 px-2 rounded-xl text-xs font-bold border-2 transition-all ${hotelFields.aiConfig?.defaultTone === tone ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-100 text-slate-400 hover:border-slate-200'}`}
-                        >
-                          {tone}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div> */}
-              </div>
-            </section>
-
-            {/* Section 3: Automations */}
-            <section className="space-y-6 pt-6 border-t">
-              <h3 className="text-xl font-bold flex items-center gap-3"><ShieldAlert className="text-indigo-600" /> Automated Safety Rules</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-[32px] border border-slate-100">
-                  <div className="space-y-1">
-                    <p className="font-bold text-slate-900">Auto-Escalate Rating</p>
-                    <p className="text-xs text-slate-500">Automatically flag reviews at or below this rating.</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-black text-slate-400">≤</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="5"
-                      value={hotelFields.aiConfig?.escalationRatingThreshold || 2}
-                      onChange={e => setHotelFields({ ...hotelFields, aiConfig: { ...(hotelFields.aiConfig || {}), escalationRatingThreshold: e.target.value } })}
-                      className="w-16 p-3 bg-white border border-slate-200 rounded-xl text-center font-black text-indigo-600"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-[32px] border border-slate-100">
-                  <div className="space-y-1">
-                    <p className="font-bold text-slate-900">Auto-Ticket Creation</p>
-                    <p className="text-xs text-slate-500">Instantly create tickets for Critical/Negative reviews.</p>
-                  </div>
-                  <button
-                    onClick={() => setHotelFields({ ...hotelFields, aiConfig: { ...(hotelFields.aiConfig || {}), autoTicket: !hotelFields.aiConfig?.autoTicket } })}
-                    className="transition-transform active:scale-90"
-                  >
-                    {hotelFields.aiConfig?.autoTicket ? <ToggleRight className="text-indigo-600" size={48} /> : <ToggleLeft className="text-slate-300" size={48} />}
-                  </button>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[
+                    { icon: <Edit2 size={16} />, action: () => { setEditingStaff(s); setNewStaff({ name: s.name, email: s.email, password: "", department: s.department, role: s.role }); setIsModalOpen(true); } },
+                    {
+                      icon: s.status === "active" ? <UserMinus size={16} /> : <UserCheck size={16} />,
+                      action: async () => { const res = await updateStaff(s._id, { status: s.status === "active" ? "disabled" : "active" }); dispatch({ type: "UPDATE_STAFF_MEMBER", payload: res.data }); }
+                    },
+                    {
+                      icon: <Trash2 size={16} />, disabled: s.role === "gm",
+                      action: async () => { if (s.role === "gm") { flashError("Cannot delete GM"); return; } if (!window.confirm("Delete?")) return; await removeStaff(s._id); dispatch({ type: "REMOVE_STAFF_MEMBER", payload: s._id }); }
+                    }
+                  ].map((btn, i) => (
+                    <button key={i} disabled={btn.disabled}
+                      onClick={btn.action}
+                      style={{
+                        padding: 8, background: "transparent", border: `1.5px solid ${C.border}`,
+                        borderRadius: 10, cursor: btn.disabled ? "not-allowed" : "pointer",
+                        color: C.textMuted, opacity: btn.disabled ? 0.3 : 1,
+                        display: "flex", alignItems: "center"
+                      }}>
+                      {btn.icon}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </section>
-
-            <div className="pt-10 flex gap-4">
-              <button
-                onClick={handleSaveHotel}
-                disabled={loading}
-                className="btn-primary flex-1 py-5 flex items-center justify-center gap-3 text-lg"
-              >
-                {loading ? <Loader2 className="animate-spin" /> : <Check />} Save AI & SLA Preferences
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "account" && (
-          <div className="space-y-6">
-            <h3 className="text-2xl font-bold flex items-center gap-3"><User className="text-indigo-600" /> Account Settings</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Display Name</label>
-                <input type="text" value={profileFields.name} onChange={e => setProfileFields({ ...profileFields, name: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                <input type="email" value={profileFields.email} onChange={e => setProfileFields({ ...profileFields, email: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-            </div>
-            <button onClick={handleSaveProfile} className="btn-primary px-10 py-4">Update Profile</button>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Staff Modal */}
+      {/* ════════════ STAFF MODAL ════════════ */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[40px] w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-8 bg-slate-900 text-white flex justify-between items-center">
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 16, background: "rgba(45,58,90,.35)", backdropFilter: "blur(6px)"
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 28, width: "100%",
+            maxWidth: 560, boxShadow: "0 24px 60px rgba(0,0,0,.18)",
+            overflow: "hidden"
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: "24px 28px", background: C.accentSoft,
+              borderBottom: `1.5px solid ${C.borderFocus}`,
+              display: "flex", justifyContent: "space-between", alignItems: "center"
+            }}>
               <div>
-                <h3 className="text-2xl font-bold">{editingStaff ? "Edit Staff Member" : "Add Staff Member"}</h3>
-                <p className="text-slate-400 text-sm">Configure permissions and departmental access.</p>
+                <p style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary, margin: 0 }}>
+                  {editingStaff ? "Edit Staff Member" : "Add Staff Member"}
+                </p>
+                <p style={{ fontSize: 13, color: C.textMuted, margin: "3px 0 0" }}>
+                  Configure permissions and departmental access
+                </p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <X size={24} />
+              <button onClick={() => setIsModalOpen(false)}
+                style={{
+                  background: "transparent", border: "none",
+                  cursor: "pointer", color: C.textMuted, padding: 4
+                }}>
+                <X size={22} />
               </button>
             </div>
 
-            <form onSubmit={handleStaffSubmit} className="p-10 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newStaff.name}
-                    onChange={e => setNewStaff({ ...newStaff, name: e.target.value })}
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                  />
-                </div>
-                <div className={editingStaff ? "md:col-span-2" : ""}>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    value={newStaff.email}
-                    onChange={e => setNewStaff({ ...newStaff, email: e.target.value })}
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                  />
+            <form onSubmit={handleStaffSubmit} style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}>
+              <div>
+                <Label required>Full Name</Label>
+                <Input type="text" required value={newStaff.name}
+                  onChange={e => setNewStaff({ ...newStaff, name: e.target.value })} />
+              </div>
+              <div style={s.grid2}>
+                <div style={{ gridColumn: editingStaff ? "1/-1" : "auto" }}>
+                  <Label required>Email</Label>
+                  <Input icon={Mail} type="email" required value={newStaff.email}
+                    onChange={e => setNewStaff({ ...newStaff, email: e.target.value })} />
                 </div>
                 {!editingStaff && (
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Password</label>
-                    <input
-                      type="password"
-                      required
+                    <Label required>Password</Label>
+                    <Input type="password" required placeholder="••••••••"
                       value={newStaff.password || ""}
-                      onChange={e => setNewStaff({ ...newStaff, password: e.target.value })}
-                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                      placeholder="••••••••"
-                    />
+                      onChange={e => setNewStaff({ ...newStaff, password: e.target.value })} />
                   </div>
                 )}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Department</label>
-                  <select
-                    value={newStaff.department}
-                    onChange={e => setNewStaff({ ...newStaff, department: e.target.value })}
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                  >
-                    {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Access Level / Role</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setNewStaff({ ...newStaff, role: "staff" })}
-                      className={`p-4 rounded-2xl border-2 text-left transition-all ${newStaff.role === 'staff' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-slate-200'}`}
-                    >
-                      <p className={`font-bold ${newStaff.role === 'staff' ? 'text-indigo-600' : 'text-slate-700'}`}>Standard Staff</p>
-                      <p className="text-[10px] text-slate-400">Can view reviews and create tickets.</p>
+              </div>
+              <div>
+                <Label>Department</Label>
+                <Select value={newStaff.department}
+                  onChange={e => setNewStaff({ ...newStaff, department: e.target.value })}>
+                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                </Select>
+              </div>
+              <div>
+                <Label>Access Level</Label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {[
+                    { role: "staff", label: "Standard Staff", desc: "Can view reviews and create tickets." },
+                    { role: "dept_head", label: "Department Head", desc: "Can approve AI proposals and assign tasks." }
+                  ].map(opt => (
+                    <button type="button" key={opt.role}
+                      onClick={() => setNewStaff({ ...newStaff, role: opt.role })}
+                      style={{
+                        padding: 16, borderRadius: 16, textAlign: "left",
+                        border: `2px solid ${newStaff.role === opt.role ? C.accent : C.border}`,
+                        background: newStaff.role === opt.role ? C.accentSoft : "#fff",
+                        cursor: "pointer", transition: "all .2s"
+                      }}>
+                      <p style={{
+                        fontWeight: 700, margin: 0,
+                        color: newStaff.role === opt.role ? C.accentText : C.textPrimary
+                      }}>
+                        {opt.label}
+                      </p>
+                      <p style={{ fontSize: 11, color: C.textMuted, margin: "4px 0 0" }}>{opt.desc}</p>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewStaff({ ...newStaff, role: "dept_head" })}
-                      className={`p-4 rounded-2xl border-2 text-left transition-all ${newStaff.role === 'dept_head' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-slate-200'}`}
-                    >
-                      <p className={`font-bold ${newStaff.role === 'dept_head' ? 'text-indigo-600' : 'text-slate-700'}`}>Department Head</p>
-                      <p className="text-[10px] text-slate-400">Can approve AI proposals and assign tasks.</p>
-                    </button>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="pt-6 flex gap-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-50 text-slate-500 rounded-2xl font-bold hover:bg-slate-100 transition-all">Cancel</button>
-                <button type="submit" disabled={loading} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
-                  {loading ? <Loader2 className="animate-spin" /> : editingStaff ? "Update Member" : "Add Member"}
-                </button>
+              <div style={{ display: "flex", gap: 12, paddingTop: 8 }}>
+                <GhostBtn type="button" style={{ flex: 1, padding: 13 }}
+                  onClick={() => setIsModalOpen(false)}>Cancel</GhostBtn>
+                <PrimaryBtn loading={loading} style={{ flex: 1, padding: 13 }}>
+                  {editingStaff ? "Update Member" : "Add Member"}
+                </PrimaryBtn>
               </div>
             </form>
           </div>

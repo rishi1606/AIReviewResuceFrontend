@@ -23,6 +23,7 @@ import {
   Flag
 } from "lucide-react";
 import { DEPARTMENTS } from "../utils/constants";
+import { SkeletonKPI, SkeletonTicketRow } from "../components/Skeleton";
 
 const Tickets = () => {
   const { state, dispatch } = useAppContext();
@@ -82,7 +83,14 @@ const Tickets = () => {
     return `${hours}h ${minutes}m left`;
   };
 
+  const selectedPlatform = state.activeFilters?.platform || "ALL";
+  const selectedProperty = state.activeFilters?.property || "ALL";
+
   const filteredTickets = filterByDate(state.tickets, "created_at").filter(t => {
+    const linkedReview = state.reviews.find(r => r.review_id === t.review_id);
+    const matchesPlatform = selectedPlatform === "ALL" ? true : linkedReview?.platform === selectedPlatform;
+    const matchesProperty = selectedProperty === "ALL" ? true : linkedReview?.hotel_name === selectedProperty;
+
     // 1. Status Filter
     const matchesStatus = filter === "ALL" ? true : (t.status || "").toUpperCase() === filter;
 
@@ -105,7 +113,7 @@ const Tickets = () => {
       (t.review_text || "").toLowerCase().includes(search.toLowerCase())
     );
 
-    return matchesStatus && matchesDept && matchesUrgency && matchesAssignee && matchesOverdue && matchesSearch;
+    return matchesPlatform && matchesProperty && matchesStatus && matchesDept && matchesUrgency && matchesAssignee && matchesOverdue && matchesSearch;
   });
 
   const runAnalysis = async () => {
@@ -141,20 +149,24 @@ const Tickets = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:w-[60%]">
-          {[
-            { label: "Active Tickets", val: filteredTickets.filter(t => !["Closed", "Resolved"].includes(t.status)).length, icon: AlertCircle, col: "indigo" },
-            { label: "Overdue", val: filteredTickets.filter(t => t.sla_deadline < now && !["Closed", "Resolved"].includes(t.status)).length, icon: Clock, col: "red" },
-            { label: "Resolved", val: filteredTickets.filter(t => ["Closed", "Resolved"].includes(t.status)).length, icon: CheckCircle2, col: "green" },
-            { label: "Avg Res Time", val: `${stats.avgResolutionTime}h`, icon: Zap, col: "amber" }
-          ].map((kpi, idx) => (
-            <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all">
-              <div className="flex items-center gap-2 text-slate-400 mb-1">
-                <kpi.icon size={14} className={kpi.col === "red" ? "text-red-500" : ""} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">{kpi.label}</span>
+          {state.isAppLoading ? (
+            [1, 2, 3, 4].map(i => <SkeletonKPI key={i} />)
+          ) : (
+            [
+              { label: "Active Tickets", val: filteredTickets.filter(t => !["Closed", "Resolved"].includes(t.status)).length, icon: AlertCircle, col: "indigo" },
+              { label: "Overdue", val: filteredTickets.filter(t => t.sla_deadline < now && !["Closed", "Resolved"].includes(t.status)).length, icon: Clock, col: "red" },
+              { label: "Resolved", val: filteredTickets.filter(t => ["Closed", "Resolved"].includes(t.status)).length, icon: CheckCircle2, col: "green" },
+              { label: "Avg Res Time", val: `${stats.avgResolutionTime}h`, icon: Zap, col: "amber" }
+            ].map((kpi, idx) => (
+              <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all">
+                <div className="flex items-center gap-2 text-slate-400 mb-1">
+                  <kpi.icon size={14} className={kpi.col === "red" ? "text-red-500" : ""} />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">{kpi.label}</span>
+                </div>
+                <p className={`text-xl font-bold ${kpi.col === "red" ? "text-red-600" : "text-slate-900"}`}>{kpi.val}</p>
               </div>
-              <p className={`text-xl font-bold ${kpi.col === "red" ? "text-red-600" : "text-slate-900"}`}>{kpi.val}</p>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -288,110 +300,128 @@ const Tickets = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {state.tickets.length > 0 && filteredTickets.length === 0 && (
-              <tr>
-                <td colSpan="6" className="py-10 text-center text-slate-400 text-xs italic">
-                  No tickets match the current filters ({state.tickets.length} total tickets in system).
-                </td>
-              </tr>
+            {state.isAppLoading ? (
+              [1, 2, 3, 4, 5].map(i => <SkeletonTicketRow key={i} />)
+            ) : (
+              <>
+                {state.tickets.length > 0 && filteredTickets.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="py-10 text-center text-slate-400 text-xs italic">
+                      No tickets match the current filters ({state.tickets.length} total tickets in system).
+                    </td>
+                  </tr>
+                )}
+                {filteredTickets.map(t => {
+                  const overdue = t.sla_deadline < now && !["Closed", "Resolved"].includes(t.status);
+                  const totalTime = t.sla_deadline - t.created_at;
+                  const timeLeft = t.sla_deadline - now;
+                  const pct = Math.max(0, Math.min(100, (timeLeft / totalTime) * 100));
+                  const statusSteps = ["Open", "In Progress", "Pending Verification", "Resolved", "Closed"];
+                  const currentStep = statusSteps.indexOf(t.status);
+
+                  return (
+                    <tr key={t.ticket_id} className={`group transition-all cursor-pointer ${overdue ? "bg-red-50/30 hover:bg-red-50/50" : "hover:bg-slate-50/80"}`} onClick={() => setSelectedTicket(t)}>
+                      <td className="px-6 py-4 max-w-xs">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`w-2 h-2 rounded-full ${t.urgency === "High" ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" : "bg-amber-500"}`}></span>
+                          <p className="text-sm font-bold text-slate-900 line-clamp-1 italic">"{t.review_text}"</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] text-slate-400 font-mono tracking-tighter">#{t.ticket_id.slice(-6)}</p>
+                          {t.is_recurring && (
+                            <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                              <RefreshCcw size={8} /> REC
+                            </span>
+                          )}
+                          {overdue && (
+                            <span className="bg-red-100 text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                              <AlertTriangle size={8} /> Overdue
+                            </span>
+                          )}
+                          {t.is_flagged && (
+                            <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1 shadow-[0_0_12px_rgba(220,38,38,0.4)]">
+                              <Flag size={8} /> FLAGGED BY MANAGER
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded uppercase whitespace-nowrap">
+                          {t.department}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-semibold text-slate-900 mb-1">{t.guest_name}</p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm ${t.urgency === "High" ? "bg-red-100 text-red-600 border border-red-200" :
+                            t.urgency === "Medium" ? "bg-amber-100 text-amber-600 border border-amber-200" :
+                              "bg-blue-100 text-blue-600 border border-blue-200"
+                            }`}>
+                            {t.urgency}
+                          </span>
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${t.status === "Open" ? "bg-red-50 text-red-600 border border-red-100" :
+                            t.status === "In Progress" ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                              t.status === "Pending Verification" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" :
+                                "bg-green-50 text-green-600 border border-green-100"
+                            }`}>
+                            {t.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {statusSteps.map((step, idx) => (
+                            <div
+                              key={step}
+                              className={`h-1 rounded-full transition-all ${idx <= currentStep ? "bg-slate-800" : "bg-slate-100"}`}
+                              style={{ width: "12px" }}
+                              title={step}
+                            />
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="max-w-[120px]">
+                          {overdue ? (
+                            <p className="text-xs font-bold text-red-600">BREACHED</p>
+                          ) : ["Resolved", "Closed"].includes(t.status) ? (
+                            <p className="text-xs font-bold text-green-600">COMPLETED</p>
+                          ) : (
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                                <span>{Math.round(timeLeft / 3600000)}h left</span>
+                                <span>{Math.round(pct)}%</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${pct < 25 ? "bg-red-500" : pct < 50 ? "bg-amber-500" : "bg-green-500"}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          {t.assignee_name ? (
+                            <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+                              {t.assignee_name[0]}
+                            </div>
+                          ) : (
+                            <div className="w-7 h-7 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center border-2 border-dashed border-slate-200">
+                              <User size={12} />
+                            </div>
+                          )}
+                          <span className="text-xs font-medium text-slate-600 whitespace-nowrap">{t.assignee_name || "Unassigned"}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </>
             )}
-            {filteredTickets.map(t => {
-              const overdue = t.sla_deadline < now && !["Closed", "Resolved"].includes(t.status);
-              const totalTime = t.sla_deadline - t.created_at;
-              const timeLeft = t.sla_deadline - now;
-              const pct = Math.max(0, Math.min(100, (timeLeft / totalTime) * 100));
-              const statusSteps = ["Open", "In Progress", "Pending Verification", "Resolved", "Closed"];
-              const currentStep = statusSteps.indexOf(t.status);
-
-              return (
-                <tr key={t.ticket_id} className={`group transition-all cursor-pointer ${overdue ? "bg-red-50/30 hover:bg-red-50/50" : "hover:bg-slate-50/80"}`} onClick={() => setSelectedTicket(t)}>
-                  <td className="px-6 py-4 max-w-xs">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`w-2 h-2 rounded-full ${t.urgency === "High" ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" : "bg-amber-500"}`}></span>
-                      <p className="text-sm font-bold text-slate-900 line-clamp-1 italic">"{t.review_text}"</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] text-slate-400 font-mono tracking-tighter">#{t.ticket_id.slice(-6)}</p>
-                      {t.is_recurring && (
-                        <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
-                          <RefreshCcw size={8} /> REC
-                        </span>
-                      )}
-                      {overdue && (
-                        <span className="bg-red-100 text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
-                          <AlertTriangle size={8} /> Overdue
-                        </span>
-                      )}
-                      {t.is_flagged && (
-                        <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1 shadow-[0_0_12px_rgba(220,38,38,0.4)]">
-                          <Flag size={8} /> FLAGGED BY MANAGER
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded uppercase whitespace-nowrap">
-                      {t.department}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-semibold text-slate-900 mb-1">{t.guest_name}</p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm ${t.urgency === "High" ? "bg-red-100 text-red-600 border border-red-200" :
-                        t.urgency === "Medium" ? "bg-amber-100 text-amber-600 border border-amber-200" :
-                          "bg-blue-100 text-blue-600 border border-blue-200"
-                        }`}>
-                        {t.urgency?.toUpperCase() || "MED"}
-                      </span>
-                      <span className="text-[9px] text-slate-400 font-medium">
-                        Created {new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      {statusSteps.map((step, idx) => (
-                        <div
-                          key={step}
-                          title={step}
-                          className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${idx <= currentStep ? "bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)] scale-125" : "bg-slate-200"}`}
-                        ></div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className={`text-[10px] font-bold ${overdue ? "text-red-600" : "text-slate-500"}`}>
-                        {formatTimeLeft(timeLeft)}
-                      </span>
-                      {overdue && <span className="bg-red-600 text-white text-[8px] font-black px-1 rounded animate-pulse">BREACHED</span>}
-                    </div>
-                    <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-1000 ${overdue ? "bg-red-500" : pct < 25 ? "bg-amber-500" : "bg-green-500"}`}
-                        style={{ width: `${overdue ? 100 : pct}%` }}
-                      ></div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 group/assignee relative">
-                      {t.assignee_id ? (
-                        <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white shadow-sm ring-1 ring-slate-100">
-                          {t.assignee_name[0]}
-                        </div>
-                      ) : (
-                        <div className="w-7 h-7 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center border-2 border-dashed border-slate-200">
-                          <User size={12} />
-                        </div>
-                      )}
-                      <span className="text-xs font-medium text-slate-600 whitespace-nowrap">{t.assignee_name || "Unassigned"}</span>
-                    </div>
-                  </td>
-
-                </tr>
-              );
-            })}
           </tbody>
         </table>
-        {filteredTickets.length === 0 && (
+        {!state.isAppLoading && filteredTickets.length === 0 && (
           <div className="py-20 text-center">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
               <Clock size={32} />

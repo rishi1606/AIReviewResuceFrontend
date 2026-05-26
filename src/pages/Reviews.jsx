@@ -33,6 +33,7 @@ import {
 } from "../api/apiClient";
 import { createTicketFromReview } from "../utils/ticketFactory";
 import { DEPARTMENTS } from "../utils/constants";
+import { SkeletonKPI, SkeletonReviewCard } from "../components/Skeleton";
 
 const Reviews = () => {
   const { state, dispatch } = useAppContext();
@@ -41,13 +42,11 @@ const Reviews = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState("ALL");
   const [selectedIds, setSelectedIds] = useState([]);
-  const [platform, setPlatform] = useState("ALL");
 
   const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
   const [department, setDepartment] = useState(
     isScopedUser && currentUser?.department ? currentUser.department : "ALL"
   );
-  const [propertyFilter, setPropertyFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("NEWEST");
   const [dateRange, setDateRange] = useState({ label: "All Time", start: null, end: null });
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,12 +67,6 @@ const Reviews = () => {
   const tabs = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Pending Approval", "Approved", "Suspicious"];
 
   const confidenceThreshold = state.hotelConfig?.aiConfig?.confidenceThreshold || 75;
-  const VALID_PLATFORMS = ["Google", "Booking.com", "Agoda", "Airbnb"];
-  const activePlatforms = (state.hotelConfig?.platforms || VALID_PLATFORMS).filter(p => VALID_PLATFORMS.includes(p));
-  const activeProperties = Array.from(new Set([
-    ...(state.hotelConfig?.properties?.map(p => p.name) || []),
-    ...(state.reviews?.map(r => r.hotel_name).filter(Boolean) || [])
-  ]));
   const departments = DEPARTMENTS;
 
   // Fetch reviews on mount to apply any updated settings/healing logic
@@ -210,9 +203,9 @@ const Reviews = () => {
           tab.toUpperCase() === "SUSPICIOUS" ? (r.status === "Suspicious" || r.status === "ESCALATED" || r.is_suspicious || r.escalation_risk) :
             r.sentiment?.toUpperCase() === tab.toUpperCase();
 
-    const matchesPlatform = platform === "ALL" ? true : r.platform === platform;
+    const matchesPlatform = state.activeFilters?.platform === "ALL" || !state.activeFilters?.platform ? true : r.platform === state.activeFilters.platform;
     const matchesDept = department === "ALL" ? true : (r.primary_department || "").toUpperCase() === department.toUpperCase();
-    const matchesProperty = propertyFilter === "ALL" ? true : r.hotel_name === propertyFilter;
+    const matchesProperty = state.activeFilters?.property === "ALL" || !state.activeFilters?.property ? true : r.hotel_name === state.activeFilters.property;
     const matchesConfidence = hideLowConfidence ? (r.confidence || 0) >= confidenceThreshold : true;
 
     const matchesDate = () => {
@@ -460,62 +453,6 @@ const Reviews = () => {
             </div>
           </div>
 
-          <div className="relative group/property">
-            <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${propertyFilter === "ALL" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
-            >
-              <Layers size={14} className={propertyFilter !== "ALL" ? "text-indigo-600" : "text-slate-400"} />
-              {propertyFilter === "ALL" ? "All Properties" : propertyFilter}
-              <ChevronDown size={14} className="ml-1 opacity-50" />
-            </button>
-
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/property:opacity-100 group-hover/property:visible transition-all z-50 transform origin-top-right group-hover/property:scale-100 scale-95">
-              <button
-                onClick={() => setPropertyFilter("ALL")}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${propertyFilter === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
-              >
-                ALL PROPERTIES
-              </button>
-              {activeProperties.map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPropertyFilter(p)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${propertyFilter === p ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
-                >
-                  {p.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative group/platform">
-            <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${platform === "ALL" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
-            >
-              <Filter size={14} className={platform !== "ALL" ? "text-indigo-600" : "text-slate-400"} />
-              {platform === "ALL" ? "All Platforms" : platform}
-              <ChevronDown size={14} className="ml-1 opacity-50" />
-            </button>
-
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/platform:opacity-100 group-hover/platform:visible transition-all z-50 transform origin-top-right group-hover/platform:scale-100 scale-95">
-              <button
-                onClick={() => setPlatform("ALL")}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${platform === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
-              >
-                ALL PLATFORMS
-              </button>
-              {activePlatforms.map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPlatform(p)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${platform === p ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
-                >
-                  {p.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="relative group/dept">
             <button
               disabled={isScopedUser}
@@ -591,11 +528,8 @@ const Reviews = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {loading ? (
-          <div className="col-span-full py-32 flex flex-col items-center justify-center gap-4">
-            <Loader2 className="animate-spin text-indigo-600" size={40} />
-            <p className="text-sm font-bold text-slate-500">Syncing latest status and safety rules...</p>
-          </div>
+        {state.isAppLoading || loading ? (
+          [1, 2, 3, 4, 5, 6].map(i => <SkeletonReviewCard key={i} />)
         ) : filteredReviews.length > 0 ? filteredReviews.map(r => (
           <ReviewCard
             key={r.review_id}

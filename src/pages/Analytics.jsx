@@ -6,10 +6,13 @@ import {
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from 'recharts';
 import { Download, Calendar, Filter, TrendingUp, Users, MessageSquare } from "lucide-react";
+import { AnalyticsSkeleton } from "../components/Skeleton";
 
 const Analytics = () => {
   const stats = useDerivedStats();
   const { state } = useAppContext();
+
+  if (state.isAppLoading) return <AnalyticsSkeleton />;
 
   const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 

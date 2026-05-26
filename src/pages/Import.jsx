@@ -409,12 +409,12 @@ const Import = () => {
           >
             <Trash2 size={18} /> Clear Data
           </button>
-          <button
+          {/* <button
             onClick={generateCSVTemplate}
             className="btn-secondary flex items-center gap-2"
           >
             <Download size={18} /> Download Template
-          </button>
+          </button> */}
         </div>
       </div>
 

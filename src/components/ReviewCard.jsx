@@ -320,20 +320,20 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
               {["NEW", "IN REVIEW", "RESPONDED", "CLOSED"].map((s, idx) => {
                 const statusSteps = ["NEW", "IN REVIEW", "RESPONDED", "CLOSED"];
                 const currentStep = statusSteps.indexOf(review.status);
-                const isEscalatedOrSuspicious = ["ESCALATED", "Suspicious"].includes(review.status) || 
-                                                review.escalation || 
-                                                review.rating <= (state.hotelConfig?.aiConfig?.escalationRatingThreshold || 1);
+                const isEscalatedOrSuspicious = ["ESCALATED", "Suspicious"].includes(review.status) ||
+                  review.escalation ||
+                  review.rating <= (state.hotelConfig?.aiConfig?.escalationRatingThreshold || 1);
                 const isActive = statusSteps.indexOf(s) <= currentStep && !isEscalatedOrSuspicious;
                 return (
                   <div key={s} title={s} className={`w-3 h-1 rounded-full ${isActive ? "bg-indigo-500" : "bg-slate-100"}`}></div>
                 );
               })}
-              {(review.status === "ESCALATED" || 
-                review.status === "Suspicious" || 
-                review.escalation || 
+              {(review.status === "ESCALATED" ||
+                review.status === "Suspicious" ||
+                review.escalation ||
                 review.rating <= (state.hotelConfig?.aiConfig?.escalationRatingThreshold || 1)) && (
-                <div className="w-12 h-1 bg-red-500 rounded-full animate-pulse"></div>
-              )}
+                  <div className="w-12 h-1 bg-red-500 rounded-full animate-pulse"></div>
+                )}
             </div>
           </div>
         </div>
@@ -380,7 +380,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
       </div>
 
       {/* Assignment Section */}
-      <div className="mb-4 space-y-2">
+      {/* <div className="mb-4 space-y-2">
         <div className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100/50">
           <Users size={14} className="text-slate-400" />
           <div className="flex-1">
@@ -420,7 +420,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
       {isHighConfidence && (
         <div className="mb-4">

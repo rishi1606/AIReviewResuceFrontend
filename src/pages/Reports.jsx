@@ -4,7 +4,9 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import { getHotel, getReviews, getTickets } from '../api/apiClient';
+import { useAppContext } from '../context/AppContext';
 import { Loader2, TrendingUp, TrendingDown, Clock, AlertTriangle, AlertCircle, FileText, CheckCircle2, Ticket, BarChart3, PieChart as PieIcon, Star, MessageSquare, Zap } from 'lucide-react';
+import { ReportsSkeleton } from '../components/Skeleton';
 
 const SENTIMENT_COLORS = { Positive: '#10b981', Neutral: '#f59e0b', Mixed: '#6366f1', Negative: '#ef4444' };
 const STATUS_COLORS = { Open: '#ef4444', 'In Progress': '#f59e0b', 'Pending Verification': '#3b82f6', Resolved: '#10b981', Closed: '#64748b' };
@@ -44,6 +46,7 @@ const StatCard = ({ label, value, sub, color = "indigo" }) => {
 };
 
 export default function Reports() {
+  const { state } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hotelData, setHotelData] = useState(null);
@@ -51,8 +54,8 @@ export default function Reports() {
   const [tickets, setTickets] = useState([]);
 
   const [dateRange, setDateRange] = useState('all');
-  const [selectedProperty, setSelectedProperty] = useState('All');
-  const [selectedPlatform, setSelectedPlatform] = useState('All');
+  const selectedProperty = state.activeFilters?.property || 'ALL';
+  const selectedPlatform = state.activeFilters?.platform || 'ALL';
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [viewMode, setViewMode] = useState('charts');
   const [activeTab, setActiveTab] = useState('reviews');
@@ -82,8 +85,8 @@ export default function Reports() {
 
   const filteredReviews = useMemo(() => {
     let f = [...reviews];
-    if (selectedProperty !== 'All') f = f.filter(r => r.hotel_name === selectedProperty);
-    if (selectedPlatform !== 'All') f = f.filter(r => r.platform === selectedPlatform);
+    if (selectedProperty !== 'ALL') f = f.filter(r => r.hotel_name === selectedProperty);
+    if (selectedPlatform !== 'ALL') f = f.filter(r => r.platform === selectedPlatform);
     const now = new Date();
     f = f.filter(r => {
       const d = new Date(r.createdAt || r.imported_at || r.review_date);
@@ -100,12 +103,12 @@ export default function Reports() {
 
   const filteredTickets = useMemo(() => {
     let f = [...tickets];
-    if (selectedProperty !== 'All') f = f.filter(t => {
+    if (selectedProperty !== 'ALL') f = f.filter(t => {
       const r = reviews.find(r => r.review_id === t.review_id);
       return r?.hotel_name === selectedProperty;
     });
     // ADD THIS — filter tickets by platform via linked review
-    if (selectedPlatform !== 'All') f = f.filter(t => {
+    if (selectedPlatform !== 'ALL') f = f.filter(t => {
       const r = reviews.find(r => r.review_id === t.review_id);
       return r?.platform === selectedPlatform;
     });
@@ -187,17 +190,13 @@ export default function Reports() {
 
   const selectClass = "px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer";
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="animate-spin text-indigo-600" size={32} />
-    </div>
-  );
+  if (state.isAppLoading || loading) return <ReportsSkeleton />;
 
   const tabs = [
     { id: 'reviews', label: 'Reviews' },
-    { id: 'urgency', label: 'Urgency & AI' },
-    { id: 'tickets', label: 'Tickets & SLA' },
-    { id: 'staff', label: 'Staff' },
+    // { id: 'urgency', label: 'Urgency & AI' },
+    // { id: 'tickets', label: 'Tickets & SLA' },
+    // { id: 'staff', label: 'Staff' },
   ];
 
   return (
@@ -216,14 +215,6 @@ export default function Reports() {
             <option value="30days">Last 30 Days</option>
             <option value="3months">Last 3 Months</option>
             <option value="all">All Time</option>
-          </select>
-          <select value={selectedProperty} onChange={e => setSelectedProperty(e.target.value)} className={selectClass}>
-            <option value="All">All Properties</option>
-            {[...properties].map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <select value={selectedPlatform} onChange={e => setSelectedPlatform(e.target.value)} className={selectClass}>
-            <option value="All">All Platforms</option>
-            {[...platforms].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <div className="flex bg-slate-100 p-1 rounded-lg">
             <button onClick={() => setViewMode('charts')} className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${viewMode === 'charts' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Charts</button>

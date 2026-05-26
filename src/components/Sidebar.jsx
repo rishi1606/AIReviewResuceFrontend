@@ -14,11 +14,13 @@ import {
   FileText
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useAppContext } from "../context/AppContext";
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const { state, dispatch } = useAppContext();
 
   const handleLogout = () => {
     logout();
@@ -27,14 +29,47 @@ const Sidebar = () => {
 
   const isStaff = currentUser?.role === "staff";
 
+  // Derive unique platforms & properties
+  const platforms = ["ALL", ...new Set((state.reviews || []).map(r => r.platform).filter(Boolean))];
+  const properties = [
+    "ALL",
+    ...new Set(
+      (
+        state?.hotelConfig?.properties || []
+      )
+        .map(property => property.name)
+        .filter(Boolean)
+    ),
+    ...new Set(
+      (state.reviews || []).map(r => r.hotel_name).filter(Boolean)
+    )
+  ];
+
+  // Create a unique array of properties
+  const uniqueProperties = [...new Set(properties)];
+
+  const selectedPlatform = state.activeFilters?.platform || "ALL";
+  const selectedProperty = state.activeFilters?.property || "ALL";
+
+  const handleFilterChange = (type, value) => {
+    dispatch({ type: "SET_APP_LOADING", payload: true });
+    dispatch({
+      type: "SET_ACTIVE_FILTERS",
+      payload: { [type]: value }
+    });
+    setTimeout(() => {
+      dispatch({ type: "SET_APP_LOADING", payload: false });
+    }, 600);
+  };
+
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Reviews", path: "/reviews", icon: MessageSquare },
-    { name: "Tickets", path: "/tickets", icon: Ticket },
-    ...(!isStaff ? [
-      { name: "Import", path: "/import", icon: Upload },
-    ] : []),
-    { name: "Reports", path: "/reports", icon: FileText },
+    // { name: "Tickets", path: "/tickets", icon: Ticket },
+    // ...(!isStaff ? [
+    //   { name: "Import", path: "/import", icon: Upload },
+    // ] : []),
+    // { name: "Reports", path: "/reports", icon: FileText },
     { name: "Settings", path: "/settings", icon: Settings },
   ];
 
@@ -46,6 +81,51 @@ const Sidebar = () => {
         </div>
         {!collapsed && <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">ReviewRescue</span>}
       </div>
+
+
+      {!collapsed && (
+        <div className=" px-2 space-y-4">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-2">Select Property</h4>
+          <div className="space-y-3">
+            <div className="relative">
+              <select
+                value={selectedProperty}
+                onChange={(e) => handleFilterChange("property", e.target.value)}
+                className={`w-full h-9 pl-3 pr-7 text-xs rounded-xl border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${selectedProperty !== "ALL"
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 font-medium"
+                  : "border-slate-200 bg-white text-slate-600"
+                  }`}
+              >
+                {uniqueProperties.map(p => (
+                  <option key={p} value={p}>{p === "ALL" ? "All Properties" : p}</option>
+                ))}
+              </select>
+              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            <div className="relative">
+              <select
+                value={selectedPlatform}
+                onChange={(e) => handleFilterChange("platform", e.target.value)}
+                className={`w-full h-9 pl-3 pr-7 text-xs rounded-xl border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${selectedPlatform !== "ALL"
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 font-medium"
+                  : "border-slate-200 bg-white text-slate-600"
+                  }`}
+              >
+                {platforms.map(p => (
+                  <option key={p} value={p}>{p === "ALL" ? "All Platforms" : p}</option>
+                ))}
+              </select>
+              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      )}
+      <br />
 
       <nav className="flex-1 px-3 space-y-1">
         {navItems.map((item) => (
@@ -60,6 +140,7 @@ const Sidebar = () => {
             {!collapsed && <span>{item.name}</span>}
           </NavLink>
         ))}
+
       </nav>
 
       <div className="p-4 border-t border-slate-200">

@@ -16,8 +16,11 @@ const reducer = (state, action) => {
         reviews: action.payload.reviews || [],
         tickets: action.payload.tickets || [],
         staff: action.payload.staff || [],
-        hotelConfig: action.payload.hotelConfig || {}
+        hotelConfig: action.payload.hotelConfig || {},
+        isAppLoading: false
       };
+    case actions.SET_APP_LOADING:
+      return { ...state, isAppLoading: action.payload };
     case actions.SET_LOADING_REVIEWS:
       return { ...state, isLoadingReviews: action.payload };
     case actions.SET_LOADING_TICKETS:
@@ -181,6 +184,7 @@ export const AppProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
 
   const loadData = async () => {
+    dispatch({ type: actions.SET_APP_LOADING, payload: true });
     try {
       const [revs, tkts, stf, hotel] = await Promise.all([
         getReviews(),
@@ -204,6 +208,7 @@ export const AppProvider = ({ children }) => {
       localStorage.setItem("rr_hotel_config", JSON.stringify(hotel.data));
     } catch (err) {
       console.error("Failed to load initial data", err);
+      dispatch({ type: actions.SET_APP_LOADING, payload: false });
     }
   };
 

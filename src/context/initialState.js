@@ -11,11 +11,13 @@ export const initialState = {
     urgency: "ALL",
     status: "ALL",
     platform: "ALL",
-    rating: "ALL"
+    rating: "ALL",
+    property: "ALL"
   },
   importHistory: [],
   analyticsCache: null,
   isLoadingReviews: false,
   isLoadingTickets: false,
+  isAppLoading: true,
   responses: {}
 };

@@ -18,7 +18,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => {
     if (response.data.success === false) {
-      throw new Error(response.data.error);
+      throw new Error(response.data.message || response.data.error);
     }
     return response.data;
   },
@@ -27,7 +27,7 @@ apiClient.interceptors.response.use(
       localStorage.removeItem("rr_token");
       window.location.href = "/login";
     }
-    throw new Error(error.response?.data?.error || error.message);
+    throw new Error(error.response?.data?.message || error.response?.data?.error || error.message);
   }
 );
 
