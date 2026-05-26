@@ -9,7 +9,9 @@ import {
   Star,
   Zap,
   ArrowRight,
-  Flag
+  Flag,
+  ThumbsUp,
+  ThumbsDown
 } from "lucide-react";
 import { useDerivedStats } from "../hooks/useDerivedStats";
 import { useAppContext } from "../context/AppContext";
@@ -74,9 +76,11 @@ const Dashboard = () => {
       : "0.0",
     criticalCount: filteredReviews.filter(r => r.urgency === "High").length,
     escalationRisks: filteredReviews.filter(r => r.escalation_risk).length,
-    mixedCount: filteredReviews.filter(r => r.sentiment === "Mixed").length,
-    neutralCount: filteredReviews.filter(r => r.sentiment === "Neutral").length,
-    approvedCount: filteredReviews.filter(r => r.status === "Approved").length,
+    mixedCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "mixed").length,
+    neutralCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "neutral").length,
+    approvedCount: filteredReviews.filter(r => r.status === "Approved" || r.status === "RESPONDED").length,
+    positiveCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "positive").length,
+    negativeCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "negative").length,
     suspiciousCount: filteredReviews.filter(r => r.is_suspicious).length,
     sentimentDistribution: ["Positive", "Negative", "Mixed", "Neutral"].map(name => ({
       name,
@@ -135,10 +139,7 @@ const Dashboard = () => {
         {/* Right: search + button */}
         <div className="flex items-center gap-3 flex-shrink-0">
           <GlobalSearch />
-          <button onClick={() => navigate("/import")} className="btn-secondary flex items-center gap-2 whitespace-nowrap">
-            <TrendingUp size={18} />
-            Import Reviews
-          </button>
+
         </div>
       </div>
 
@@ -159,16 +160,16 @@ const Dashboard = () => {
               title="Avg Rating"
               value={filteredStats.avgRating}
               icon={Star}
-              trend={+2.4}
+
               color="amber"
               onClick={() => navigate("/analytics")}
             />
-            <KPICard
+            {/* <KPICard
               title="Critical Issues"
               value={filteredStats.criticalCount}
               icon={AlertTriangle}
               color={filteredStats.criticalCount > 0 ? "red" : "indigo"}
-              onClick={() => navigate("/tickets?filter=urgency:High,status:Open")}
+            // onClick={() => navigate("/tickets?filter=urgency:High,status:Open")}
             />
             <KPICard
               title="Escalation Risk"
@@ -176,7 +177,7 @@ const Dashboard = () => {
               icon={Zap}
               color={filteredStats.escalationRisks > 0 ? "red" : "indigo"}
               onClick={() => navigate("/reviews?filter=escalation:true")}
-            />
+            /> */}
           </>
         )}
       </div>
@@ -188,39 +189,40 @@ const Dashboard = () => {
         ) : (
           <>
             <KPICard
+              title="Positive"
+              value={filteredStats.positiveCount}
+              icon={ThumbsUp}
+              color="green"
+              onClick={() => navigate("/reviews?tab=Positive")}
+            />
+            <KPICard
+              title="Negative"
+              value={filteredStats.negativeCount}
+              icon={ThumbsDown}
+              color="red"
+              onClick={() => navigate("/reviews?tab=Negative")}
+            />
+            <KPICard
               title="Mixed Reviews"
               value={filteredStats.mixedCount}
               icon={MessageSquare}
               color="amber"
-              onClick={() => navigate("/reviews?filter=sentiment:Mixed")}
+              onClick={() => navigate("/reviews?tab=Mixed")}
             />
             <KPICard
               title="Neutral"
               value={filteredStats.neutralCount}
               icon={TrendingUp}
               color="slate"
-              onClick={() => navigate("/reviews?filter=sentiment:Neutral")}
+              onClick={() => navigate("/reviews?tab=Neutral")}
             />
-            <KPICard
-              title="Resolved"
-              value={stats.resolvedTickets}
-              icon={CheckCircle2}
-              color="green"
-              onClick={() => navigate("/tickets?filter=status:Closed")}
-            />
+
             <KPICard
               title="Approved"
               value={filteredStats.approvedCount}
               icon={CheckCircle2}
               color="blue"
-              onClick={() => navigate("/reviews?filter=status:Approved")}
-            />
-            <KPICard
-              title="Flagged"
-              value={filteredStats.suspiciousCount}
-              icon={Flag}
-              color="red"
-              onClick={() => navigate("/reviews?tab=SUSPICIOUS")}
+              onClick={() => navigate("/reviews?tab=Approved")}
             />
           </>
         )}
@@ -234,11 +236,9 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold">Urgent Escalations</h3>
 
-            {!state.isAppLoading && urgentEscalations.length > 0 && (
-              <span className="text-xs text-slate-400">
-                {urgentEscalations.length} items
-              </span>
-            )}
+            <button onClick={() => navigate("/reviews?tab=Suspicious")} className="text-xs font-bold text-indigo-600 hover:underline">
+              VIEW ALL
+            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -276,14 +276,14 @@ const Dashboard = () => {
                       onClick={() =>
                         navigate(
                           item.type === "ticket"
-                            ? `/tickets?highlight=${item.ticket_id}`
-                            : `/reviews?highlight=${item.review_id}`
+                            ? `/reviews?tab=Suspicious&highlight=${item.review_id}`
+                            : `/reviews?tab=Suspicious&highlight=${item.review_id}`
                         )
                       }
                       className="text-xs font-bold text-red-600 flex items-center gap-1 hover:gap-2 transition-all"
                     >
                       {item.type === "ticket"
-                        ? "VIEW TICKET"
+                        ? "VIEW REVIEW"
                         : "VIEW REVIEW"}
 
                       <ArrowRight size={14} />
@@ -337,10 +337,10 @@ const Dashboard = () => {
 
                       <div
                         className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm ${r.rating >= 4
-                            ? "bg-green-500"
-                            : r.rating === 3
-                              ? "bg-amber-500"
-                              : "bg-red-500"
+                          ? "bg-green-500"
+                          : r.rating === 3
+                            ? "bg-amber-500"
+                            : "bg-red-500"
                           }`}
                       >
                         {r.rating}
@@ -377,9 +377,6 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* All Reviews Table */}
-      {/* All Reviews Table */}
       <div className="glass-card overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-700">All Reviews</h3>

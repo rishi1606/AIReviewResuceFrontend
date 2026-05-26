@@ -235,7 +235,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
   return (
     <div
       id={review.review_id}
-      className={`glass-card p-6 border-l-4 transition-all relative group/card ${highlight ? "ring-2 ring-indigo-500 ring-offset-2" : ""} ${isLowConfidence ? "border-l-red-500 bg-red-50/10" : isMediumConfidence ? "border-l-amber-500" : review.rating >= 4 ? "border-l-green-500" : review.rating === 3 ? "border-l-amber-500" : "border-l-red-500"}`}
+      className={`glass-card p-6 border-l-4 transition-all relative group/card${highlight ? "ring-2 ring-yellow-400 ring-offset-2 border-yellow-400" : ""}${isLowConfidence ? "border-l-red-500 bg-red-50/10" : isMediumConfidence ? "border-l-amber-500" : review.rating >= 4 ? "border-l-green-500" : review.rating === 3 ? "border-l-amber-500" : "border-l-red-500"}`}
       style={isMediumConfidence ? { borderLeft: "3px solid #F59E0B" } : {}}
     >
       {loadingAI && (
@@ -249,7 +249,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
 
       <div className="absolute top-4 right-4 z-10 flex items-center gap-3">
         {/* Selection Checkbox */}
-        <div
+        {/* <div
           onClick={(e) => {
             e.stopPropagation();
             onSelect(review.review_id);
@@ -257,7 +257,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
           className={`w-5 h-5 rounded border-2 cursor-pointer flex items-center justify-center transition-all ${isSelected ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200" : "bg-white border-slate-200 hover:border-indigo-300"}`}
         >
           {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
-        </div>
+        </div> */}
 
         {/* Re-analyse Button (Existing) */}
         {/* <button 
@@ -537,7 +537,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
           <div className="flex justify-between items-center mt-4">
             <div className="flex gap-4 items-center">
               <button onClick={() => onFlag(review)} className="text-[10px] font-bold text-slate-400 hover:text-red-600 transition-colors uppercase">FLAG REVIEW</button>
-              <button onClick={() => setIsAddingNote(!isAddingNote)} className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase">ADD NOTE {review.internal_notes?.length > 0 && `(${review.internal_notes.length})`}</button>
+              {/* <button onClick={() => setIsAddingNote(!isAddingNote)} className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase">ADD NOTE {review.internal_notes?.length > 0 && `(${review.internal_notes.length})`}</button> */}
               {review.status === "PENDING APPROVAL" && isApprover && (
                 <button onClick={handleReject} className="text-[10px] font-bold text-red-500 hover:text-red-700 transition-colors uppercase flex items-center gap-1">
                   <X size={12} /> REJECT DRAFT

@@ -64,7 +64,7 @@ const Reviews = () => {
   const [highlightId, setHighlightId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const tabs = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Pending Approval", "Approved", "Suspicious"];
+  const tabs = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Approved", "Suspicious"];
 
   const confidenceThreshold = state.hotelConfig?.aiConfig?.confidenceThreshold || 75;
   const departments = DEPARTMENTS;
@@ -98,9 +98,15 @@ const Reviews = () => {
         const element = document.getElementById(highlight);
         if (element) element.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 500);
+      setTimeout(() => setHighlightId(null), 4000); // clears after 4s
     }
     const tabParam = params.get("tab");
-    if (tabParam) setTab(tabParam.toUpperCase());
+    if (tabParam) {
+      const matched = tabs.find(t => t.toUpperCase() === tabParam.toUpperCase());
+      if (matched) {
+        setTab(matched);
+      }
+    }
   }, [location]);
 
   // Escape key handler
@@ -365,6 +371,7 @@ const Reviews = () => {
     }
   };
 
+
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -498,8 +505,8 @@ const Reviews = () => {
                 { id: "NEWEST", label: "Newest First" },
                 { id: "OLDEST", label: "Oldest First" },
                 { id: "LOWEST_RATING", label: "Lowest Rating First" },
-                { id: "HIGHEST_RISK", label: "Highest Escalation Risk" },
-                { id: "UNASSIGNED", label: "Unassigned First" }
+                // { id: "HIGHEST_RISK", label: "Highest Escalation Risk" },
+                // { id: "UNASSIGNED", label: "Unassigned First" }
               ].map(option => (
                 <button
                   key={option.id}
@@ -527,6 +534,10 @@ const Reviews = () => {
         </div>
       </div>
 
+      <div className="text-xs font-semibold text-slate-400">
+        Showing <span className="text-slate-700 font-black">{filteredReviews.length}</span> reviews
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {state.isAppLoading || loading ? (
           [1, 2, 3, 4, 5, 6].map(i => <SkeletonReviewCard key={i} />)
@@ -535,7 +546,7 @@ const Reviews = () => {
             key={r.review_id}
             review={r}
             confidenceThreshold={confidenceThreshold}
-            highlight={highlightId === r.review_id}
+            highlight={highlightId === r.review_id || highlightId === r._id}
             isSelected={selectedIds.includes(r.review_id)}
             onSelect={toggleSelect}
             onFlag={(rev) => setFlagModal({ open: true, review: rev, reason: "", notes: "", loading: false })}

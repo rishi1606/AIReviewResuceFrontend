@@ -1,9 +1,9 @@
 import Groq from "groq-sdk";
 
-const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+const apiKey = import.meta.env.VITE_GROQ_DRAFT_API_KEY || import.meta.env.VITE_GROQ_API_KEY;
 
 if (!apiKey) {
-  console.error("[Groq] CRITICAL: VITE_GROQ_API_KEY is missing from environment variables!");
+  console.error("[Groq] CRITICAL: Both VITE_GROQ_DRAFT_API_KEY and VITE_GROQ_API_KEY are missing from environment variables!");
 }
 
 const groq = new Groq({

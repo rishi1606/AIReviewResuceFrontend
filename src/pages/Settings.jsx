@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -186,10 +186,11 @@ const GhostBtn = ({ children, style = {}, ...props }) => (
 const Settings = () => {
   const { state, dispatch } = useAppContext();
   const { currentUser, logout, updateUser } = useAuth();
-
+  const bannerRef = useRef(null);
   const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
   const [activeTab, setActiveTab] = useState(isScopedUser ? "account" : "ai");
   const [loading, setLoading] = useState(false);
+  const [savingIdx, setSavingIdx] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [newStaff, setNewStaff] = useState({
@@ -211,11 +212,18 @@ const Settings = () => {
   const flashSuccess = (msg) => {
     setGlobalSuccess(msg);
     setGlobalError("");
+    setTimeout(() => {
+      bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
     setTimeout(() => setGlobalSuccess(""), 4000);
   };
+
   const flashError = (msg) => {
     setGlobalError(msg);
     setGlobalSuccess("");
+    setTimeout(() => {
+      bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
     setTimeout(() => setGlobalError(""), 5000);
   };
 
@@ -302,19 +310,21 @@ const Settings = () => {
     return Object.keys(e).length === 0;
   };
 
-  const handleSaveHotel = async () => {
+  const handleSaveHotel = async (fromPropertyCard = false) => {
     if (!validateSettings()) {
       flashError("Please fix the errors below before saving.");
       return;
     }
-    setLoading(true);
+    if (!fromPropertyCard) setLoading(true);
     try {
       const res = await updateHotel(hotelFields);
       dispatch({ type: "UPDATE_HOTEL_CONFIG", payload: res.data });
       flashSuccess("Settings saved successfully!");
     } catch (err) {
       flashError(err.message);
-    } finally { setLoading(false); }
+    } finally {
+      if (!fromPropertyCard) setLoading(false);
+    }
   };
 
   const handleStaffSubmit = async (e) => {
@@ -362,7 +372,7 @@ const Settings = () => {
   /* ─── styles ─────────────────────────────────────── */
   const s = {
     page: {
-      maxWidth: 880, margin: "0 auto", padding: "36px 0 80px",
+      margin: "0 auto", padding: "36px 0 80px",
       fontFamily: "'DM Sans', system-ui, sans-serif"
     },
     heading: { fontSize: 28, fontWeight: 800, color: C.textPrimary, margin: 0 },
@@ -386,12 +396,12 @@ const Settings = () => {
     card: {
       background: "#fff", borderRadius: 24,
       border: `1.5px solid ${C.border}`,
-      boxShadow: "0 2px 16px rgba(45,58,90,.06)",
+      boxShadow: "0 2px 16px rgba(45,58,90,.06)",  // ← remove this line
       padding: 36, marginTop: 20
     },
     sectionHead: {
       display: "flex", alignItems: "center", gap: 12,
-      paddingBottom: 20, borderBottom: `1.5px solid ${C.border}`,
+      paddingBottom: 20,
       marginBottom: 28
     },
     iconBox: (color = "#6366F1", bg = "#EEF0FD") => ({
@@ -404,6 +414,7 @@ const Settings = () => {
     grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 },
     field: { display: "flex", flexDirection: "column" },
   };
+
 
   return (
     <div style={s.page}>
@@ -425,9 +436,8 @@ const Settings = () => {
         ))}
       </div>
 
-      {/* Global banners */}
       {(globalError || globalSuccess) && (
-        <div style={{ marginTop: 16 }}>
+        <div ref={bannerRef} style={{ marginTop: 16 }}>
           <BannerError msg={globalError} />
           <BannerSuccess msg={globalSuccess} />
         </div>
@@ -512,7 +522,7 @@ const Settings = () => {
               </p>
             </div>
 
-            <div style={{ paddingTop: 8, borderTop: `1.5px solid ${C.border}` }}>
+            <div style={{ paddingTop: 8, borderTop: `1.5px solid ${C.border} ` }}>
               <PrimaryBtn loading={loading} onClick={handleSaveHotel}
                 style={{ minWidth: 220 }}>
                 <Save size={16} /> Update Property Profile
@@ -554,262 +564,367 @@ const Settings = () => {
 
             <BannerError msg={errors.properties} />
 
-            {(hotelFields.properties || []).length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                <div style={{
-                  width: 64, height: 64, borderRadius: "50%",
-                  background: C.accentSoft, display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  margin: "0 auto 16px", color: C.accent
-                }}>
-                  <Building2 size={28} />
-                </div>
-                <p style={{ fontWeight: 700, color: C.textPrimary, margin: 0 }}>No properties yet</p>
-                <p style={{ color: C.textMuted, fontSize: 13, marginTop: 6 }}>Add your first property to start collecting reviews</p>
-                <PrimaryBtn style={{ margin: "20px auto 0" }}
-                  onClick={() => setHotelFields({
-                    ...hotelFields, properties: [
-                      {
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+              {(hotelFields.properties || []).length === 0 ? (
+                <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 20px" }}>
+                  <div style={{
+                    width: 64, height: 64, borderRadius: "50%",
+                    background: C.accentSoft, display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                    margin: "0 auto 16px", color: C.accent
+                  }}>
+                    <Building2 size={28} />
+                  </div>
+                  <p style={{ fontWeight: 700, color: C.textPrimary, margin: 0 }}>No properties yet</p>
+                  <p style={{ color: C.textMuted, fontSize: 13, marginTop: 6 }}>Add your first property to start collecting reviews</p>
+                  <PrimaryBtn style={{ margin: "20px auto 0" }}
+                    onClick={() => setHotelFields({
+                      ...hotelFields, properties: [{
                         _uid: genUid(), name: "", city: "", rooms: "", timezone: "IST", is_active: true,
                         platforms: {}, urgent_sync_interval: "5hr", low_sync_interval: "10hr"
-                      }
-                    ]
-                  })}>
-                  <Plus size={15} /> Add Property
-                </PrimaryBtn>
-              </div>
-            ) : (hotelFields.properties || []).map((prop, idx) => (
-              <div key={prop._uid || prop._id || idx} style={{
-                background: C.inputBg, border: `1.5px solid ${C.border}`,
-                borderRadius: 20, padding: 24,
-                opacity: prop.is_active ? 1 : 0.65,
-                transition: "all .2s"
-              }}>
-                {/* Property Header */}
-                <div style={{
-                  display: "flex", justifyContent: "space-between",
-                  alignItems: "flex-start", marginBottom: 20
-                }}>
-                  <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                    <div style={{ fontSize: 28 }}>🏨</div>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <input type="text" value={prop.name} placeholder="Property Name"
-                          onChange={e => updateProperty(idx, { name: e.target.value })}
-                          style={{
-                            fontSize: 17, fontWeight: 800, background: "transparent",
-                            border: "none", borderBottom: `2px dashed ${C.border}`,
-                            outline: "none", color: C.textPrimary,
-                            width: 200, paddingBottom: 3
-                          }} />
-                        <span style={{
-                          padding: "3px 10px", background: C.accentSoft,
-                          color: C.accentText, borderRadius: 20, fontSize: 10,
-                          fontWeight: 800, textTransform: "uppercase"
-                        }}>
-                          {state.reviews?.filter(r => r.hotel_name === prop.name).length || 0} reviews
-                        </span>
-                        <span style={{
-                          padding: "3px 10px",
-                          background: prop.is_active ? C.successSoft : C.inputBg,
-                          color: prop.is_active ? "#15803D" : C.textMuted,
-                          border: `1px solid ${prop.is_active ? C.successBorder : C.border}`,
-                          borderRadius: 20, fontSize: 10, fontWeight: 800, textTransform: "uppercase"
-                        }}>
-                          {prop.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                      <div style={{
-                        display: "flex", gap: 10, alignItems: "center",
-                        marginTop: 8, flexWrap: "wrap"
-                      }}>
-                        <input type="text" value={prop.city} placeholder="City"
-                          onChange={e => updateProperty(idx, { city: e.target.value })}
-                          style={{
-                            width: 90, background: "transparent", border: "none",
-                            borderBottom: `1.5px dashed ${C.border}`, outline: "none",
-                            fontSize: 13, color: C.textMuted, fontWeight: 600
-                          }} />
-                        <span style={{ color: C.border }}>·</span>
-                        <input type="number" value={prop.rooms || ""} placeholder="Rooms"
-                          onChange={e => updateProperty(idx, { rooms: e.target.value ? parseInt(e.target.value) : "" })}
-                          style={{
-                            width: 60, background: "transparent", border: "none",
-                            borderBottom: `1.5px dashed ${C.border}`, outline: "none",
-                            fontSize: 13, color: C.textMuted, fontWeight: 600
-                          }} />
-                        <span style={{ fontSize: 13, color: C.textMuted }}>rooms</span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Toggle */}
-                  <button style={{ background: "none", border: "none", cursor: "pointer" }}
-                    onClick={() => updateProperty(idx, { is_active: !prop.is_active })}>
-                    {prop.is_active
-                      ? <ToggleRight size={36} color={C.accent} />
-                      : <ToggleLeft size={36} color={C.border} />}
-                  </button>
-                </div>
-
-                {/* Platform Links */}
-                <div style={{ paddingTop: 18, borderTop: `1.5px solid ${C.border}` }}>
-                  <Label>Platform Links</Label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
-                      const url = (prop.platforms && prop.platforms[platform]) || "";
-                      const isValid = url.startsWith("http");
-                      const isErr = url.length > 0 && !isValid;
-                      return (
-                        <div key={platform} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{
-                            width: 90, fontSize: 12, fontWeight: 700,
-                            color: url ? C.textPrimary : C.textMuted
-                          }}>{platform}</span>
-                          <div style={{ flex: 1, position: "relative" }}>
-                            <input type="url" value={url}
-                              placeholder={`${platform} URL…`}
-                              onChange={e => updateProperty(idx, {
-                                platforms: { ...(prop.platforms || {}), [platform]: e.target.value }
-                              })}
-                              style={{
-                                width: "100%", padding: "10px 36px 10px 12px",
-                                background: "#fff", border: `1.5px solid ${isErr ? C.danger : C.border}`,
-                                borderRadius: 12, outline: "none", fontSize: 12,
-                                fontWeight: 600, color: C.textPrimary, boxSizing: "border-box"
-                              }} />
-                            <span style={{
-                              position: "absolute", right: 10, top: "50%",
-                              transform: "translateY(-50%)"
-                            }}>
-                              {url && isValid && <CheckCircle2 size={14} color={C.success} />}
-                              {!url && <AlertTriangle size={14} color={C.warn} />}
-                              {isErr && <X size={14} color={C.danger} />}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Sync Schedule */}
-                <div style={{ paddingTop: 18, borderTop: `1.5px solid ${C.border}`, marginTop: 18 }}>
-                  <Label>Review Sync Schedule</Label>
-                  <div style={{
-                    display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: 16, background: "#fff", padding: 20,
-                    borderRadius: 16, border: `1.5px solid ${C.border}`
-                  }}>
-                    {[
-                      { label: "High Urgency (1–3★)", val: "5 hrs", fixed: true },
-                      { label: "Low Urgency (4–5★)", val: "10 hrs", fixed: true }
-                    ].map(item => (
-                      <div key={item.label}>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, marginBottom: 8 }}>{item.label}</p>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 12, color: C.textMuted }}>Every</span>
-                          <div style={{
-                            flex: 1, padding: "9px 12px", background: C.inputBg,
-                            border: `1.5px solid ${C.border}`, borderRadius: 10,
-                            fontSize: 12, fontWeight: 800, color: C.textMuted,
-                            textAlign: "center"
-                          }}>{item.val}</div>
-                        </div>
-                        <p style={{ fontSize: 10, color: C.textMuted, marginTop: 5 }}>⚠️ Fixed</p>
-                      </div>
-                    ))}
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: C.textPrimary, marginBottom: 8 }}>Max per sync</p>
-                      <Select value={prop.max_reviews_per_sync || 5}
-                        onChange={e => updateProperty(idx, { max_reviews_per_sync: parseInt(e.target.value) })}>
-                        <option value={5}>5 reviews</option>
-                        <option value={10}>10 reviews</option>
-                        <option value={15}>15 reviews</option>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sync Status */}
-                <div style={{
-                  marginTop: 14, padding: "12px 16px",
-                  background: "#fff", borderRadius: 14,
-                  border: `1.5px solid ${C.border}`,
-                  display: "flex", justifyContent: "space-between", alignItems: "center"
-                }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted }}>Last synced:</span>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: C.textPrimary }}>
-                      {getSyncTimeAgo(prop.last_sync_time)}
-                    </span>
-                  </div>
-                  {(!prop.last_sync_status || prop.last_sync_status === "never") && (
-                    <span style={{
-                      padding: "4px 12px", background: C.warnSoft,
-                      color: "#92400E", border: `1px solid ${C.warnBorder}`,
-                      borderRadius: 20, fontSize: 10, fontWeight: 800
-                    }}>
-                      ⚠️ Not verified
-                    </span>
-                  )}
-                  {prop.last_sync_status === "success" && (
-                    <span style={{
-                      padding: "4px 12px", background: C.successSoft,
-                      color: "#15803D", border: `1px solid ${C.successBorder}`,
-                      borderRadius: 20, fontSize: 10, fontWeight: 800
-                    }}>
-                      ✅ Connected
-                    </span>
-                  )}
-                  {prop.last_sync_status === "failed" && (
-                    <span style={{
-                      padding: "4px 12px", background: C.dangerSoft,
-                      color: "#B91C1C", border: `1px solid ${C.dangerBorder}`,
-                      borderRadius: 20, fontSize: 10, fontWeight: 800
-                    }}>
-                      ❌ Sync Failed
-                    </span>
-                  )}
-                </div>
-
-                {/* Property Actions */}
-                <div style={{
-                  marginTop: 16, display: "flex",
-                  justifyContent: "space-between", alignItems: "center",
-                  background: C.inputBg, padding: "10px 14px",
-                  borderRadius: 14, border: `1.5px solid ${C.border}`
-                }}>
-                  <button style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "8px 14px", background: "transparent", border: "none",
-                    borderRadius: 10, cursor: "pointer", fontSize: 12,
-                    fontWeight: 700, color: C.textMuted, transition: "all .15s"
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.color = C.danger; e.currentTarget.style.background = C.dangerSoft; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
-                    onClick={async () => {
-                      if (!window.confirm("Delete this property?")) return;
-                      const p = [...hotelFields.properties];
-                      p.splice(idx, 1);
-                      const updated = { ...hotelFields, properties: p };
-                      setHotelFields(updated);
-                      setLoading(true);
-                      try {
-                        const res = await updateHotel(updated);
-                        dispatch({ type: "UPDATE_HOTEL_CONFIG", payload: res.data });
-                        flashSuccess("Property deleted.");
-                      } catch (err) { flashError(err.message); }
-                      finally { setLoading(false); }
-                    }}>
-                    <Trash2 size={14} /> Delete
-                  </button>
-                  <PrimaryBtn loading={loading} style={{ padding: "9px 20px", fontSize: 13 }}
-                    onClick={handleSaveHotel}>
-                    <Save size={14} /> Save Property
+                      }]
+                    })}>
+                    <Plus size={15} /> Add Property
                   </PrimaryBtn>
                 </div>
-              </div>
-            ))}
+              ) : (hotelFields.properties || []).map((prop, idx) => (
+                <div key={prop._uid || prop._id || idx} style={{
+                  background: "#fff",
+                  borderRadius: 20,
+                  border: `1.5px solid ${C.border}`,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column"
+                }}>
+
+                  {/* Card Header */}
+                  <div style={{
+                    padding: "20px 24px",
+                    background: `linear-gradient(135deg, ${C.accentSoft} 0%, #fff 100%)`,
+                    borderBottom: `1.5px solid ${C.border}`,
+                    display: "flex", justifyContent: "space-between", alignItems: "flex-start"
+                  }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                      <div style={{
+                        width: 42, height: 42, borderRadius: 12,
+                        background: "#fff", border: `1.5px solid ${C.border}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, boxShadow: "0 2px 8px rgba(99,102,241,.1)"
+                      }}>🏨</div>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{
+                            padding: "3px 10px",
+                            background: prop.is_active ? C.successSoft : "#F1F5F9",
+                            color: prop.is_active ? "#15803D" : C.textMuted,
+                            border: `1px solid ${prop.is_active ? C.successBorder : C.border}`,
+                            borderRadius: 20, fontSize: 10, fontWeight: 800, textTransform: "uppercase"
+                          }}>
+                            {prop.is_active ? "● Active" : "○ Inactive"}
+                          </span>
+                          <span style={{
+                            padding: "3px 10px", background: C.accentSoft,
+                            color: C.accentText, borderRadius: 20, fontSize: 10, fontWeight: 800
+                          }}>
+                            {state.reviews?.filter(r => r.hotel_name === prop.name).length || 0} reviews
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
+                      onClick={() => updateProperty(idx, { is_active: !prop.is_active })}>
+                      {prop.is_active
+                        ? <ToggleRight size={30} color={C.accent} />
+                        : <ToggleLeft size={30} color={C.border} />}
+                    </button>
+                  </div>
+
+                  {/* Card Body */}
+                  <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+
+                    {/* Property Name */}
+                    <div>
+                      <label style={{
+                        display: "block", fontSize: 11, fontWeight: 800,
+                        color: C.textLabel, textTransform: "uppercase",
+                        letterSpacing: "0.07em", marginBottom: 6
+                      }}>Property Name</label>
+                      <input
+                        type="text"
+                        value={prop.name}
+                        placeholder="e.g. The Grand Palace"
+                        onChange={e => updateProperty(idx, { name: e.target.value })}
+                        style={{
+                          width: "100%", padding: "11px 14px",
+                          background: C.inputBg,
+                          border: `1.5px solid ${C.border}`,
+                          borderRadius: 12, outline: "none",
+                          fontSize: 14, fontWeight: 700,
+                          color: C.textPrimary, boxSizing: "border-box",
+                          transition: "border-color .2s"
+                        }}
+                        onFocus={e => e.target.style.borderColor = C.borderFocus}
+                        onBlur={e => e.target.style.borderColor = C.border}
+                      />
+                    </div>
+
+                    {/* City + Rooms row */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <label style={{
+                          display: "block", fontSize: 11, fontWeight: 800,
+                          color: C.textLabel, textTransform: "uppercase",
+                          letterSpacing: "0.07em", marginBottom: 6
+                        }}>City</label>
+                        <input
+                          type="text"
+                          value={prop.city}
+                          placeholder="Mumbai"
+                          onChange={e => updateProperty(idx, { city: e.target.value })}
+                          style={{
+                            width: "100%", padding: "11px 14px",
+                            background: C.inputBg, border: `1.5px solid ${C.border}`,
+                            borderRadius: 12, outline: "none", fontSize: 13,
+                            fontWeight: 600, color: C.textPrimary, boxSizing: "border-box",
+                            transition: "border-color .2s"
+                          }}
+                          onFocus={e => e.target.style.borderColor = C.borderFocus}
+                          onBlur={e => e.target.style.borderColor = C.border}
+                        />
+                      </div>
+                      <div>
+                        <label style={{
+                          display: "block", fontSize: 11, fontWeight: 800,
+                          color: C.textLabel, textTransform: "uppercase",
+                          letterSpacing: "0.07em", marginBottom: 6
+                        }}>Rooms</label>
+                        <input
+                          type="number"
+                          value={prop.rooms || ""}
+                          placeholder="150"
+                          onChange={e => updateProperty(idx, { rooms: e.target.value ? parseInt(e.target.value) : "" })}
+                          style={{
+                            width: "100%", padding: "11px 14px",
+                            background: C.inputBg, border: `1.5px solid ${C.border}`,
+                            borderRadius: 12, outline: "none", fontSize: 13,
+                            fontWeight: 600, color: C.textPrimary, boxSizing: "border-box",
+                            transition: "border-color .2s"
+                          }}
+                          onFocus={e => e.target.style.borderColor = C.borderFocus}
+                          onBlur={e => e.target.style.borderColor = C.border}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Platform Links */}
+                    <div style={{
+                      paddingTop: 16, borderTop: `1.5px solid ${C.border}`
+                    }}>
+                      <label style={{
+                        display: "block", fontSize: 11, fontWeight: 800,
+                        color: C.textLabel, textTransform: "uppercase",
+                        letterSpacing: "0.07em", marginBottom: 12
+                      }}>Platform Links</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {["Google", "Booking.com", "Agoda", "Airbnb"].map(platform => {
+                          const url = (prop.platforms && prop.platforms[platform]) || "";
+                          const isValid = url.startsWith("http");
+                          const isErr = url.length > 0 && !isValid;
+                          const platformColors = {
+                            "Google": "#4285F4",
+                            "Booking.com": "#003580",
+                            "Agoda": "#E21B23",
+                            "Airbnb": "#FF5A5F"
+                          };
+                          return (
+                            <div key={platform}>
+                              <label style={{
+                                display: "block", fontSize: 10, fontWeight: 700,
+                                color: platformColors[platform] || C.textMuted,
+                                marginBottom: 4, letterSpacing: "0.04em"
+                              }}>{platform}</label>
+                              <div style={{ position: "relative" }}>
+                                <input
+                                  type="url"
+                                  value={url}
+                                  placeholder={`Paste ${platform} review URL…`}
+                                  onChange={e => updateProperty(idx, {
+                                    platforms: { ...(prop.platforms || {}), [platform]: e.target.value }
+                                  })}
+                                  style={{
+                                    width: "100%", padding: "10px 36px 10px 12px",
+                                    background: url && isValid ? "#F0FDF4" : C.inputBg,
+                                    border: `1.5px solid ${isErr ? C.danger : url && isValid ? C.successBorder : C.border}`,
+                                    borderRadius: 10, outline: "none", fontSize: 12,
+                                    fontWeight: 500, color: C.textPrimary, boxSizing: "border-box",
+                                    transition: "all .2s"
+                                  }}
+                                  onFocus={e => e.target.style.borderColor = isErr ? C.danger : C.borderFocus}
+                                  onBlur={e => e.target.style.borderColor = isErr ? C.danger : url && isValid ? C.successBorder : C.border}
+                                />
+                                <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }}>
+                                  {url && isValid && <CheckCircle2 size={14} color={C.success} />}
+                                  {!url && <AlertTriangle size={13} color="#D1D5DB" />}
+                                  {isErr && <X size={14} color={C.danger} />}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Sync Settings */}
+                    <div style={{ paddingTop: 16, borderTop: `1.5px solid ${C.border}` }}>
+                      <label style={{
+                        display: "block", fontSize: 11, fontWeight: 800,
+                        color: C.textLabel, textTransform: "uppercase",
+                        letterSpacing: "0.07em", marginBottom: 12
+                      }}>Sync Settings</label>
+
+
+
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{
+                          padding: "10px 14px",
+                          background: C.inputBg,
+                          border: `1.5px solid ${C.border}`,
+                          borderRadius: 12
+                        }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, margin: "0 0 4px", textTransform: "uppercase" }}>
+                            Review Sync Schedule (1–5★)
+                          </p>
+                          <p style={{ fontSize: 12, fontWeight: 800, color: C.textPrimary, margin: 0 }}>Every 5 hrs</p>
+                          <p style={{ fontSize: 10, color: C.warn, margin: "3px 0 0", fontWeight: 600 }}>⚠ Fixed</p>
+                        </div>
+                      </div>
+
+                      {/* Max Reviews Select */}
+                      <div>
+                        <label style={{
+                          display: "block", fontSize: 11, fontWeight: 800,
+                          color: C.textLabel, textTransform: "uppercase",
+                          letterSpacing: "0.07em", marginBottom: 6
+                        }}>Max Reviews per Sync</label>
+                        <div style={{ position: "relative" }}>
+                          <select
+                            value={prop.max_reviews_per_sync || 10}
+                            onChange={e => updateProperty(idx, { max_reviews_per_sync: parseInt(e.target.value) })}
+                            style={{
+                              width: "100%", padding: "11px 40px 11px 14px",
+                              background: C.inputBg, border: `1.5px solid ${C.border}`,
+                              borderRadius: 12, outline: "none", fontWeight: 700,
+                              fontSize: 13, color: C.textPrimary, appearance: "none",
+                              boxSizing: "border-box", cursor: "pointer"
+                            }}
+                          >
+                            <option value={10}>10 reviews</option>
+                            <option value={20}>20 reviews</option>
+                            <option value={50}>50 reviews</option>
+                            <option value={100}>100 reviews</option>
+                          </select>
+                          <ChevronDown size={15} style={{
+                            position: "absolute", right: 12, top: "50%",
+                            transform: "translateY(-50%)", color: C.textMuted, pointerEvents: "none"
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sync Status */}
+                    <div style={{
+                      padding: "12px 16px",
+                      background: C.inputBg, borderRadius: 12,
+                      border: `1.5px solid ${C.border}`,
+                      display: "flex", justifyContent: "space-between", alignItems: "center"
+                    }}>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, margin: "0 0 2px", textTransform: "uppercase" }}>Last Synced</p>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: C.textPrimary, margin: 0 }}>
+                          {getSyncTimeAgo(prop.last_sync_time)}
+                        </p>
+                      </div>
+                      {(!prop.last_sync_status || prop.last_sync_status === "never") && (
+                        <span style={{
+                          padding: "5px 12px", background: C.warnSoft,
+                          color: "#92400E", border: `1px solid ${C.warnBorder}`,
+                          borderRadius: 20, fontSize: 10, fontWeight: 800
+                        }}>⚠️ Not verified</span>
+                      )}
+                      {prop.last_sync_status === "success" && (
+                        <span style={{
+                          padding: "5px 12px", background: C.successSoft,
+                          color: "#15803D", border: `1px solid ${C.successBorder}`,
+                          borderRadius: 20, fontSize: 10, fontWeight: 800
+                        }}>✅ Connected</span>
+                      )}
+                      {prop.last_sync_status === "failed" && (
+                        <span style={{
+                          padding: "5px 12px", background: C.dangerSoft,
+                          color: "#B91C1C", border: `1px solid ${C.dangerBorder}`,
+                          borderRadius: 20, fontSize: 10, fontWeight: 800
+                        }}>❌ Sync Failed</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Footer Actions */}
+                  <div style={{
+                    padding: "16px 24px",
+                    borderTop: `1.5px solid ${C.border}`,
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    background: C.inputBg
+                  }}>
+                    <button
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        padding: "8px 14px", background: "transparent",
+                        border: `1.5px solid ${C.border}`,
+                        borderRadius: 10, cursor: "pointer", fontSize: 12,
+                        fontWeight: 700, color: C.textMuted, transition: "all .15s"
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.color = C.danger;
+                        e.currentTarget.style.background = C.dangerSoft;
+                        e.currentTarget.style.borderColor = C.dangerBorder;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.color = C.textMuted;
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.borderColor = C.border;
+                      }}
+                      onClick={async () => {
+                        if (!window.confirm("Delete this property?")) return;
+                        const p = [...hotelFields.properties];
+                        p.splice(idx, 1);
+                        const updated = { ...hotelFields, properties: p };
+                        setHotelFields(updated);
+                        setLoading(true);
+                        try {
+                          const res = await updateHotel(updated);
+                          dispatch({ type: "UPDATE_HOTEL_CONFIG", payload: res.data });
+                          flashSuccess("Property deleted.");
+                        } catch (err) { flashError(err.message); }
+                        finally { setLoading(false); }
+                      }}>
+                      <Trash2 size={13} /> Delete
+                    </button>
+                    <PrimaryBtn
+                      loading={savingIdx === idx}
+                      style={{ padding: "9px 20px", fontSize: 13 }}
+                      onClick={async () => {
+                        const currentIdx = idx;
+                        setSavingIdx(currentIdx);
+                        await handleSaveHotel(true);
+                        setSavingIdx(null);
+                      }}
+                    >
+                      <Save size={14} /> Save Property
+                    </PrimaryBtn>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -818,7 +933,7 @@ const Settings = () => {
           <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             {/* AI Confidence */}
             <div style={{
-              borderRadius: 20, border: `1.5px solid ${C.border}`,
+              borderRadius: 20, border: `1.5px solid ${C.border} `,
               background: "#fff", padding: 28, position: "relative",
               overflow: "hidden"
             }}>
@@ -855,7 +970,7 @@ const Settings = () => {
                 </div>
                 <div style={{
                   padding: "10px 20px", background: C.accentSoft,
-                  border: `1.5px solid ${C.borderFocus}`, borderRadius: 14
+                  border: `1.5px solid ${C.borderFocus} `, borderRadius: 14
                 }}>
                   <span style={{ fontSize: 28, fontWeight: 900, color: C.accent }}>
                     {hotelFields.aiConfig?.confidenceThreshold || 75}%
@@ -881,12 +996,12 @@ const Settings = () => {
               {/* Info box */}
               <div style={{
                 marginTop: 18, padding: 16, borderRadius: 14,
-                background: C.warnSoft, border: `1.5px solid ${C.warnBorder}`,
+                background: C.warnSoft, border: `1.5px solid ${C.warnBorder} `,
                 display: "flex", gap: 12
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 10, background: "#fff",
-                  border: `1px solid ${C.warnBorder}`, display: "flex",
+                  border: `1px solid ${C.warnBorder} `, display: "flex",
                   alignItems: "center", justifyContent: "center", flexShrink: 0
                 }}>
                   <AlertCircle size={17} color={C.warn} />
@@ -904,7 +1019,7 @@ const Settings = () => {
             </div>
 
             {/* Safety Rules */}
-            <div style={{ paddingTop: 8, borderTop: `1.5px solid ${C.border}` }}>
+            <div style={{ paddingTop: 8, borderTop: `1.5px solid ${C.border} ` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
                 <ShieldAlert size={20} color={C.accent} />
                 <p style={{ fontSize: 17, fontWeight: 800, color: C.textPrimary, margin: 0 }}>
@@ -912,7 +1027,7 @@ const Settings = () => {
                 </p>
               </div>
               <div style={{
-                background: C.inputBg, border: `1.5px solid ${C.border}`,
+                background: C.inputBg, border: `1.5px solid ${C.border} `,
                 borderRadius: 16, padding: 20,
                 display: "flex", justifyContent: "space-between", alignItems: "center"
               }}>
@@ -932,7 +1047,7 @@ const Settings = () => {
                     })}
                     style={{
                       width: 60, padding: "10px 0", textAlign: "center",
-                      background: "#fff", border: `1.5px solid ${C.borderFocus}`,
+                      background: "#fff", border: `1.5px solid ${C.borderFocus} `,
                       borderRadius: 12, fontWeight: 900, fontSize: 18,
                       color: C.accent, outline: "none"
                     }} />
@@ -1010,7 +1125,7 @@ const Settings = () => {
             {(state.staff || []).map(s => (
               <div key={s._id} style={{
                 padding: 18, background: "#fff",
-                border: `1.5px solid ${C.border}`, borderRadius: 18,
+                border: `1.5px solid ${C.border} `, borderRadius: 18,
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 opacity: s.status === "disabled" ? 0.55 : 1
               }}>
@@ -1056,7 +1171,7 @@ const Settings = () => {
                     <button key={i} disabled={btn.disabled}
                       onClick={btn.action}
                       style={{
-                        padding: 8, background: "transparent", border: `1.5px solid ${C.border}`,
+                        padding: 8, background: "transparent", border: `1.5px solid ${C.border} `,
                         borderRadius: 10, cursor: btn.disabled ? "not-allowed" : "pointer",
                         color: C.textMuted, opacity: btn.disabled ? 0.3 : 1,
                         display: "flex", alignItems: "center"
@@ -1086,7 +1201,7 @@ const Settings = () => {
             {/* Modal Header */}
             <div style={{
               padding: "24px 28px", background: C.accentSoft,
-              borderBottom: `1.5px solid ${C.borderFocus}`,
+              borderBottom: `1.5px solid ${C.borderFocus} `,
               display: "flex", justifyContent: "space-between", alignItems: "center"
             }}>
               <div>
@@ -1145,7 +1260,7 @@ const Settings = () => {
                       onClick={() => setNewStaff({ ...newStaff, role: opt.role })}
                       style={{
                         padding: 16, borderRadius: 16, textAlign: "left",
-                        border: `2px solid ${newStaff.role === opt.role ? C.accent : C.border}`,
+                        border: `2px solid ${newStaff.role === opt.role ? C.accent : C.border} `,
                         background: newStaff.role === opt.role ? C.accentSoft : "#fff",
                         cursor: "pointer", transition: "all .2s"
                       }}>
