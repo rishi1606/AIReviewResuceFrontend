@@ -818,10 +818,10 @@ const Settings = () => {
                               boxSizing: "border-box", cursor: "pointer"
                             }}
                           >
+                            <option value={5}>5 reviews</option>
                             <option value={10}>10 reviews</option>
                             <option value={20}>20 reviews</option>
-                            <option value={50}>50 reviews</option>
-                            <option value={100}>100 reviews</option>
+
                           </select>
                           <ChevronDown size={15} style={{
                             position: "absolute", right: 12, top: "50%",
