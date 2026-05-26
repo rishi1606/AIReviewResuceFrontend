@@ -64,7 +64,7 @@ const Reviews = () => {
   const [highlightId, setHighlightId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const tabs = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Approved", "Suspicious"];
+  const tabs = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Approved", "Suspicious", "Escalated"];
 
   const confidenceThreshold = state.hotelConfig?.aiConfig?.confidenceThreshold || 75;
   const departments = DEPARTMENTS;
@@ -206,8 +206,9 @@ const Reviews = () => {
     const matchesTab = tab === "ALL" ? true :
       tab.toUpperCase() === "APPROVED" ? (r.status === "RESPONDED" || r.status === "Approved") :
         tab.toUpperCase() === "PENDING APPROVAL" ? r.status === "PENDING APPROVAL" :
-          tab.toUpperCase() === "SUSPICIOUS" ? (r.status === "Suspicious" || r.status === "ESCALATED" || r.is_suspicious || r.escalation_risk) :
-            r.sentiment?.toUpperCase() === tab.toUpperCase();
+          tab.toUpperCase() === "SUSPICIOUS" ? (r.status === "Suspicious" || r.is_suspicious === true) :
+            tab.toUpperCase() === "ESCALATED" ? (r.status === "ESCALATED" || r.escalation === true) :
+              r.sentiment?.toUpperCase() === tab.toUpperCase();
 
     const matchesPlatform = state.activeFilters?.platform === "ALL" || !state.activeFilters?.platform ? true : r.platform === state.activeFilters.platform;
     const matchesDept = department === "ALL" ? true : (r.primary_department || "").toUpperCase() === department.toUpperCase();

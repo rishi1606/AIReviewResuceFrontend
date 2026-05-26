@@ -54,17 +54,19 @@ const Dashboard = () => {
 
   const urgentEscalations = [
     ...state.tickets
-      .filter(t => {
-        const linkedReview = state.reviews.find(r => r.review_id === t.review_id);
-        const matchesPlatform = selectedPlatform === "ALL" ? true : linkedReview?.platform === selectedPlatform;
-        const matchesProperty = selectedProperty === "ALL" ? true : linkedReview?.hotel_name === selectedProperty;
-        return matchesPlatform && matchesProperty && (t.urgency === "High" || t.escalated) && !["Closed", "Resolved"].includes(t.status);
-      })
-      .map(t => ({ ...t, type: 'ticket' })),
+      .filter(t => t.status === "ESCALATED")
+      .map(t => ({ ...t, type: "ticket" })),
+
     ...filteredReviews
-      .filter(r => (r.escalation_risk || r.status === "ESCALATED") && r.status !== "RESPONDED" && !r.linked_ticket_id)
-      .map(r => ({ ...r, type: 'review' }))
-  ].sort((a, b) => (new Date(b.created_at || b.review_date || 0)) - (new Date(a.created_at || a.review_date || 0))).slice(0, 5);
+      .filter(r => r.status === "ESCALATED")
+      .map(r => ({ ...r, type: "review" }))
+  ]
+    .sort(
+      (a, b) =>
+        new Date(b.created_at || b.review_date || 0) -
+        new Date(a.created_at || a.review_date || 0)
+    )
+    .slice(0, 5);
 
   const recentReviews = filteredReviews.slice(0, 5);
 
@@ -81,7 +83,8 @@ const Dashboard = () => {
     approvedCount: filteredReviews.filter(r => r.status === "Approved" || r.status === "RESPONDED").length,
     positiveCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "positive").length,
     negativeCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "negative").length,
-    suspiciousCount: filteredReviews.filter(r => r.is_suspicious).length,
+    escalatedCount: filteredReviews.filter(r => r.status === "ESCALATED" || r.escalation === true).length,
+    suspiciousCount: filteredReviews.filter(r => r.status === "Suspicious" || r.is_suspicious === true).length,
     sentimentDistribution: ["Positive", "Negative", "Mixed", "Neutral"].map(name => ({
       name,
       count: filteredReviews.filter(r => r.sentiment === name).length,
@@ -160,24 +163,22 @@ const Dashboard = () => {
               title="Avg Rating"
               value={filteredStats.avgRating}
               icon={Star}
-
               color="amber"
-
-            />
-            {/* <KPICard
-              title="Critical Issues"
-              value={filteredStats.criticalCount}
-              icon={AlertTriangle}
-              color={filteredStats.criticalCount > 0 ? "red" : "indigo"}
-            // onClick={() => navigate("/tickets?filter=urgency:High,status:Open")}
             />
             <KPICard
-              title="Escalation Risk"
-              value={filteredStats.escalationRisks}
-              icon={Zap}
-              color={filteredStats.escalationRisks > 0 ? "red" : "indigo"}
-              onClick={() => navigate("/reviews?filter=escalation:true")}
-            /> */}
+              title="Escalated"
+              value={filteredStats.escalatedCount}
+              icon={AlertTriangle}
+              color={filteredStats.escalatedCount > 0 ? "red" : "slate"}
+              onClick={() => navigate("/reviews?tab=Escalated")}
+            />
+            <KPICard
+              title="Suspicious"
+              value={filteredStats.suspiciousCount}
+              icon={Flag}
+              color={filteredStats.suspiciousCount > 0 ? "amber" : "slate"}
+              onClick={() => navigate("/reviews?tab=Suspicious")}
+            />
           </>
         )}
       </div>
@@ -236,7 +237,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold">Urgent Escalations</h3>
 
-            <button onClick={() => navigate("/reviews?tab=Suspicious")} className="text-xs font-bold text-indigo-600 hover:underline">
+            <button onClick={() => navigate("/reviews?tab=Escalated")} className="text-xs font-bold text-indigo-600 hover:underline">
               VIEW ALL
             </button>
           </div>
@@ -276,8 +277,8 @@ const Dashboard = () => {
                       onClick={() =>
                         navigate(
                           item.type === "ticket"
-                            ? `/reviews?tab=Suspicious&highlight=${item.review_id}`
-                            : `/reviews?tab=Suspicious&highlight=${item.review_id}`
+                            ? `/reviews?tab=Escalated&highlight=${item.review_id}`
+                            : `/reviews?tab=Escalated&highlight=${item.review_id}`
                         )
                       }
                       className="text-xs font-bold text-red-600 flex items-center gap-1 hover:gap-2 transition-all"
