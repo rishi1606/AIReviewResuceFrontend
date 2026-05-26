@@ -204,8 +204,6 @@ export const AppProvider = ({ children }) => {
           hotelConfig: hotel.data
         }
       });
-      // Cache hotel config for AI classifier
-      localStorage.setItem("rr_hotel_config", JSON.stringify(hotel.data));
     } catch (err) {
       console.error("Failed to load initial data", err);
       dispatch({ type: actions.SET_APP_LOADING, payload: false });

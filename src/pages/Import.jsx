@@ -324,7 +324,9 @@ const Import = () => {
           dispatch(action);
         },
         currentUser,
-        state.staff
+        state.staff,
+        state.tickets,
+        state.hotelConfig
       );
 
       // 3. Calculate summary

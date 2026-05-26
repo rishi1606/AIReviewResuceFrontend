@@ -67,10 +67,8 @@ Return ONLY this JSON:
   }
 }
 
-export async function classifyAllPending(reviews, onProgress, dispatch, currentUser, staff, tickets = []) {
-  const hotelConfigRaw = localStorage.getItem("rr_hotel_config");
-  const hotelConfig = hotelConfigRaw ? JSON.parse(hotelConfigRaw) : {};
-  const threshold = hotelConfig?.ai_confidence_threshold || 75;
+export async function classifyAllPending(reviews, onProgress, dispatch, currentUser, staff, tickets = [], hotelConfig = {}) {
+  const threshold = hotelConfig?.aiConfig?.confidenceThreshold || hotelConfig?.ai_confidence_threshold || 75;
 
   const isAutoTicketOn = hotelConfig?.aiConfig?.autoTicket;
 

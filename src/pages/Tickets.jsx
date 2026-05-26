@@ -119,7 +119,7 @@ const Tickets = () => {
   const runAnalysis = async () => {
     setLoading(true);
     try {
-      await classifyAllPending(state.reviews, null, dispatch, currentUser, state.staff);
+      await classifyAllPending(state.reviews, null, dispatch, currentUser, state.staff, state.tickets, state.hotelConfig);
     } catch (err) {
       alert("Analysis failed: " + err.message);
     } finally {
