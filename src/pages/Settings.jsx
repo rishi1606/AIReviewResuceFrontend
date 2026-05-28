@@ -362,7 +362,7 @@ const Settings = () => {
     { id: "properties", name: "Properties", icon: Building2 },
     { id: "ai", name: "Rules", icon: Shield },
     { id: "account", name: "Account", icon: User },
-    { id: "import", name: "Import Reviews", icon: User },
+    // { id: "import", name: "Import Reviews", icon: User },
   ];
   const visibleTabs = tabs.filter(t => !isScopedUser || t.id === "account");
   const departments = DEPARTMENTS;
