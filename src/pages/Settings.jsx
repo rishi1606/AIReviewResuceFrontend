@@ -763,8 +763,8 @@ const Settings = () => {
                                   onBlur={e => e.target.style.borderColor = isErr ? C.danger : url && isValid ? C.successBorder : C.border}
                                 />
                                 <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }}>
-                                  {url && isValid && <CheckCircle2 size={14} color={C.success} />}
-                                  {!url && <AlertTriangle size={13} color="#D1D5DB" />}
+                                  {url && isValid && <CheckCircle2 size={14} color={C.success} title="Valid URL — will be synced" />}
+                                  {!url && <span style={{ fontSize: 10, color: "#ebb609ff", fontWeight: 600 }}>Not connected</span>}
                                   {isErr && <X size={14} color={C.danger} />}
                                 </span>
                               </div>
@@ -794,8 +794,10 @@ const Settings = () => {
                           <p style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, margin: "0 0 4px", textTransform: "uppercase" }}>
                             Review Sync Schedule (1–5★)
                           </p>
-                          <p style={{ fontSize: 12, fontWeight: 800, color: C.textPrimary, margin: 0 }}>Every 5 hrs</p>
-                          <p style={{ fontSize: 10, color: C.warn, margin: "3px 0 0", fontWeight: 600 }}>⚠ Fixed</p>
+                          <p style={{ fontSize: 12, fontWeight: 800, color: C.textPrimary, margin: 0 }}>Every 6 hrs</p>
+                          <p style={{ fontSize: 10, color: C.textMuted, margin: "3px 0 0", fontWeight: 600 }}>
+                            🔒 Sync frequency is fixed and cannot be changed
+                          </p>
                         </div>
                       </div>
 
@@ -805,7 +807,7 @@ const Settings = () => {
                           display: "block", fontSize: 11, fontWeight: 800,
                           color: C.textLabel, textTransform: "uppercase",
                           letterSpacing: "0.07em", marginBottom: 6
-                        }}>Max Reviews per Sync</label>
+                        }}>Max Reviews per Sync <span style={{ fontWeight: 500, textTransform: "none", fontSize: 10, color: C.textMuted }}>(per platform)</span></label>
                         <div style={{ position: "relative" }}>
                           <select
                             value={prop.max_reviews_per_sync || 10}
@@ -841,7 +843,7 @@ const Settings = () => {
                       <div>
                         <p style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, margin: "0 0 2px", textTransform: "uppercase" }}>Last Synced</p>
                         <p style={{ fontSize: 13, fontWeight: 800, color: C.textPrimary, margin: 0 }}>
-                          {getSyncTimeAgo(prop.last_sync_time)}
+                          {getSyncTimeAgo(prop.last_sync_time)} {prop.last_sync_status === "success" && <span style={{ fontSize: 10, color: C.success, marginLeft: 6 }}>— Selected platforms synced ✓</span>}
                         </p>
                       </div>
                       {(!prop.last_sync_status || prop.last_sync_status === "never") && (
