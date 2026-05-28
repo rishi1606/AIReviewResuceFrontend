@@ -33,7 +33,12 @@ const GlobalSearch = () => {
 
     const q = query.trim().toLowerCase();
 
+    const selectedPlatform = state.activeFilters?.platform;
+    const selectedProperty = state.activeFilters?.property; // or wherever it lives in your state
+
     const matchedReviews = q.length < 2 ? [] : (state.reviews || [])
+        .filter(r => !selectedPlatform || selectedPlatform === "ALL" || r.platform === selectedPlatform)
+        .filter(r => !selectedProperty || selectedProperty === "ALL" || r.hotel_name === selectedProperty)
         .filter(r =>
             r.reviewer_name?.toLowerCase().includes(q) ||
             r.review_text?.toLowerCase().includes(q) ||
@@ -47,6 +52,8 @@ const GlobalSearch = () => {
         .slice(0, 5);
 
     const matchedTickets = q.length < 2 ? [] : (state.tickets || [])
+        .filter(t => !selectedPlatform || selectedPlatform === "ALL" || t.platform === selectedPlatform)
+        .filter(t => !selectedProperty || selectedProperty === "ALL" || t.hotel_name === selectedProperty)
         .filter(t =>
             t.guest_name?.toLowerCase().includes(q) ||
             t.ticket_id?.toLowerCase().includes(q) ||
@@ -278,6 +285,11 @@ const GlobalSearch = () => {
                             <div className="px-5 py-2.5 border-t border-slate-100 flex items-center justify-between bg-slate-50">
                                 <span className="text-[11px] text-slate-400">
                                     {matchedReviews.length + matchedTickets.length} result{matchedReviews.length + matchedTickets.length !== 1 ? "s" : ""}
+                                    {selectedPlatform && selectedPlatform !== "ALL" && (
+                                        <span className="ml-2 px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded font-medium">
+                                            {selectedPlatform} only
+                                        </span>
+                                    )}
                                 </span>
                                 <span className="text-[11px] text-slate-400">↵ to open · Esc to close</span>
                             </div>

@@ -1093,6 +1093,11 @@ const Settings = () => {
                   <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
                     Automatically flag reviews at or below this rating
                   </p>
+                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
+                    ≡ Booking.com / Agoda equivalent: <strong style={{ color: C.accent }}>
+                      ≤ {((hotelFields.aiConfig?.escalationRatingThreshold || 2) * 2)} / 10
+                    </strong>
+                  </p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 800, color: C.textMuted }}>≤</span>
