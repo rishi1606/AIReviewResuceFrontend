@@ -644,11 +644,57 @@ const Settings = () => {
 
                     {/* Property Name */}
                     <div>
-                      <label style={{
-                        display: "block", fontSize: 11, fontWeight: 800,
-                        color: C.textLabel, textTransform: "uppercase",
-                        letterSpacing: "0.07em", marginBottom: 6
-                      }}>Property Name</label>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <label style={{
+                          fontSize: 11, fontWeight: 800,
+                          color: C.textLabel, textTransform: "uppercase",
+                          letterSpacing: "0.07em"
+                        }}>Property Name</label>
+                        {state.reviews?.filter(r => r.hotel_name === prop.name).length > 0 && (() => {
+                          const count = state.reviews.filter(r => r.hotel_name === prop.name).length;
+                          return (
+                            <div style={{ position: "relative", display: "inline-flex" }}
+                              onMouseEnter={e => e.currentTarget.querySelector(".prop-tooltip").style.display = "block"}
+                              onMouseLeave={e => e.currentTarget.querySelector(".prop-tooltip").style.display = "none"}
+                            >
+                              <AlertCircle size={13} color={C.warn} style={{ cursor: "pointer" }} />
+                              <div className="prop-tooltip" style={{
+                                display: "none",
+                                position: "absolute",
+                                bottom: "calc(100% + 8px)",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                background: "#1E293B",
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                                padding: "10px 14px",
+                                borderRadius: 10,
+                                width: 220,
+                                zIndex: 99,
+                                boxShadow: "0 4px 16px rgba(0,0,0,.18)",
+                                pointerEvents: "none"
+                              }}>
+                                <p style={{ margin: "0 0 4px", fontWeight: 700, color: C.warn }}>
+                                  ⚠ {count} review{count > 1 ? "s" : ""} linked
+                                </p>
+                                <p style={{ margin: 0, color: "#CBD5E1" }}>
+                                  Renaming this property may unlink existing reviews that are matched by name.
+                                </p>
+                                {/* Arrow */}
+                                <div style={{
+                                  position: "absolute", bottom: -5, left: "50%",
+                                  transform: "translateX(-50%)",
+                                  width: 10, height: 10,
+                                  background: "#1E293B",
+                                  clipPath: "polygon(0 0, 100% 0, 50% 100%)"
+                                }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                       <input
                         type="text"
                         value={prop.name}
@@ -765,7 +811,16 @@ const Settings = () => {
                                 <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }}>
                                   {url && isValid && <CheckCircle2 size={14} color={C.success} title="Valid URL — will be synced" />}
                                   {!url && <span style={{ fontSize: 10, color: "#ebb609ff", fontWeight: 600 }}>Not connected</span>}
-                                  {isErr && <X size={14} color={C.danger} />}
+                                  {(url && (isValid || isErr)) && (
+                                    <X
+                                      size={14}
+                                      color={isErr ? C.danger : C.textMuted}
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() => updateProperty(idx, {
+                                        platforms: { ...(prop.platforms || {}), [platform]: "" }
+                                      })}
+                                    />
+                                  )}
                                 </span>
                               </div>
                             </div>
