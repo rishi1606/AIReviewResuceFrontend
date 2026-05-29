@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "./Sidebar";
+import TopBar from "./TopBar";
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading, currentUser } = useAuth();
@@ -19,14 +20,15 @@ const ProtectedRoute = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-
-
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex h-screen bg-zinc-50/50 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 p-4 md:p-8 transition-all duration-300 overflow-x-hidden max-h-screen overflow-y-auto">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <TopBar />
+        <main className="flex-1 p-6 md:p-8 transition-all duration-300 overflow-y-auto bg-zinc-50/30">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

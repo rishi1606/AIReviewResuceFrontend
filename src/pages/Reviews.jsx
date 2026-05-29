@@ -21,7 +21,8 @@ import {
   Briefcase,
   Flag,
   UserPlus,
-  ArrowUpDown
+  ArrowUpDown,
+  Star
 } from "lucide-react";
 import {
   flagSuspicious,
@@ -375,85 +376,86 @@ const Reviews = () => {
 
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Guest Reviews</h1>
-          <p className="text-slate-500">Manage and respond to guest feedback across all platforms.</p>
-        </div>
-        {/* <div className="flex gap-2">
-          <button className="btn-secondary flex items-center gap-2">
-            <Download size={18} /> Export
-          </button>
-        </div> */}
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-4 items-center bg-white p-2 rounded-2xl border border-slate-100 shadow-sm sticky top-0 z-10">
-        <div className="flex-1 flex items-center gap-3 w-full">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search by reviewer, content or issues..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-            />
+      <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal size={16} className="text-indigo-600 animate-pulse" />
+            <h3 className="font-bold text-sm text-zinc-800 font-display uppercase tracking-wider">Filters</h3>
           </div>
+          <span className="text-xs text-zinc-400 font-medium">
+            Showing <span className="text-indigo-600 font-bold">{filteredReviews.length}</span> reviews
+          </span>
+        </div>
 
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Date Range Filter */}
           <div className="relative group/date">
             <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${dateRange.label === "All Time" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${
+                dateRange.label === "All Time"
+                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
+              }`}
             >
-              <Calendar size={14} className={dateRange.label !== "All Time" ? "text-indigo-600" : "text-slate-400"} />
+              <Calendar size={14} className={dateRange.label !== "All Time" ? "text-indigo-600" : "text-zinc-400"} />
               {dateRange.label}
               <ChevronDown size={14} className="ml-1 opacity-50" />
             </button>
 
-            <div className="absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/date:opacity-100 group-hover/date:visible transition-all z-50 transform origin-top-left group-hover/date:scale-100 scale-95">
+            <div className="absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-zinc-200 p-2 opacity-0 invisible group-hover/date:opacity-100 group-hover/date:visible transition-all z-50 transform origin-top-left group-hover/date:scale-100 scale-95">
               {["All Time", "Today", "Last 7 Days", "Last 30 Days"].map(label => (
                 <button
                   key={label}
                   onClick={() => setPresetRange(label)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${dateRange.label === label ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
+                    dateRange.label === label
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-zinc-500 hover:bg-zinc-50"
+                  }`}
                 >
                   {label.toUpperCase()}
                 </button>
               ))}
-              <div className="border-t border-slate-100 my-2 pt-2 px-2">
-                <label className="block text-[9px] font-black text-slate-400 uppercase mb-2">Custom Range</label>
+              <div className="border-t border-zinc-100 my-2 pt-2 px-2">
+                <label className="block text-[9px] font-black text-zinc-400 uppercase mb-2">Custom Range</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
                     onChange={(e) => setDateRange({ label: "Custom", start: e.target.value, end: dateRange.end })}
-                    className="w-full p-2 bg-slate-50 border-none rounded-lg text-[9px] font-bold text-slate-600 outline-none"
+                    className="w-full p-2 bg-zinc-50 border-none rounded-lg text-[9px] font-bold text-zinc-650 outline-none"
                   />
                   <input
                     type="date"
                     onChange={(e) => setDateRange({ label: "Custom", start: dateRange.start, end: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border-none rounded-lg text-[9px] font-bold text-slate-600 outline-none"
+                    className="w-full p-2 bg-zinc-50 border-none rounded-lg text-[9px] font-bold text-zinc-650 outline-none"
                   />
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3 w-full lg:w-auto">
+          {/* Categories Filter */}
           <div className="relative group/category">
             <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${tab === "ALL" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${
+                tab === "ALL"
+                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
+              }`}
             >
-              <SlidersHorizontal size={14} className={tab !== "ALL" ? "text-indigo-600" : "text-slate-400"} />
+              <Filter size={14} className={tab !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
               {tab === "ALL" ? "All Categories" : tab}
               <ChevronDown size={14} className="ml-1 opacity-50" />
             </button>
 
-            <div className="absolute left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/category:opacity-100 group-hover/category:visible transition-all z-50 transform origin-top-left group-hover/category:scale-100 scale-95">
+            <div className="absolute left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-zinc-200 p-2 opacity-0 invisible group-hover/category:opacity-100 group-hover/category:visible transition-all z-50 transform origin-top-left group-hover/category:scale-100 scale-95">
               {tabs.map(t => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${tab === t ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
+                    tab === t ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                  }`}
                 >
                   {t}
                 </button>
@@ -461,21 +463,30 @@ const Reviews = () => {
             </div>
           </div>
 
+          {/* Department Filter */}
           <div className="relative group/dept">
             <button
               disabled={isScopedUser}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${isScopedUser ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed" : department === "ALL" ? "border-slate-100 bg-white text-slate-500" : "border-indigo-100 bg-indigo-50 text-indigo-600"}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${
+                isScopedUser
+                  ? "border-zinc-200 bg-zinc-50 text-zinc-400 cursor-not-allowed"
+                  : department === "ALL"
+                    ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 cursor-pointer"
+                    : "border-indigo-100 bg-indigo-50 text-indigo-600 cursor-pointer"
+              }`}
             >
-              <Briefcase size={14} className={isScopedUser ? "text-slate-400" : department !== "ALL" ? "text-indigo-600" : "text-slate-400"} />
+              <Briefcase size={14} className={isScopedUser ? "text-zinc-400" : department !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
               {isScopedUser ? `${currentUser?.department} (Locked)` : department === "ALL" ? "All Departments" : department}
               {!isScopedUser && <ChevronDown size={14} className="ml-1 opacity-50" />}
             </button>
 
             {!isScopedUser && (
-              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/dept:opacity-100 group-hover/dept:visible transition-all z-50 transform origin-top-right group-hover/dept:scale-100 scale-95">
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-zinc-200 p-2 opacity-0 invisible group-hover/dept:opacity-100 group-hover/dept:visible transition-all z-50 transform origin-top-right group-hover/dept:scale-100 scale-95">
                 <button
                   onClick={() => setDepartment("ALL")}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${department === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
+                    department === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                  }`}
                 >
                   ALL DEPARTMENTS
                 </button>
@@ -483,7 +494,9 @@ const Reviews = () => {
                   <button
                     key={d}
                     onClick={() => setDepartment(d)}
-                    className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${department === d ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
+                      department === d ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                    }`}
                   >
                     {d.toUpperCase()}
                   </button>
@@ -492,27 +505,28 @@ const Reviews = () => {
             )}
           </div>
 
+          {/* Sort Filter */}
           <div className="relative group/sort">
             <button
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 border-slate-100 bg-white text-slate-500 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 transition-all cursor-pointer"
             >
-              <ArrowUpDown size={14} className="text-slate-400" />
+              <ArrowUpDown size={14} className="text-zinc-400" />
               {sortBy.replace("_", " ")}
               <ChevronDown size={14} className="ml-1 opacity-50" />
             </button>
 
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 opacity-0 invisible group-hover/sort:opacity-100 group-hover/sort:visible transition-all z-50 transform origin-top-right group-hover/sort:scale-100 scale-95">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-zinc-200 p-2 opacity-0 invisible group-hover/sort:opacity-100 group-hover/sort:visible transition-all z-50 transform origin-top-right group-hover/sort:scale-100 scale-95">
               {[
                 { id: "NEWEST", label: "Newest First" },
                 { id: "OLDEST", label: "Oldest First" },
                 { id: "LOWEST_RATING", label: "Lowest Rating First" },
-                // { id: "HIGHEST_RISK", label: "Highest Escalation Risk" },
-                // { id: "UNASSIGNED", label: "Unassigned First" }
               ].map(option => (
                 <button
                   key={option.id}
                   onClick={() => setSortBy(option.id)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all ${sortBy === option.id ? "bg-indigo-50 text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
+                    sortBy === option.id ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-slate-50"
+                  }`}
                 >
                   {option.label.toUpperCase()}
                 </button>
@@ -520,14 +534,15 @@ const Reviews = () => {
             </div>
           </div>
 
-          <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>
+          {/* Divider */}
+          <div className="h-6 w-[1px] bg-zinc-200 hidden md:block mx-1"></div>
 
-
-          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Hide Low Confidence</span>
+          {/* Hide Low Confidence Toggle */}
+          <div className="flex items-center gap-2.5 px-4 py-2 bg-zinc-50 rounded-xl border border-zinc-200/60 shadow-sm">
+            <span className="text-[10px] font-black text-zinc-455 uppercase tracking-wider select-none">Hide Low Confidence</span>
             <button
               onClick={() => setHideLowConfidence(!hideLowConfidence)}
-              className={`w-10 h-5 rounded-full transition-all relative ${hideLowConfidence ? "bg-indigo-600" : "bg-slate-200"}`}
+              className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${hideLowConfidence ? "bg-indigo-600" : "bg-zinc-200"}`}
             >
               <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${hideLowConfidence ? "left-6" : "left-1"}`} />
             </button>
@@ -535,11 +550,7 @@ const Reviews = () => {
         </div>
       </div>
 
-      <div className="text-xs font-semibold text-slate-400">
-        Showing <span className="text-slate-700 font-black">{filteredReviews.length}</span> reviews
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
         {state.isAppLoading || loading ? (
           [1, 2, 3, 4, 5, 6].map(i => <SkeletonReviewCard key={i} />)
         ) : filteredReviews.length > 0 ? filteredReviews.map(r => (
@@ -557,12 +568,12 @@ const Reviews = () => {
             }}
           />
         )) : (
-          <div className="glass-card col-span-full py-32 text-center border-dashed border-2">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+          <div className="col-span-full py-32 text-center border-dashed border-2 border-zinc-200 rounded-3xl bg-zinc-50/50">
+            <div className="w-20 h-20 bg-white border border-zinc-200 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-400 shadow-sm">
               <Filter size={32} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900">No reviews matched your filters</h3>
-            <p className="text-slate-500 mt-2">Try selecting a different tab or clear your search.</p>
+            <h3 className="text-lg font-black text-zinc-800 uppercase tracking-wider font-display">No reviews matched your filters</h3>
+            <p className="text-zinc-500 mt-2 text-xs font-medium">Try selecting a different tab or clearing your search.</p>
           </div>
         )}
       </div>

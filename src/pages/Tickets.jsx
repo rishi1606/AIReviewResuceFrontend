@@ -136,19 +136,9 @@ const Tickets = () => {
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-20">
-      {/* Header & Stats Grid */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
-              <Sparkles size={20} />
-            </div>
-            <h1 className="text-3xl font-bold text-slate-900">Operations Tickets</h1>
-          </div>
-          <p className="text-slate-500">Real-time resolution pipeline for guest issues.</p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:w-[60%]">
+      {/* Stats Grid */}
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
           {state.isAppLoading ? (
             [1, 2, 3, 4].map(i => <SkeletonKPI key={i} />)
           ) : (

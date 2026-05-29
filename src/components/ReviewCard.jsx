@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Info,
   Users,
-  RotateCcw
+  RotateCcw,
+  ShieldCheck
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { generateResponse } from "../utils/aiResponseGenerator";
@@ -55,7 +56,6 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     if (!staffId) return;
     const selectedStaff = state.staff.find(s => s._id === staffId);
     if (!selectedStaff) return;
-
     try {
       const res = await assignReviewStaff(review.review_id, {
         staff_id: selectedStaff._id,
@@ -64,26 +64,12 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
       dispatch({ type: "UPDATE_REVIEW", payload: res.data });
       dispatch({
         type: "ADD_NOTIFICATION",
-        payload: {
-          type: "success",
-          message: `Assigned to ${selectedStaff.name}`,
-          created_at: Date.now()
-        }
+        payload: { type: "success", message: `Assigned to ${selectedStaff.name}`, created_at: Date.now() }
       });
     } catch (err) {
       alert("Assignment failed: " + err.message);
     }
   };
-
-  // Disabling auto-generate on load as per user request
-  // Use the tone dropdown or dedicated button to generate manually
-  /*
-  useEffect(() => {
-    if (!review.response_text && !proposal && !isGenerating && (review.status === "Classified" || review.status === "Approved" || review.status === "Pending AI")) {
-      handleGenerate(tone);
-    }
-  }, [review.review_id, review.status]);
-  */
 
   const handleGenerate = async (selectedTone) => {
     setTone(selectedTone);
@@ -102,11 +88,8 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
   const isApprover = currentUser?.role === "gm" || currentUser?.role === "dept_head" || currentUser?.role === "manager" || currentUser?.role === "superadmin";
 
   const handleApprove = async () => {
-    // Staff always submits. Approvers always post. 
     const isSubmission = !isApprover || (currentUser?.role === "staff" && isMediumConfidence);
-
     console.log("Approving review:", review.review_id, "isSubmission:", isSubmission, "Role:", currentUser?.role);
-
     try {
       const res = await approveResponse(review.review_id, {
         response_text: proposal,
@@ -114,9 +97,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         approved_by: currentUser?.name || "Staff",
         is_submission: isSubmission
       });
-
       dispatch({ type: "UPDATE_REVIEW", payload: res.data });
-
       if (!isSubmission) {
         dispatch({
           type: "ADD_NOTIFICATION", payload: {
@@ -146,7 +127,6 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
       console.log(`[Groq] Re-analysing review_id: ${review.review_id}`);
       await reanalyseReview(review.review_id);
       dispatch({ type: "REANALYSE_REVIEW", payload: review.review_id });
-
       const result = await classifyReview(review);
       if (result) {
         const res = await updateClassification(review.review_id, result);
@@ -160,8 +140,6 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     }
   };
 
-  const navigate = useNavigate();
-
   const handleSaveNote = async () => {
     if (!noteText.trim()) return;
     try {
@@ -169,14 +147,11 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         text: noteText,
         author: currentUser?.name || "Staff"
       });
-
       const savedNote = res.data.internal_notes[res.data.internal_notes.length - 1];
-
       dispatch({
         type: "ADD_INTERNAL_NOTE_TO_REVIEW",
         payload: { review_id: review.review_id, note: savedNote }
       });
-
       setNoteSaved(true);
       setNoteText("");
       setTimeout(() => {
@@ -188,453 +163,736 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     }
   };
 
-  const getEmotionStyles = (emotion) => {
-    const mapping = {
-      Angry: "bg-red-100 text-red-800",
-      Frustrated: "bg-orange-100 text-orange-800",
-      Disappointed: "bg-amber-100 text-amber-800",
-      Neutral: "bg-slate-100 text-slate-700",
-      Satisfied: "bg-green-100 text-green-700",
-      Delighted: "bg-emerald-100 text-emerald-800",
-      Concerned: "bg-yellow-100 text-yellow-800",
-      Anxious: "bg-purple-100 text-purple-800"
-    };
-    return mapping[emotion] || "bg-slate-100 text-slate-600";
-  };
-
-  const getConfidenceColor = (conf) => {
-    if (conf >= confidenceThreshold) return "text-green-600";
-    if (conf >= 50) return "text-amber-600";
-    return "text-red-600";
-  };
-
-  const getStatusStyles = (status) => {
-    const mapping = {
-      "NEW": "bg-blue-100 text-blue-700 border-blue-200",
-      "IN REVIEW": "bg-indigo-100 text-indigo-700 border-indigo-200",
-      "PENDING APPROVAL": "bg-amber-100 text-amber-700 border-amber-200",
-      "RESPONDED": "bg-green-100 text-green-700 border-green-200",
-      "CLOSED": "bg-slate-100 text-slate-500 border-slate-200",
-      "ESCALATED": "bg-red-100 text-red-700 border-red-200 animate-pulse",
-      "PENDING APPROVAL": "bg-amber-100 text-amber-700 border-amber-200 font-black",
-      // Legacy Mappings
-      "Classified": "bg-indigo-100 text-indigo-700 border-indigo-200",
-      "Approved": "bg-green-100 text-green-700 border-green-200",
-      "Pending AI": "bg-blue-100 text-blue-700 border-blue-200",
-      "Suspicious": "bg-red-100 text-red-700 border-red-200"
-    };
-    return mapping[status] || "bg-slate-100 text-slate-600 border-slate-200";
-  };
-
   const conf = review.confidence;
   const isClassified = !["NEW", "Pending AI"].includes(review.status);
   const isHighConfidence = isClassified && conf !== null && conf !== undefined && conf >= confidenceThreshold;
   const isMediumConfidence = isClassified && conf !== null && conf !== undefined && conf >= 50 && conf < confidenceThreshold;
   const isLowConfidence = isClassified && (conf === null || conf === undefined || conf < 50);
 
-  return (
-    <div
-      id={review.review_id}
-      className={`glass-card p-6 border-l-4 transition-all relative group/card${highlight ? "ring-2 ring-yellow-400 ring-offset-2 border-yellow-400" : ""}${isLowConfidence ? "border-l-red-500 bg-red-50/10" : isMediumConfidence ? "border-l-amber-500" : review.rating >= 4 ? "border-l-green-500" : review.rating === 3 ? "border-l-amber-500" : "border-l-red-500"}`}
-      style={isMediumConfidence ? { borderLeft: "3px solid #F59E0B" } : {}}
-    >
-      {loadingAI && (
-        <div className="absolute inset-0 bg-slate-50/60 backdrop-blur-[2px] z-20 flex items-center justify-center rounded-3xl">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="animate-spin text-indigo-600" size={32} />
-            <span className="text-sm font-bold text-slate-600">Re-analysing…</span>
-          </div>
-        </div>
-      )}
+  const getConfidenceColor = (conf) => {
+    if (conf >= confidenceThreshold) return "rc-conf-green";
+    if (conf >= 50) return "rc-conf-amber";
+    return "rc-conf-red";
+  };
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-3">
-        {/* Selection Checkbox */}
+  const getEmotionStyles = (emotion) => {
+    const mapping = {
+      Angry: "rc-tag rc-tag-red",
+      Frustrated: "rc-tag rc-tag-orange",
+      Disappointed: "rc-tag rc-tag-amber",
+      Neutral: "rc-tag rc-tag-neutral",
+      Satisfied: "rc-tag rc-tag-green",
+      Delighted: "rc-tag rc-tag-green",
+      Concerned: "rc-tag rc-tag-amber",
+      Anxious: "rc-tag rc-tag-purple"
+    };
+    return mapping[emotion] || "rc-tag rc-tag-neutral";
+  };
+
+  const getPlatformBadge = (platform) => {
+    switch (platform?.toLowerCase()) {
+      case "google": return { bg: "rc-plat-google", icon: "G" };
+      case "booking.com": return { bg: "rc-plat-booking", icon: "B" };
+      case "tripadvisor": return { bg: "rc-plat-ta", icon: "T" };
+      case "agoda": return { bg: "rc-plat-agoda", icon: "A" };
+      default: return { bg: "rc-plat-default", icon: "R" };
+    }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "??";
+    const parts = name.split(" ");
+    return parts.length > 1
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts[0].slice(0, 2).toUpperCase();
+  };
+
+  const getSentimentClass = (sentiment) => {
+    switch (sentiment?.toLowerCase()) {
+      case "positive": return "rc-tag rc-tag-green";
+      case "negative": return "rc-tag rc-tag-red";
+      case "neutral": return "rc-tag rc-tag-neutral";
+      default: return "rc-tag rc-tag-amber";
+    }
+  };
+
+  const getSentimentDot = (sentiment) => {
+    switch (sentiment?.toLowerCase()) {
+      case "positive": return "rc-dot-green";
+      case "negative": return "rc-dot-red";
+      default: return "rc-dot-neutral";
+    }
+  };
+
+  const getBorderClass = () => {
+    if (isLowConfidence) return "rc-border-red";
+    if (isMediumConfidence) return "rc-border-amber";
+    if (review.rating >= 4) return "rc-border-green";
+    if (review.rating === 3) return "rc-border-amber";
+    return "rc-border-red";
+  };
+
+  const displayRaw = review.raw_rating || (review.platform === "Booking.com" || review.platform === "Agoda" ? review.rating * 2 : review.rating);
+  const displayScale = review.raw_rating_scale || (review.platform === "Booking.com" || review.platform === "Agoda" ? 10 : 5);
+  const filledCount = displayScale === 10 ? Math.round(Math.round(displayRaw) / 2) : Math.round(displayRaw);
+
+  return (
+    <>
+      {/* Scoped styles injected once — idempotent via id check */}
+      <style id="rc-styles">{`
+        .rc-card {
+          background: #ffffff;
+          border: 0.5px solid #e4e4e7;
+          border-radius: 14px;
+          padding: 20px;
+          position: relative;
+          transition: box-shadow 0.15s ease, transform 0.15s ease;
+          display: flex;
+          flex-direction: column;
+        }
+        .rc-card:hover {
+          box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+          transform: translateY(-1px);
+        }
+        .rc-border-red  { border-left: 3px solid #e24b4a; border-radius: 0 14px 14px 0; }
+        .rc-border-amber{ border-left: 3px solid #ef9f27; border-radius: 0 14px 14px 0; }
+        .rc-border-green{ border-left: 3px solid #639922; border-radius: 0 14px 14px 0; }
+
+        /* Checkbox */
+        .rc-checkbox {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          z-index: 10;
+          cursor: pointer;
+          width: 16px;
+          height: 16px;
+          border-radius: 4px;
+          border: 1.5px solid #d4d4d8;
+          background: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: opacity 0.12s;
+          opacity: 0;
+        }
+        .rc-card:hover .rc-checkbox,
+        .rc-checkbox.is-selected { opacity: 1; }
+        .rc-checkbox.is-selected { background: #534AB7; border-color: #534AB7; color: #fff; }
+
+        /* Top row */
+        .rc-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+        .rc-avatar-wrap { display: flex; align-items: flex-start; gap: 10px; }
+        .rc-avatar {
+          width: 38px; height: 38px; border-radius: 10px;
+          background: #f4f4f5; border: 0.5px solid #e4e4e7;
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 600; font-size: 12px; color: #52525b;
+          position: relative; flex-shrink: 0;
+        }
+        .rc-plat-badge {
+          position: absolute; bottom: -4px; right: -4px;
+          width: 18px; height: 18px; border-radius: 50%;
+          background: #fff; border: 1.5px solid #e4e4e7;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 9px; font-weight: 700; z-index: 2;
+        }
+        .rc-plat-google  { color: #dc2626; }
+        .rc-plat-booking { color: #2563eb; }
+        .rc-plat-ta      { color: #059669; }
+        .rc-plat-agoda   { color: #7c3aed; }
+        .rc-plat-default { color: #71717a; }
+
+        .rc-name { font-size: 13px; font-weight: 600; color: #18181b; line-height: 1.2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .rc-meta { font-size: 11px; color: #a1a1aa; margin-top: 3px; }
+        .rc-stars { display: flex; align-items: center; gap: 3px; margin-top: 5px; }
+        .rc-star-fill { color: #e8c13a; }
+        .rc-star-empty { color: #d4d4d8; }
+        .rc-rating-chip {
+          font-size: 10px; font-weight: 500; color: #71717a;
+          background: #f4f4f5; border: 0.5px solid #e4e4e7;
+          border-radius: 5px; padding: 1px 5px; margin-left: 3px;
+        }
+        .rc-hotel-chip {
+          background: #EEEDFE; color: #534AB7; border: 0.5px solid #CECBF6;
+          font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+        }
+
+        /* Right side of top row */
+        .rc-top-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .rc-conf { font-size: 11px; font-weight: 600; }
+        .rc-conf-green { color: #3B6D11; }
+        .rc-conf-amber { color: #854F0B; }
+        .rc-conf-red   { color: #A32D2D; }
+        .rc-reanalyse {
+          width: 26px; height: 26px; border-radius: 8px;
+          background: #f4f4f5; border: 0.5px solid #e4e4e7;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: background 0.12s, color 0.12s; color: #71717a;
+        }
+        .rc-reanalyse:hover { background: #ede9fe; color: #534AB7; }
+
+        /* Review text */
+        .rc-review-text {
+          font-size: 12.5px; color: #52525b; line-height: 1.65;
+          font-style: italic; margin-bottom: 14px;
+          background: #f9f9fb; border: 0.5px solid #e4e4e7;
+          border-radius: 8px; padding: 10px 12px;
+        }
+
+        /* Tags */
+        .rc-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+        .rc-tag {
+          font-size: 10px; font-weight: 600; padding: 3px 8px;
+          border-radius: 6px; border: 0.5px solid; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .rc-tag-green  { background: #EAF3DE; color: #3B6D11; border-color: #C0DD97; }
+        .rc-tag-red    { background: #FCEBEB; color: #A32D2D; border-color: #F7C1C1; }
+        .rc-tag-amber  { background: #FAEEDA; color: #854F0B; border-color: #FAC775; }
+        .rc-tag-orange { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+        .rc-tag-purple { background: #EEEDFE; color: #534AB7; border-color: #CECBF6; }
+        .rc-tag-neutral{ background: #f4f4f5; color: #52525b; border-color: #e4e4e7; }
+        .rc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .rc-dot-green  { background: #639922; }
+        .rc-dot-red    { background: #e24b4a; }
+        .rc-dot-neutral{ background: #a1a1aa; }
+
+        /* Trust pills */
+        .rc-trust-pill {
+          display: inline-flex; align-items: center; gap: 5px;
+          font-size: 10px; font-weight: 600; padding: 3px 8px;
+          border-radius: 6px; margin-bottom: 12px; border: 0.5px solid;
+        }
+        .rc-trust-high   { background: #EAF3DE; color: #3B6D11; border-color: #C0DD97; }
+        .rc-trust-mid    { background: #FAEEDA; color: #854F0B; border-color: #FAC775; }
+        .rc-trust-low    { background: #FCEBEB; color: #A32D2D; border-color: #F7C1C1; }
+        .rc-trust-review { background: #FAEEDA; color: #854F0B; border-color: #FAC775; }
+        .rc-esc-pill {
+          display: inline-flex; align-items: center; gap: 5px;
+          font-size: 10px; font-weight: 600; padding: 3px 8px;
+          border-radius: 6px; margin-bottom: 12px;
+          background: #FCEBEB; color: #A32D2D; border: 0.5px solid #F7C1C1;
+          cursor: help; position: relative;
+        }
+        .rc-esc-tooltip {
+          display: none; position: absolute; bottom: 0; left: 50%;
+          transform: translateX(-50%) translateY(100%);
+          margin-top: 6px;
+          background: #18181b; color: #fff;
+          font-size: 10px; font-weight: 500; border-radius: 8px;
+          padding: 8px 10px; width: 200px; z-index: 30;
+          line-height: 1.5;
+        }
+        .rc-esc-pill:hover .rc-esc-tooltip { display: block; }
+
+        /* Linked ticket */
+        .rc-ticket-btn {
+          background: #EEEDFE; color: #534AB7; border: 0.5px solid #CECBF6;
+          font-size: 10px; font-weight: 600; padding: 4px 10px;
+          border-radius: 20px; cursor: pointer; display: inline-flex;
+          align-items: center; gap: 6px; margin-bottom: 12px;
+          transition: background 0.12s;
+        }
+        .rc-ticket-btn:hover { background: #CECBF6; }
+        .rc-ticket-dot { width: 6px; height: 6px; border-radius: 50%; background: #7c3aed; animation: ping 1.2s infinite; }
+        @keyframes ping { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+
+        /* AI console */
+        .rc-console {
+          background: #f9f9fb; border: 0.5px solid #e4e4e7;
+          border-radius: 10px; padding: 12px; margin-top: 8px;
+          transition: border-color 0.15s;
+        }
+        .rc-console:hover { border-color: #d4d4d8; }
+        .rc-console-header {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 10px; padding-bottom: 8px;
+          border-bottom: 0.5px solid #e4e4e7;
+        }
+        .rc-console-label {
+          font-size: 10px; font-weight: 700; color: #7c3aed;
+          display: flex; align-items: center; gap: 5px;
+          text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .rc-console-controls { display: flex; align-items: center; gap: 6px; }
+        .rc-tone-select {
+          font-size: 10px; font-weight: 600;
+          background: #fff; border: 0.5px solid #e4e4e7;
+          border-radius: 6px; padding: 3px 6px;
+          color: #52525b; outline: none; cursor: pointer;
+          text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .rc-tone-select:disabled { opacity: 0.5; }
+        .rc-edit-btn { padding: 3px; color: #a1a1aa; cursor: pointer; border: none; background: none; transition: color 0.12s; }
+        .rc-edit-btn:hover { color: #7c3aed; }
+
+        /* Proposal box */
+        .rc-proposal-box {
+          background: #fff; border: 0.5px solid #e4e4e7;
+          border-radius: 8px; padding: 10px 12px;
+          min-height: 70px; font-size: 12px;
+          color: #52525b; line-height: 1.6; font-style: italic;
+          overflow-y: auto;
+        }
+        .rc-empty-draft {
+          display: flex; flex-direction: column; align-items: center;
+          justify-content: center; gap: 8px; min-height: 70px;
+          background: #fff; border: 0.5px dashed #d4d4d8;
+          border-radius: 8px;
+        }
+        .rc-empty-label { font-size: 10px; font-weight: 500; color: #a1a1aa; }
+        .rc-gen-btn {
+          font-size: 10px; font-weight: 600; background: #534AB7;
+          color: #fff; border: none; border-radius: 6px;
+          padding: 5px 12px; cursor: pointer; transition: background 0.12s;
+        }
+        .rc-gen-btn:hover { background: #3C3489; }
+
+        /* Generating overlay */
+        .rc-gen-overlay {
+          position: absolute; inset: 0; background: rgba(255,255,255,0.8);
+          backdrop-filter: blur(1px); display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          border-radius: 8px; z-index: 10; gap: 6px;
+        }
+        .rc-gen-overlay span { font-size: 10px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.06em; }
+
+        /* Editing textarea */
+        .rc-edit-area {
+          width: 100%; height: 110px; padding: 10px 12px;
+          background: #fff; border: 1px solid #d4d4d8;
+          border-radius: 8px; font-size: 12px; color: #18181b;
+          line-height: 1.6; outline: none; resize: none;
+          font-family: inherit; transition: border-color 0.12s;
+        }
+        .rc-edit-area:focus { border-color: #7c3aed; }
+        .rc-edit-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+        .rc-edit-cancel { font-size: 10px; font-weight: 600; color: #a1a1aa; background: none; border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 0.04em; }
+        .rc-edit-save {
+          font-size: 10px; font-weight: 600; background: #ede9fe;
+          color: #534AB7; border: none; border-radius: 6px;
+          padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 4px;
+        }
+
+        /* Console footer */
+        .rc-console-footer {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-top: 10px; padding-top: 8px;
+          border-top: 0.5px solid #e4e4e7;
+        }
+        .rc-footer-links { display: flex; gap: 12px; align-items: center; }
+        .rc-footer-link {
+          font-size: 10px; font-weight: 600; color: #a1a1aa;
+          background: none; border: none; cursor: pointer;
+          text-transform: uppercase; letter-spacing: 0.04em; padding: 0;
+          transition: color 0.12s;
+        }
+        .rc-footer-link:hover { color: #52525b; }
+        .rc-footer-link-danger:hover { color: #e24b4a; }
+
+        /* Action buttons */
+        .rc-approve-btn {
+          font-size: 10px; font-weight: 700; padding: 5px 12px;
+          border-radius: 7px; border: none; cursor: pointer;
+          display: inline-flex; align-items: center; gap: 5px;
+          transition: opacity 0.12s, transform 0.1s;
+          text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .rc-approve-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .rc-approve-btn:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
+        .rc-approve-indigo { background: #534AB7; color: #fff; }
+        .rc-approve-amber  { background: #ef9f27; color: #fff; }
+        .rc-awaiting-badge {
+          font-size: 10px; font-weight: 600; padding: 5px 10px;
+          background: #FAEEDA; color: #854F0B;
+          border-radius: 7px; border: 0.5px solid #FAC775;
+        }
+        .rc-reject-link { color: #e24b4a !important; }
+        .rc-reject-link:hover { color: #A32D2D !important; }
+
+        /* Manual draft area */
+        .rc-manual-section {
+          margin-top: 12px; border-top: 0.5px solid #e4e4e7;
+          padding-top: 12px;
+        }
+        .rc-manual-box {
+          background: #FCEBEB; border: 0.5px dashed #F7C1C1;
+          border-radius: 10px; padding: 16px;
+          display: flex; flex-direction: column; align-items: center;
+          gap: 8px; text-align: center;
+        }
+        .rc-manual-title { font-size: 10px; font-weight: 700; color: #A32D2D; text-transform: uppercase; letter-spacing: 0.05em; }
+        .rc-manual-desc  { font-size: 10px; color: #71717a; }
+        .rc-manual-btn {
+          font-size: 10px; font-weight: 700; background: #18181b;
+          color: #fff; border: none; border-radius: 6px;
+          padding: 5px 14px; cursor: pointer; margin-top: 4px;
+          transition: background 0.12s; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .rc-manual-btn:hover { background: #27272a; }
+
+        /* Responded banner */
+        .rc-responded {
+          margin-top: 12px; padding: 14px;
+          background: #EAF3DE; border: 0.5px solid #C0DD97;
+          border-radius: 10px;
+        }
+        .rc-responded-header {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 10px; font-weight: 700; color: #3B6D11;
+          text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+        }
+        .rc-responded-text { font-size: 12px; color: #3B6D11; font-style: italic; line-height: 1.6; }
+        .rc-responded-meta { margin-top: 6px; font-size: 10px; color: #639922; font-weight: 500; }
+
+        /* Notes */
+        .rc-notes-section { margin-top: 12px; border-top: 0.5px solid #e4e4e7; padding-top: 12px; }
+        .rc-notes-header { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+        .rc-note-item { padding: 10px 12px; background: #f9f9fb; border: 0.5px solid #e4e4e7; border-radius: 8px; margin-bottom: 6px; }
+        .rc-note-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .rc-note-author { font-size: 10px; font-weight: 700; color: #18181b; text-transform: uppercase; }
+        .rc-note-time   { font-size: 9px; color: #a1a1aa; font-weight: 500; }
+        .rc-note-text   { font-size: 11px; color: #52525b; line-height: 1.55; }
+
+        /* Add note panel */
+        .rc-add-note {
+          margin-top: 12px; padding: 14px;
+          background: #f9f9fb; border: 0.5px solid #e4e4e7;
+          border-radius: 10px;
+        }
+        .rc-note-textarea {
+          width: 100%; padding: 10px 12px; font-size: 12px;
+          background: #fff; border: 0.5px solid #d4d4d8;
+          border-radius: 8px; outline: none; resize: none;
+          font-family: inherit; line-height: 1.55; color: #18181b;
+          transition: border-color 0.12s;
+        }
+        .rc-note-textarea:focus { border-color: #7c3aed; }
+        .rc-note-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+        .rc-note-cancel { font-size: 10px; font-weight: 600; color: #a1a1aa; background: none; border: none; cursor: pointer; text-transform: uppercase; padding: 4px 0; }
+        .rc-note-save { font-size: 10px; font-weight: 600; background: #534AB7; color: #fff; border: none; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+        .rc-note-saved { font-size: 11px; font-weight: 600; color: #3B6D11; display: flex; align-items: center; gap: 4px; }
+        .rc-note-error { font-size: 10px; color: #A32D2D; margin-top: 4px; }
+
+        /* Loading overlay */
+        .rc-loading-overlay {
+          position: absolute; inset: 0;
+          background: rgba(249,249,251,0.7); backdrop-filter: blur(2px);
+          z-index: 20; display: flex; align-items: center; justify-content: center;
+          border-radius: 14px; flex-direction: column; gap: 10px;
+        }
+        .rc-loading-label { font-size: 12px; font-weight: 700; color: #52525b; }
+      `}</style>
+
+      <div
+        id={review.review_id}
+        className={`rc-card ${getBorderClass()} ${highlight ? "ring-2 ring-indigo-500 ring-offset-2" : ""}`}
+      >
+        {/* Loading overlay */}
+        {loadingAI && (
+          <div className="rc-loading-overlay">
+            <Loader2 className="animate-spin" size={28} color="#7c3aed" />
+            <span className="rc-loading-label">Re-analysing…</span>
+          </div>
+        )}
+
+        {/* Checkbox */}
         {/* <div
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(review.review_id);
-          }}
-          className={`w-5 h-5 rounded border-2 cursor-pointer flex items-center justify-center transition-all ${isSelected ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200" : "bg-white border-slate-200 hover:border-indigo-300"}`}
+          onClick={(e) => { e.stopPropagation(); onSelect(review.review_id); }}
+          className={`rc-checkbox ${isSelected ? "is-selected" : ""}`}
         >
-          {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
+          {isSelected && <Check size={10} strokeWidth={4} />}
         </div> */}
 
-        {/* Re-analyse Button (Existing) */}
-        {/* <button 
-          onClick={handleReanalyse}
-          title="Re-analyse Review"
-          className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-indigo-600 transition-colors"
-        >
-          <RotateCcw size={14} />
-        </button> */}
-      </div>
+        {/* ─── Top Row ─── */}
+        <div className="rc-top">
+          <div className="rc-avatar-wrap">
+            <div className="rc-avatar">
+              {getInitials(review.reviewer_name)}
+              <div className={`rc-plat-badge ${getPlatformBadge(review.platform).bg}`}>
+                {getPlatformBadge(review.platform).icon}
+              </div>
+            </div>
 
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="flex text-amber-400">
-              {(() => {
-                const displayRaw = review.raw_rating || (review.platform === "Booking.com" || review.platform === "Agoda" ? review.rating * 2 : review.rating);
-                const displayScale = review.raw_rating_scale || (review.platform === "Booking.com" || review.platform === "Agoda" ? 10 : 5);
-                const roundedRaw = Math.round(displayRaw);
-                return [...Array(displayScale)].map((_, i) => (
-                  <Star key={i} size={displayScale === 10 ? 11 : 14} fill={i < roundedRaw ? "currentColor" : "none"} />
-                ));
-              })()}
-            </div>
-            <span className="text-[10px] font-black text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded-md border border-slate-200">
-              {review.raw_rating || (review.platform === "Booking.com" || review.platform === "Agoda" ? review.rating * 2 : review.rating)}/
-              {review.raw_rating_scale || (review.platform === "Booking.com" || review.platform === "Agoda" ? 10 : 5)}
-            </span>
-            <span className="text-sm font-bold text-slate-900">{review.reviewer_name}</span>
-            <span className="text-xs text-slate-500">
-              {review.platform} • {isNaN(Date.parse(review.review_date)) ? review.review_date : new Date(review.review_date).toLocaleDateString()}
-            </span>
-            {review.hotel_name && (
-              <span className="bg-indigo-50 text-indigo-700 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider border border-indigo-100 flex items-center gap-1 shadow-sm">
-                🏢 {review.hotel_name}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusStyles(review.status)}`}>
-              {review.status || "NEW"}
-            </span>
-            {review.linked_ticket_id && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/tickets?highlight=${review.linked_ticket_id}`);
-                }}
-                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[9px] font-black px-2 py-0.5 rounded-full transition-all flex items-center gap-1 border border-indigo-100"
-              >
-                TICKET: {review.linked_ticket_id.slice(-6)}
-              </button>
-            )}
-            <div className="flex gap-1 items-center">
-              {[...Array(Math.max(0, Math.floor((review.confidence || 0) / 20)))].map((_, i) => (
-                <div key={i} className={`w-1 h-1 rounded-full ${isLowConfidence ? "bg-red-400" : isMediumConfidence ? "bg-amber-400" : "bg-green-400"}`} />
-              ))}
-            </div>
-            <div className="flex gap-1">
-              {["NEW", "IN REVIEW", "RESPONDED", "CLOSED"].map((s, idx) => {
-                const statusSteps = ["NEW", "IN REVIEW", "RESPONDED", "CLOSED"];
-                const currentStep = statusSteps.indexOf(review.status);
-                const isEscalatedOrSuspicious = ["ESCALATED", "Suspicious"].includes(review.status) ||
-                  review.escalation ||
-                  review.rating <= (state.hotelConfig?.aiConfig?.escalationRatingThreshold || 1);
-                const isActive = statusSteps.indexOf(s) <= currentStep && !isEscalatedOrSuspicious;
-                return (
-                  <div key={s} title={s} className={`w-3 h-1 rounded-full ${isActive ? "bg-indigo-500" : "bg-slate-100"}`}></div>
-                );
-              })}
-              {(review.status === "ESCALATED" ||
-                review.status === "Suspicious" ||
-                review.escalation ||
-                review.rating <= (state.hotelConfig?.aiConfig?.escalationRatingThreshold || 1)) && (
-                  <div className="w-12 h-1 bg-red-500 rounded-full animate-pulse"></div>
+            <div>
+              <div className="rc-name">
+                {review.reviewer_name}
+                {review.hotel_name && (
+                  <span className="rc-hotel-chip">🏢 {review.hotel_name}</span>
                 )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className={`text-[11px] font-bold ${getConfidenceColor(review.confidence)}`}>
-            Confidence: {review.confidence ?? "--"}%
-          </span>
-          <button
-            onClick={handleReanalyse}
-            title="Re-analyse with AI"
-            className="w-7 h-7 flex items-center justify-center bg-slate-100 text-slate-400 hover:bg-indigo-600 hover:text-white rounded-full transition-all"
-          >
-            <RefreshCcw size={14} className={loadingAI ? "animate-spin" : ""} />
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <p className="text-slate-700 leading-relaxed italic">"{review.review_text}"</p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        {review.sentiment && (
-          <span className={`px-2 py-1 rounded-lg text-[11px] font-bold ${review.sentiment === "Positive" ? "bg-green-100 text-green-700" : review.sentiment === "Negative" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}`}>
-            {review.sentiment}
-          </span>
-        )}
-        {review.primary_department && (
-          <span className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold uppercase">
-            {review.primary_department}
-          </span>
-        )}
-        {review.urgency && review.urgency !== "None" && (
-          <span className={`px-2 py-1 rounded-lg text-[11px] font-bold uppercase ${review.urgency === "High" ? "bg-red-600 text-white" : "bg-amber-100 text-amber-700"}`}>
-            {review.urgency}
-          </span>
-        )}
-        {review.guest_emotion && (
-          <span className={`px-2 py-1 rounded-lg text-[11px] font-bold ${getEmotionStyles(review.guest_emotion)}`}>
-            {review.guest_emotion}
-          </span>
-        )}
-      </div>
-
-      {/* Assignment Section */}
-      {/* <div className="mb-4 space-y-2">
-        <div className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100/50">
-          <Users size={14} className="text-slate-400" />
-          <div className="flex-1">
-            <select
-              value={review.assignee_id || ""}
-              onChange={(e) => handleAssign(e.target.value)}
-              className="w-full bg-transparent border-none text-xs font-bold text-slate-600 focus:ring-0 cursor-pointer appearance-none p-0"
-            >
-              <option value="">{review.assignee_name || "Assign Staff..."}</option>
-              {filteredStaff.length > 0 ? (
-                filteredStaff.map(s => (
-                  <option key={s._id} value={s._id}>{s.name} ({s.role === 'gm' ? 'GM' : 'Staff'})</option>
-                ))
-              ) : (
-                <option disabled>No staff in {review.primary_department}. Add in Settings.</option>
-              )}
-            </select>
-          </div>
-          {review.assignee_id && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black uppercase">
-              <Check size={10} /> Assigned
-            </div>
-          )}
-        </div>
-
-        {review.status === "PENDING APPROVAL" && (
-          <div className="flex flex-col gap-1 px-1">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-              <span>Submitted by: <span className="text-slate-900">{review.submitted_by || "Staff"}</span></span>
-            </div>
-            {review.assignee_id && (
-              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
-                <span>Assigned to: <span className="text-slate-600">{review.assignee_name}</span></span>
               </div>
-            )}
-          </div>
-        )}
-      </div> */}
-
-      {isHighConfidence && (
-        <div className="mb-4">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-700 rounded text-[11px] font-bold uppercase tracking-wider">
-            <CheckCircle2 size={12} /> High Trust Analysis
-          </span>
-        </div>
-      )}
-
-      {isMediumConfidence && (
-        <div className="mb-4">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#FEF3C7] text-[#92400E] rounded text-[11px] font-bold uppercase tracking-wider">
-            <AlertCircle size={12} /> LOW CONFIDENCE
-          </span>
-        </div>
-      )}
-
-      {isLowConfidence && (
-        <div className="mb-4">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[11px] font-bold uppercase tracking-wider">
-            <AlertTriangle size={12} /> REVIEW REQUIRED
-          </span>
-        </div>
-      )}
-
-      {review.needs_human_review && !isLowConfidence && !isMediumConfidence && (
-        <div className="mb-4">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#FEF3C7] text-[#92400E] rounded text-[11px] font-bold">
-            <AlertCircle size={12} /> Needs Human Review
-          </span>
-        </div>
-      )}
-
-      {review.escalation_risk && (
-        <div className="relative group/tooltip inline-block mb-4">
-          <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full cursor-help">ESCALATION RISK</span>
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full mt-2 hidden group-hover/tooltip:block z-30 w-52 p-3 bg-slate-800 text-white text-[11px] rounded-xl shadow-xl">
-            {review.escalation_reason || "Escalation risk detected by AI"}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 bg-slate-800 w-2 h-2 rotate-45"></div>
-          </div>
-        </div>
-      )}
-
-      {/* AI Proposal Section */}
-      {review.status !== "RESPONDED" && (!isLowConfidence || isEditing || proposal) && (
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs">
-              <MessageSquare size={14} />
-              {isLowConfidence ? "MANUAL DRAFT" : "AI PROPOSAL"}
-            </div>
-            <div className="flex items-center gap-2">
-              {!isLowConfidence && (
-                <select
-                  disabled={isGenerating}
-                  value={tone}
-                  onChange={(e) => handleGenerate(e.target.value)}
-                  className="text-[10px] font-black bg-slate-50 border-none rounded-lg focus:ring-0 cursor-pointer disabled:opacity-50"
-                >
-                  <option>Formal</option>
-                  <option>Empathetic</option>
-                  <option>Apologetic</option>
-                  <option>Promotional</option>
-                  <option>Escalation</option>
-                </select>
-              )}
-              {!isEditing && (
-                <button onClick={() => setIsEditing(true)} className="p-1 text-slate-400 hover:text-indigo-600 transition-colors">
-                  <Pencil size={14} />
-                </button>
-              )}
+              <div className="rc-meta">
+                {review.platform} · {isNaN(Date.parse(review.review_date)) ? review.review_date : new Date(review.review_date).toLocaleDateString()}
+              </div>
+              <div className="rc-stars">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    size={12}
+                    className={i < filledCount ? "rc-star-fill" : "rc-star-empty"}
+                    fill={i < filledCount ? "currentColor" : "none"}
+                    strokeWidth={i < filledCount ? 0 : 2}
+                  />
+                ))}
+                <span className="rc-rating-chip">
+                  {displayRaw}/{displayScale}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="relative">
-            {isGenerating && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl z-10 gap-2">
-                <Loader2 className="animate-spin text-indigo-600" size={24} />
-                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Generating...</span>
-              </div>
-            )}
-
-            {isEditing ? (
-              <div className="space-y-2">
-                <textarea
-                  autoFocus
-                  ref={editRef}
-                  value={proposal}
-                  onChange={(e) => setProposal(e.target.value)}
-                  className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-xl text-sm focus:ring-0 outline-none transition-all resize-none"
-                />
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => setIsEditing(false)} className="px-3 py-1 text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase">Cancel</button>
-                  <button onClick={() => setIsEditing(false)} className="px-3 py-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase flex items-center gap-1"><Check size={12} /> Save Edit</button>
-                </div>
-              </div>
-            ) : proposal ? (
-              <div className="w-full h-32 p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm text-slate-600 italic overflow-y-auto">
-                {proposal}
-              </div>
-            ) : (
-              <div className="w-full h-32 flex flex-col items-center justify-center bg-slate-50 border border-dashed border-slate-200 rounded-xl gap-3">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No draft generated yet</p>
-                <button
-                  onClick={() => handleGenerate(tone)}
-                  className="px-6 py-2 bg-white text-indigo-600 border border-indigo-100 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-50 transition-all shadow-sm"
-                >
-                  Generate AI Draft
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-between items-center mt-4">
-            <div className="flex gap-4 items-center">
-              <button onClick={() => onFlag(review)} className="text-[10px] font-bold text-slate-400 hover:text-red-600 transition-colors uppercase">FLAG REVIEW</button>
-              {/* <button onClick={() => setIsAddingNote(!isAddingNote)} className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase">ADD NOTE {review.internal_notes?.length > 0 && `(${review.internal_notes.length})`}</button> */}
-              {review.status === "PENDING APPROVAL" && isApprover && (
-                <button onClick={handleReject} className="text-[10px] font-bold text-red-500 hover:text-red-700 transition-colors uppercase flex items-center gap-1">
-                  <X size={12} /> REJECT DRAFT
-                </button>
-              )}
-            </div>
-
-            {review.status === "PENDING APPROVAL" && !isApprover ? (
-              <div className="px-4 py-2 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-wider border border-amber-100">
-                Awaiting Manager Approval
-              </div>
-            ) : (
-              <button
-                onClick={handleApprove}
-                disabled={isGenerating || !proposal}
-                title={!isApprover ? "Requires Manager approval to post" : ""}
-                className={`px-5 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 ${(isMediumConfidence || review.status === "PENDING APPROVAL" || !isApprover) ? "bg-amber-500 text-white shadow-amber-500/20 hover:bg-amber-600" : "bg-indigo-600 text-white shadow-indigo-500/20 hover:bg-indigo-700"}`}
-              >
-                <CheckCircle2 size={14} />
-                {isApprover ? "APPROVE & POST" : "SUBMIT FOR APPROVAL"}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {isAddingNote && (
-        <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in slide-in-from-top-2">
-          <textarea
-            rows="3"
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Add an internal note about this review..."
-            className="w-full p-3 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          {noteError && <p className="text-red-500 text-[10px] mt-1">{noteError}</p>}
-          <div className="flex justify-end gap-2 mt-2">
-            {noteSaved ? (
-              <span className="text-green-600 text-xs font-bold flex items-center gap-1 animate-in fade-in">Note saved ✓</span>
-            ) : (
-              <>
-                <button onClick={() => setIsAddingNote(false)} className="px-3 py-1.5 text-xs font-bold text-slate-500 uppercase">Cancel</button>
-                <button onClick={handleSaveNote} className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase">Save Note</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {isLowConfidence && review.status !== "RESPONDED" && !isEditing && !proposal && (
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 flex flex-col items-center gap-2 text-center">
-            <Pencil size={24} className="text-slate-300" />
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Manual Response Required</p>
-            <p className="text-[10px] text-slate-400">AI confidence is too low for this review. Please draft a response manually.</p>
+          <div className="rc-top-right">
+            <span className={`rc-conf ${getConfidenceColor(review.confidence)}`}>
+              {review.confidence ?? "--"}%
+            </span>
             <button
-              onClick={() => {
-                setIsEditing(true);
-              }}
-              className="mt-2 px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase"
+              onClick={handleReanalyse}
+              title="Re-analyse with AI"
+              className="rc-reanalyse"
             >
-              Start Drafting
+              <RefreshCcw size={13} className={loadingAI ? "animate-spin" : ""} />
             </button>
           </div>
         </div>
-      )}
 
-      {review.status === "RESPONDED" && (
-        <div className="mt-6 p-4 bg-green-50 border border-green-100 rounded-xl relative">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-green-700 font-bold text-xs">
-              <CheckCircle2 size={14} /> POSTED RESPONSE ({review.response_tone})
-            </div>
-          </div>
-          <p className="text-sm text-green-800 italic">"{review.response_text}"</p>
-          <div className="mt-2 text-[10px] text-green-600/70 font-medium">Approved by {review.approved_by} on {new Date(review.approved_at).toLocaleString()}</div>
+        {/* ─── Review Text ─── */}
+        <div className="rc-review-text">"{review.review_text}"</div>
+
+        {/* ─── Tags ─── */}
+        <div className="rc-tags">
+          {review.sentiment && (
+            <span className={getSentimentClass(review.sentiment)}>
+              <span className={`rc-dot ${getSentimentDot(review.sentiment)}`} />
+              {review.sentiment}
+            </span>
+          )}
+          {review.primary_department && (
+            <span className="rc-tag rc-tag-purple">{review.primary_department}</span>
+          )}
+          {review.urgency && review.urgency !== "None" && (
+            <span className={`rc-tag ${review.urgency === "High" ? "rc-tag-red" : "rc-tag-amber"}`}>
+              {review.urgency} urgency
+            </span>
+          )}
+          {review.guest_emotion && (
+            <span className={getEmotionStyles(review.guest_emotion)}>{review.guest_emotion}</span>
+          )}
         </div>
-      )}
 
-      {/* Internal Notes Feed */}
-      {review.internal_notes?.length > 0 && (
-        <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-          <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-wider mb-2">
-            <Info size={12} /> Internal Notes
-          </div>
-          {review.internal_notes.map((note, idx) => (
-            <div key={idx} className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 group/note relative">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-black text-slate-900 uppercase">{note.author}</span>
-                <span className="text-[9px] font-bold text-slate-400">{new Date(note.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+        {/* ─── Linked Ticket ─── */}
+        {review.linked_ticket_id && (
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/tickets?highlight=${review.linked_ticket_id}`); }}
+            className="rc-ticket-btn"
+          >
+            <span className="rc-ticket-dot" />
+            Linked ticket: {review.linked_ticket_id.slice(-6).toUpperCase()}
+          </button>
+        )}
+
+        {/* ─── Trust / Confidence Pills ─── */}
+        {isHighConfidence && (
+          <span className="rc-trust-pill rc-trust-high">
+            <ShieldCheck size={11} /> High trust analysis
+          </span>
+        )}
+        {isMediumConfidence && (
+          <span className="rc-trust-pill rc-trust-mid">
+            <AlertCircle size={11} /> Medium confidence
+          </span>
+        )}
+        {isLowConfidence && (
+          <span className="rc-trust-pill rc-trust-low">
+            <AlertTriangle size={11} /> Review required
+          </span>
+        )}
+        {review.needs_human_review && !isLowConfidence && !isMediumConfidence && (
+          <span className="rc-trust-pill rc-trust-review">
+            <AlertCircle size={11} /> Needs human review
+          </span>
+        )}
+
+        {/* ─── Escalation Risk ─── */}
+        {review.escalation_risk && (
+          <span className="rc-esc-pill">
+            <AlertTriangle size={11} /> Escalation risk
+            <span className="rc-esc-tooltip">
+              {review.escalation_reason || "Escalation risk detected by AI"}
+            </span>
+          </span>
+        )}
+
+        {/* ─── AI Proposal Console ─── */}
+        {review.status !== "RESPONDED" && (!isLowConfidence || isEditing || proposal) && (
+          <div className="rc-console">
+            <div className="rc-console-header">
+              <span className="rc-console-label">
+                <MessageSquare size={12} />
+                {isLowConfidence ? "Manual draft" : "AI proposal"}
+              </span>
+              <div className="rc-console-controls">
+                {!isLowConfidence && (
+                  <select
+                    disabled={isGenerating}
+                    value={tone}
+                    onChange={(e) => handleGenerate(e.target.value)}
+                    className="rc-tone-select"
+                  >
+                    <option>Formal</option>
+                    <option>Empathetic</option>
+                    <option>Apologetic</option>
+                    <option>Promotional</option>
+                    <option>Escalation</option>
+                  </select>
+                )}
+                {!isEditing && (
+                  <button onClick={() => setIsEditing(true)} className="rc-edit-btn">
+                    <Pencil size={12} />
+                  </button>
+                )}
               </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">{note.text}</p>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+
+            <div style={{ position: "relative" }}>
+              {isGenerating && (
+                <div className="rc-gen-overlay">
+                  <Loader2 className="animate-spin" size={18} color="#7c3aed" />
+                  <span>Generating…</span>
+                </div>
+              )}
+
+              {isEditing ? (
+                <div>
+                  <textarea
+                    autoFocus
+                    ref={editRef}
+                    value={proposal}
+                    onChange={(e) => setProposal(e.target.value)}
+                    className="rc-edit-area"
+                  />
+                  <div className="rc-edit-actions">
+                    <button onClick={() => setIsEditing(false)} className="rc-edit-cancel">Cancel</button>
+                    <button onClick={() => setIsEditing(false)} className="rc-edit-save">
+                      <Check size={11} strokeWidth={3} /> Save
+                    </button>
+                  </div>
+                </div>
+              ) : proposal ? (
+                <div className="rc-proposal-box">"{proposal}"</div>
+              ) : (
+                <div className="rc-empty-draft">
+                  <span className="rc-empty-label">No draft generated yet</span>
+                  <button onClick={() => handleGenerate(tone)} className="rc-gen-btn">
+                    Generate AI draft
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="rc-console-footer">
+              <div className="rc-footer-links">
+                <button onClick={() => onFlag(review)} className="rc-footer-link rc-footer-link-danger">
+                  Flag review
+                </button>
+                <button onClick={() => onSimilar(review)} className="rc-footer-link">
+                  Similar issues
+                </button>
+                {review.status === "PENDING APPROVAL" && isApprover && (
+                  <button onClick={handleReject} className="rc-footer-link rc-reject-link">
+                    <X size={10} strokeWidth={3} style={{ display: "inline", marginRight: 2 }} />
+                    Reject
+                  </button>
+                )}
+              </div>
+
+              {review.status === "PENDING APPROVAL" && !isApprover ? (
+                <span className="rc-awaiting-badge">Awaiting approval</span>
+              ) : (
+                <button
+                  onClick={handleApprove}
+                  disabled={isGenerating || !proposal}
+                  className={`rc-approve-btn ${(isMediumConfidence || review.status === "PENDING APPROVAL" || !isApprover) ? "rc-approve-amber" : "rc-approve-indigo"}`}
+                >
+                  <CheckCircle2 size={12} />
+                  {isApprover ? "Approve & post" : "Submit for approval"}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Add Note Panel ─── */}
+        {isAddingNote && (
+          <div className="rc-add-note">
+            <textarea
+              rows="3"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Add an internal note about this review…"
+              className="rc-note-textarea"
+            />
+            {noteError && <p className="rc-note-error">{noteError}</p>}
+            <div className="rc-note-actions">
+              {noteSaved ? (
+                <span className="rc-note-saved"><Check size={12} /> Note saved</span>
+              ) : (
+                <>
+                  <button onClick={() => setIsAddingNote(false)} className="rc-note-cancel">Cancel</button>
+                  <button onClick={handleSaveNote} className="rc-note-save">Save note</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Low Confidence Manual Prompt ─── */}
+        {isLowConfidence && review.status !== "RESPONDED" && !isEditing && !proposal && (
+          <div className="rc-manual-section">
+            <div className="rc-manual-box">
+              <Pencil size={18} color="#A32D2D" />
+              <span className="rc-manual-title">Manual response required</span>
+              <span className="rc-manual-desc">AI confidence is below the trust threshold. Please draft a response manually.</span>
+              <button onClick={() => setIsEditing(true)} className="rc-manual-btn">
+                Start drafting
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Responded Banner ─── */}
+        {review.status === "RESPONDED" && (
+          <div className="rc-responded">
+            <div className="rc-responded-header">
+              <CheckCircle2 size={13} /> Posted response · {review.response_tone}
+            </div>
+            <p className="rc-responded-text">"{review.response_text}"</p>
+            <p className="rc-responded-meta">
+              Approved by {review.approved_by} on {new Date(review.approved_at).toLocaleDateString()}
+            </p>
+          </div>
+        )}
+
+        {/* ─── Internal Notes Feed ─── */}
+        {review.internal_notes?.length > 0 && (
+          <div className="rc-notes-section">
+            <div className="rc-notes-header">
+              <Info size={11} /> Internal notes
+            </div>
+            {review.internal_notes.map((note, idx) => (
+              <div key={idx} className="rc-note-item">
+                <div className="rc-note-meta">
+                  <span className="rc-note-author">{note.author}</span>
+                  <span className="rc-note-time">
+                    {new Date(note.timestamp).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
+                  </span>
+                </div>
+                <p className="rc-note-text">{note.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

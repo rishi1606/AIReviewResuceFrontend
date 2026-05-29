@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
@@ -108,11 +109,15 @@ const GlobalSearch = () => {
                 <kbd className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-400">⌘K</kbd>
             </button>
 
-            {/* Modal overlay */}
-            {open && (
+            {/* Modal overlay - rendered at document body level via portal to blur the entire screen */}
+            {open && createPortal(
                 <div
-                    className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]"
-                    style={{ backgroundColor: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(2px)" }}
+                    className="fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh] backdrop-blur-md"
+                    style={{ 
+                        backgroundColor: "rgba(15, 23, 42, 0.3)", 
+                        backdropFilter: "blur(8px)", 
+                        WebkitBackdropFilter: "blur(8px)" 
+                    }}
                     onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
                 >
                     <div className="w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
@@ -295,7 +300,8 @@ const GlobalSearch = () => {
                             </div>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );
