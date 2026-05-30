@@ -43,10 +43,10 @@ const Login = () => {
 
         {/* Top Branding */}
         <div className="flex items-center gap-3 relative z-10 sh-animate-fade-in">
-          <div className="flex items-center justify-center w-10 h-10 bg-indigo-600 rounded-xl text-white shadow-[0_4px_12px_rgba(99,102,241,0.2)]">
-            <ShieldCheck size={22} className="text-white" />
+          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30 shrink-0">
+            <ShieldCheck size={24} />
           </div>
-          <span className="text-xl font-bold tracking-tight text-zinc-900 font-display">
+          <span className="font-bold text-lg lg:text-xl tracking-tight bg-gradient-to-r from-orange-500 to-purple-600 bg-clip-text text-transparent truncate">
             ReviewRescue
           </span>
         </div>
@@ -177,8 +177,7 @@ const Login = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="sh-btn-brand py-3 font-semibold tracking-wide text-sm relative overflow-hidden active:scale-[0.99] disabled:active:scale-100"
-                >
+                  className="sh-btn-brand py-3 font-semibold tracking-wide text-sm !bg-orange-500 hover:!bg-orange-600 !text-white !border-none relative overflow-hidden active:scale-[0.99] disabled:active:scale-100">
                   {loading ? (
                     <>
                       <Loader2 className="animate-spin text-white" size={16} />

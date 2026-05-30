@@ -102,7 +102,7 @@ const GlobalSearch = () => {
             {/* Trigger button — looks like a search input */}
             <button
                 onClick={() => setOpen(true)}
-                className="flex items-center gap-2 h-9 w-64 pl-3 pr-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-400 hover:border-indigo-300 hover:bg-white transition-all"
+                className="flex items-center gap-2 h-9 w-64 pl-3 pr-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-400 hover:border-orange-300 hover:bg-white transition-all"
             >
                 <Search size={15} className="flex-shrink-0" />
                 <span className="flex-1 text-left">Search reviews, tickets…</span>
@@ -113,10 +113,10 @@ const GlobalSearch = () => {
             {open && createPortal(
                 <div
                     className="fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh] backdrop-blur-md"
-                    style={{ 
-                        backgroundColor: "rgba(15, 23, 42, 0.3)", 
-                        backdropFilter: "blur(8px)", 
-                        WebkitBackdropFilter: "blur(8px)" 
+                    style={{
+                        backgroundColor: "rgba(15, 23, 42, 0.3)",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)"
                     }}
                     onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
                 >
@@ -174,7 +174,7 @@ const GlobalSearch = () => {
                                     {matchedReviews.map(r => (
                                         <button
                                             key={r.review_id}
-                                            onClick={() => handleSelect(`/reviews?highlight=${r.review_id}`)}
+                                            onClick={() => handleSelect(`/reviews?search=${encodeURIComponent(r.reviewer_name || r.guest_name || "")}&highlight=${r.review_id}`)}
                                             className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors"
                                         >
                                             <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${urgencyDot(r.urgency)}`} />
@@ -192,7 +192,7 @@ const GlobalSearch = () => {
                                                     {r.hotel_name && (
                                                         <>
                                                             <span className="text-xs text-slate-400">·</span>
-                                                            <span className="text-xs text-indigo-500 font-medium">{r.hotel_name}</span>
+                                                            <span className="text-xs text-indigo-500 font-semibold">{r.hotel_name}</span>
                                                         </>
                                                     )}
                                                 </div>
@@ -204,7 +204,7 @@ const GlobalSearch = () => {
                                                         </span>
                                                     )}
                                                     {r.primary_department && (
-                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100">
                                                             {r.primary_department}
                                                         </span>
                                                     )}
@@ -239,7 +239,7 @@ const GlobalSearch = () => {
                                     {matchedTickets.map(t => (
                                         <button
                                             key={t.ticket_id}
-                                            onClick={() => handleSelect(`/tickets?highlight=${t.ticket_id}`)}
+                                            onClick={() => handleSelect(`/tickets?search=${encodeURIComponent(t.ticket_id)}&highlight=${t.ticket_id}`)}
                                             className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors"
                                         >
                                             <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${urgencyDot(t.urgency)}`} />
@@ -251,7 +251,7 @@ const GlobalSearch = () => {
                                                     {t.department && (
                                                         <>
                                                             <span className="text-xs text-slate-400">·</span>
-                                                            <span className="text-xs text-indigo-500 font-medium">{t.department}</span>
+                                                            <span className="text-xs text-orange-500 font-medium">{t.department}</span>
                                                         </>
                                                     )}
                                                 </div>
@@ -291,7 +291,7 @@ const GlobalSearch = () => {
                                 <span className="text-[11px] text-slate-400">
                                     {matchedReviews.length + matchedTickets.length} result{matchedReviews.length + matchedTickets.length !== 1 ? "s" : ""}
                                     {selectedPlatform && selectedPlatform !== "ALL" && (
-                                        <span className="ml-2 px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded font-medium">
+                                        <span className="ml-2 px-1.5 py-0.5 bg-orange-50 text-orange-500 rounded font-medium">
                                             {selectedPlatform} only
                                         </span>
                                     )}

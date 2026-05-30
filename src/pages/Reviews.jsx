@@ -41,7 +41,15 @@ const Reviews = () => {
   const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState("ALL");
+  const [tab, setTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam) {
+      const matched = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Approved", "Suspicious", "Escalated"].find(t => t.toUpperCase() === tabParam.toUpperCase());
+      return matched || "ALL";
+    }
+    return "ALL";
+  });
   const [selectedIds, setSelectedIds] = useState([]);
 
   const isScopedUser = currentUser?.role === "staff" || currentUser?.role === "dept_head";
@@ -61,30 +69,29 @@ const Reviews = () => {
   };
 
   const clearSelection = () => setSelectedIds([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("search") || "";
+  });
   const [highlightId, setHighlightId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [serverReviews, setServerReviews] = useState([]);
+  const [serverTotal, setServerTotal] = useState(0);
+  const [isFetchingReviews, setIsFetchingReviews] = useState(false);
+  const ITEMS_PER_PAGE = 10;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tab, department, sortBy, dateRange, search, hideLowConfidence, state.activeFilters]);
 
   const tabs = ["ALL", "Negative", "Mixed", "Neutral", "Positive", "Approved", "Suspicious", "Escalated"];
 
   const confidenceThreshold = state.hotelConfig?.aiConfig?.confidenceThreshold || 75;
   const departments = DEPARTMENTS;
 
-  // Fetch reviews on mount to apply any updated settings/healing logic
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const res = await getReviews();
-        dispatch({ type: "SET_REVIEWS", payload: res.data.reviews });
-      } catch (err) {
-        console.error("Failed to fetch reviews:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  // (Removed bulk fetch to implement server-side infinite load)
 
   // Modal States
   const [flagModal, setFlagModal] = useState({ open: false, review: null, reason: "", notes: "", loading: false });
@@ -107,8 +114,16 @@ const Reviews = () => {
       if (matched) {
         setTab(matched);
       }
+    } else {
+      setTab("ALL"); // Reset if no tab param
     }
-  }, [location]);
+    const searchParam = params.get("search");
+    if (searchParam) {
+      setSearch(searchParam);
+    } else {
+      setSearch(""); // Reset if no search param
+    }
+  }, [location.search]);
 
   // Escape key handler
   useEffect(() => {
@@ -197,79 +212,97 @@ const Reviews = () => {
     }
   };
 
-  const filteredReviews = state.reviews.filter(r => {
-    // Standardize status for filtering
-    let currentStatus = r.status;
-    if (currentStatus === "Classified") currentStatus = "IN REVIEW";
-    if (currentStatus === "Approved") currentStatus = "RESPONDED";
-    if (currentStatus === "Pending AI") currentStatus = "NEW";
+  // Server-side fetch effect
+  useEffect(() => {
+    let isCancelled = false;
 
-    const matchesTab = tab === "ALL" ? true :
-      tab.toUpperCase() === "APPROVED" ? (r.status === "RESPONDED" || r.status === "Approved") :
-        tab.toUpperCase() === "PENDING APPROVAL" ? r.status === "PENDING APPROVAL" :
-          tab.toUpperCase() === "SUSPICIOUS" ? (r.status === "Suspicious" || r.is_suspicious === true) :
-            tab.toUpperCase() === "ESCALATED" ? (r.status === "ESCALATED" || r.escalation === true) :
-              r.sentiment?.toUpperCase() === tab.toUpperCase();
+    const fetchServerReviews = async () => {
+      setIsFetchingReviews(true);
+      try {
+        let statusParam = "ALL";
+        let sentimentParam = "ALL";
+        const upperTab = tab.toUpperCase();
+        if (upperTab === "APPROVED") statusParam = "RESPONDED,Approved";
+        else if (upperTab === "PENDING APPROVAL") statusParam = "PENDING APPROVAL";
+        else if (upperTab === "SUSPICIOUS") statusParam = "Suspicious";
+        else if (upperTab === "ESCALATED") statusParam = "ESCALATED";
+        else sentimentParam = tab;
 
-    const matchesPlatform = state.activeFilters?.platform === "ALL" || !state.activeFilters?.platform ? true : r.platform === state.activeFilters.platform;
-    const matchesDept = department === "ALL" ? true : (r.primary_department || "").toUpperCase() === department.toUpperCase();
-    const matchesProperty = state.activeFilters?.property === "ALL" || !state.activeFilters?.property ? true : r.hotel_name === state.activeFilters.property;
-    const matchesConfidence = hideLowConfidence ? (r.confidence || 0) >= confidenceThreshold : true;
+        let sortByParam = "NEWEST";
+        if (sortBy === "OLDEST") sortByParam = "OLDEST";
+        if (sortBy === "LOWEST_RATING") sortByParam = "RATING_LOW";
+        if (sortBy === "HIGHEST_RISK") sortByParam = "CONFIDENCE_LOW";
 
-    const matchesDate = () => {
-      if (!dateRange.start && !dateRange.end) return true;
-      const rDate = new Date(r.createdAt || r.imported_at || r.review_date);
-      rDate.setHours(0, 0, 0, 0);
+        const res = await getReviews({
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+          sentiment: sentimentParam,
+          status: statusParam,
+          department: department,
+          search: search,
+          minConfidence: hideLowConfidence ? confidenceThreshold : undefined,
+          sortBy: sortByParam,
+          platform: state.activeFilters?.platform || "ALL",
+          property: state.activeFilters?.property || "ALL",
+          dateStart: dateRange.start ? new Date(dateRange.start).toISOString() : undefined,
+          dateEnd: dateRange.end ? new Date(dateRange.end).toISOString() : undefined
+        });
 
-      const start = dateRange.start ? new Date(dateRange.start) : null;
-      if (start) start.setHours(0, 0, 0, 0);
-
-      const end = dateRange.end ? new Date(dateRange.end) : null;
-      if (end) end.setHours(23, 59, 59, 999);
-
-      if (start && rDate < start) return false;
-      if (end && rDate > end) return false;
-      return true;
-    };
-
-    const matchesSearch =
-      r.reviewer_name.toLowerCase().includes(search.toLowerCase()) ||
-      r.review_text.toLowerCase().includes(search.toLowerCase());
-
-    return matchesTab && matchesPlatform && matchesDept && matchesProperty && matchesConfidence && matchesDate() && matchesSearch;
-  })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "OLDEST":
-          return new Date(a.createdAt || a.imported_at || a.review_date) - new Date(b.createdAt || b.imported_at || b.review_date);
-        case "LOWEST_RATING":
-          return a.rating - b.rating;
-        case "HIGHEST_RISK":
-          return (b.escalation_risk ? 1 : 0) - (a.escalation_risk ? 1 : 0);
-        case "UNASSIGNED":
-          const aUnassigned = !a.assignee_id || a.assignee_name === "Unassigned";
-          const bUnassigned = !b.assignee_id || b.assignee_name === "Unassigned";
-          return bUnassigned - aUnassigned;
-        case "NEWEST":
-        default:
-          return new Date(b.createdAt || b.imported_at || b.review_date) - new Date(a.createdAt || a.imported_at || a.review_date);
+        if (!isCancelled) {
+          if (currentPage === 1) {
+            setServerReviews(res.data.reviews || []);
+          } else {
+            setServerReviews(prev => [...prev, ...(res.data.reviews || [])]);
+          }
+          setServerTotal(res.data.total || 0);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error("Failed to fetch paginated reviews", err);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsFetchingReviews(false);
+        }
       }
-    });
+    };
+    fetchServerReviews();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentPage, tab, department, search, hideLowConfidence, sortBy, dateRange, state.activeFilters?.platform, state.activeFilters?.property]);
+
+  // Sync local serverReviews with global state to preserve optimistic UI updates
+  useEffect(() => {
+    setServerReviews(prev => prev.map(sr => {
+      const updated = state.reviews?.find(r => r.review_id === sr.review_id);
+      return updated ? updated : sr;
+    }));
+  }, [state.reviews]);
+
+  const paginatedReviews = serverReviews;
+
+
 
   const setPresetRange = (label) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
 
     if (label === "Today") {
-      setDateRange({ label, start: today, end: today });
+      setDateRange({ label, start: today, end: endOfToday });
     } else if (label === "Last 7 Days") {
       const start = new Date();
       start.setDate(today.getDate() - 7);
-      setDateRange({ label, start, end: today });
+      start.setHours(0, 0, 0, 0);
+      setDateRange({ label, start, end: endOfToday });
     } else if (label === "Last 30 Days") {
       const start = new Date();
       start.setDate(today.getDate() - 30);
-      setDateRange({ label, start, end: today });
+      start.setHours(0, 0, 0, 0);
+      setDateRange({ label, start, end: endOfToday });
     } else {
       setDateRange({ label: "All Time", start: null, end: null });
     }
@@ -383,7 +416,7 @@ const Reviews = () => {
             <h3 className="font-bold text-sm text-zinc-800 font-display uppercase tracking-wider">Filters</h3>
           </div>
           <span className="text-xs text-zinc-400 font-medium">
-            Showing <span className="text-indigo-600 font-bold">{filteredReviews.length}</span> reviews
+            Showing <span className="text-indigo-600 font-bold">{serverTotal}</span> reviews
           </span>
         </div>
 
@@ -391,11 +424,10 @@ const Reviews = () => {
           {/* Date Range Filter */}
           <div className="relative group/date">
             <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${
-                dateRange.label === "All Time"
-                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${dateRange.label === "All Time"
+                ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                }`}
             >
               <Calendar size={14} className={dateRange.label !== "All Time" ? "text-indigo-600" : "text-zinc-400"} />
               {dateRange.label}
@@ -407,11 +439,10 @@ const Reviews = () => {
                 <button
                   key={label}
                   onClick={() => setPresetRange(label)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
-                    dateRange.label === label
-                      ? "bg-indigo-50 text-indigo-600"
-                      : "text-zinc-500 hover:bg-zinc-50"
-                  }`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${dateRange.label === label
+                    ? "bg-indigo-50 text-indigo-600"
+                    : "text-zinc-500 hover:bg-zinc-50"
+                    }`}
                 >
                   {label.toUpperCase()}
                 </button>
@@ -421,12 +452,20 @@ const Reviews = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
-                    onChange={(e) => setDateRange({ label: "Custom", start: e.target.value, end: dateRange.end })}
+                    onChange={(e) => {
+                      const d = new Date(e.target.value);
+                      d.setHours(0, 0, 0, 0);
+                      setDateRange({ label: "Custom", start: d, end: dateRange.end });
+                    }}
                     className="w-full p-2 bg-zinc-50 border-none rounded-lg text-[9px] font-bold text-zinc-650 outline-none"
                   />
                   <input
                     type="date"
-                    onChange={(e) => setDateRange({ label: "Custom", start: dateRange.start, end: e.target.value })}
+                    onChange={(e) => {
+                      const d = new Date(e.target.value);
+                      d.setHours(23, 59, 59, 999);
+                      setDateRange({ label: "Custom", start: dateRange.start, end: d });
+                    }}
                     className="w-full p-2 bg-zinc-50 border-none rounded-lg text-[9px] font-bold text-zinc-650 outline-none"
                   />
                 </div>
@@ -437,11 +476,10 @@ const Reviews = () => {
           {/* Categories Filter */}
           <div className="relative group/category">
             <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${
-                tab === "ALL"
-                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${tab === "ALL"
+                ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                }`}
             >
               <Filter size={14} className={tab !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
               {tab === "ALL" ? "All Categories" : tab}
@@ -453,9 +491,8 @@ const Reviews = () => {
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
-                    tab === t ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
-                  }`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${tab === t ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                    }`}
                 >
                   {t}
                 </button>
@@ -467,13 +504,12 @@ const Reviews = () => {
           <div className="relative group/dept">
             <button
               disabled={isScopedUser}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${
-                isScopedUser
-                  ? "border-zinc-200 bg-zinc-50 text-zinc-400 cursor-not-allowed"
-                  : department === "ALL"
-                    ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 cursor-pointer"
-                    : "border-indigo-100 bg-indigo-50 text-indigo-600 cursor-pointer"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${isScopedUser
+                ? "border-zinc-200 bg-zinc-50 text-zinc-400 cursor-not-allowed"
+                : department === "ALL"
+                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 cursor-pointer"
+                  : "border-indigo-100 bg-indigo-50 text-indigo-600 cursor-pointer"
+                }`}
             >
               <Briefcase size={14} className={isScopedUser ? "text-zinc-400" : department !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
               {isScopedUser ? `${currentUser?.department} (Locked)` : department === "ALL" ? "All Departments" : department}
@@ -484,9 +520,8 @@ const Reviews = () => {
               <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-zinc-200 p-2 opacity-0 invisible group-hover/dept:opacity-100 group-hover/dept:visible transition-all z-50 transform origin-top-right group-hover/dept:scale-100 scale-95">
                 <button
                   onClick={() => setDepartment("ALL")}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
-                    department === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
-                  }`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${department === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                    }`}
                 >
                   ALL DEPARTMENTS
                 </button>
@@ -494,9 +529,8 @@ const Reviews = () => {
                   <button
                     key={d}
                     onClick={() => setDepartment(d)}
-                    className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
-                      department === d ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
-                    }`}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${department === d ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                      }`}
                   >
                     {d.toUpperCase()}
                   </button>
@@ -524,9 +558,8 @@ const Reviews = () => {
                 <button
                   key={option.id}
                   onClick={() => setSortBy(option.id)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
-                    sortBy === option.id ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-slate-50"
-                  }`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${sortBy === option.id ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-slate-50"
+                    }`}
                 >
                   {option.label.toUpperCase()}
                 </button>
@@ -550,24 +583,31 @@ const Reviews = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
-        {state.isAppLoading || loading ? (
+      <div className={`grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 transition-opacity duration-200 ${isFetchingReviews && currentPage === 1 ? 'opacity-50' : 'opacity-100'}`}>
+        {state.isAppLoading || (isFetchingReviews && currentPage === 1 && paginatedReviews.length === 0) ? (
           [1, 2, 3, 4, 5, 6].map(i => <SkeletonReviewCard key={i} />)
-        ) : filteredReviews.length > 0 ? filteredReviews.map(r => (
-          <ReviewCard
-            key={r.review_id}
-            review={r}
-            confidenceThreshold={confidenceThreshold}
-            highlight={highlightId === r.review_id || highlightId === r._id}
-            isSelected={selectedIds.includes(r.review_id)}
-            onSelect={toggleSelect}
-            onFlag={(rev) => setFlagModal({ open: true, review: rev, reason: "", notes: "", loading: false })}
-            onSimilar={(rev) => {
-              const matches = findSimilarReviews(rev);
-              setSimilarModal({ open: true, review: rev, matches, loading: false });
-            }}
-          />
-        )) : (
+        ) : paginatedReviews.length > 0 ? (
+          <>
+            {paginatedReviews.map(r => (
+              <ReviewCard
+                key={r.review_id}
+                review={r}
+                confidenceThreshold={confidenceThreshold}
+                highlight={highlightId === r.review_id || highlightId === r._id}
+                isSelected={selectedIds.includes(r.review_id)}
+                onSelect={toggleSelect}
+                onFlag={(rev) => setFlagModal({ open: true, review: rev, reason: "", notes: "", loading: false })}
+                onSimilar={(rev) => {
+                  const matches = findSimilarReviews(rev);
+                  setSimilarModal({ open: true, review: rev, matches, loading: false });
+                }}
+              />
+            ))}
+            {isFetchingReviews && currentPage > 1 && (
+              [1, 2, 3].map(i => <SkeletonReviewCard key={`loading-more-${i}`} />)
+            )}
+          </>
+        ) : (
           <div className="col-span-full py-32 text-center border-dashed border-2 border-zinc-200 rounded-3xl bg-zinc-50/50">
             <div className="w-20 h-20 bg-white border border-zinc-200 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-400 shadow-sm">
               <Filter size={32} />
@@ -577,6 +617,19 @@ const Reviews = () => {
           </div>
         )}
       </div>
+
+      {/* Load More Button */}
+      {paginatedReviews.length < serverTotal && (
+        <div className="flex justify-center mt-8 pb-8">
+          <button
+            onClick={() => setCurrentPage(prev => prev + 1)}
+            disabled={isFetchingReviews}
+            className="px-6 py-3 bg-white border-2 border-indigo-100 text-indigo-600 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isFetchingReviews ? <Loader2 size={16} className="animate-spin" /> : "Load 10 More Reviews"}
+          </button>
+        </div>
+      )}
 
       {/* Bulk Action Bar */}
       {selectedIds.length > 0 && (

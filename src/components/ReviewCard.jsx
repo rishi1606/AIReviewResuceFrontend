@@ -304,7 +304,10 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         .rc-plat-default { color: #71717a; }
 
         .rc-name { font-size: 13px; font-weight: 600; color: #18181b; line-height: 1.2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .rc-meta { font-size: 11px; color: #a1a1aa; margin-top: 3px; }
+        .rc-meta { font-size: 11px; color: #a1a1aa; margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .rc-status-micro { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .rc-status-escalated { background: #fef3c7; color: #92400e; }
+        .rc-status-suspicious { background: #fee2e2; color: #991b1b; }
         .rc-stars { display: flex; align-items: center; gap: 3px; margin-top: 5px; }
         .rc-star-fill { color: #e8c13a; }
         .rc-star-empty { color: #d4d4d8; }
@@ -442,11 +445,11 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         }
         .rc-empty-label { font-size: 10px; font-weight: 500; color: #a1a1aa; }
         .rc-gen-btn {
-          font-size: 10px; font-weight: 600; background: #534AB7;
-          color: #fff; border: none; border-radius: 6px;
-          padding: 5px 12px; cursor: pointer; transition: background 0.12s;
+          font-size: 10px; font-weight: 600; background: transparent;
+          color: #534AB7; border: 1px solid #534AB7; border-radius: 6px;
+          padding: 4px 11px; cursor: pointer; transition: all 0.15s;
         }
-        .rc-gen-btn:hover { background: #3C3489; }
+        .rc-gen-btn:hover { background: #534AB7; color: #fff; }
 
         /* Generating overlay */
         .rc-gen-overlay {
@@ -492,16 +495,18 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
 
         /* Action buttons */
         .rc-approve-btn {
-          font-size: 10px; font-weight: 700; padding: 5px 12px;
-          border-radius: 7px; border: none; cursor: pointer;
+          font-size: 10px; font-weight: 700; padding: 4px 11px;
+          border-radius: 7px; border: 1px solid transparent; cursor: pointer;
           display: inline-flex; align-items: center; gap: 5px;
-          transition: opacity 0.12s, transform 0.1s;
+          transition: all 0.15s;
           text-transform: uppercase; letter-spacing: 0.04em;
         }
         .rc-approve-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-        .rc-approve-btn:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
-        .rc-approve-indigo { background: #534AB7; color: #fff; }
-        .rc-approve-amber  { background: #ef9f27; color: #fff; }
+        .rc-approve-btn:not(:disabled):hover { transform: translateY(-1px); }
+        .rc-approve-indigo { background: transparent; color: #534AB7; border-color: #534AB7; }
+        .rc-approve-indigo:not(:disabled):hover { background: #534AB7; color: #fff; }
+        .rc-approve-amber  { background: transparent; color: #ef9f27; border-color: #ef9f27; }
+        .rc-approve-amber:not(:disabled):hover { background: #ef9f27; color: #fff; }
         .rc-awaiting-badge {
           font-size: 10px; font-weight: 600; padding: 5px 10px;
           background: #FAEEDA; color: #854F0B;
@@ -586,7 +591,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
 
       <div
         id={review.review_id}
-        className={`rc-card ${getBorderClass()} ${highlight ? "ring-2 ring-indigo-500 ring-offset-2" : ""}`}
+        className={`rc-card ${highlight ? "ring-2 ring-indigo-500 ring-offset-2" : ""}`}
       >
         {/* Loading overlay */}
         {loadingAI && (
@@ -622,7 +627,13 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
                 )}
               </div>
               <div className="rc-meta">
-                {review.platform} · {isNaN(Date.parse(review.review_date)) ? review.review_date : new Date(review.review_date).toLocaleDateString()}
+                <span>{review.platform} · {isNaN(Date.parse(review.review_date)) ? review.review_date : new Date(review.review_date).toLocaleDateString()}</span>
+                {(review.status === "ESCALATED" || review.escalation) && (
+                  <span className="rc-status-micro rc-status-escalated">Escalated</span>
+                )}
+                {review.is_suspicious && (
+                  <span className="rc-status-micro rc-status-suspicious">Suspicious</span>
+                )}
               </div>
               <div className="rc-stars">
                 {[...Array(5)].map((_, i) => (
@@ -691,7 +702,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         )}
 
         {/* ─── Trust / Confidence Pills ─── */}
-        {isHighConfidence && (
+        {/* {isHighConfidence && (
           <span className="rc-trust-pill rc-trust-high">
             <ShieldCheck size={11} /> High trust analysis
           </span>
@@ -705,7 +716,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
           <span className="rc-trust-pill rc-trust-low">
             <AlertTriangle size={11} /> Review required
           </span>
-        )}
+        )} */}
         {review.needs_human_review && !isLowConfidence && !isMediumConfidence && (
           <span className="rc-trust-pill rc-trust-review">
             <AlertCircle size={11} /> Needs human review
@@ -791,12 +802,13 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
 
             <div className="rc-console-footer">
               <div className="rc-footer-links">
-                <button onClick={() => onFlag(review)} className="rc-footer-link rc-footer-link-danger">
+                {review.is_suspicious ? "" : <button onClick={() => onFlag(review)} className="rc-footer-link rc-footer-link-danger">
                   Flag review
-                </button>
-                <button onClick={() => onSimilar(review)} className="rc-footer-link">
+                </button>}
+
+                {/* <button onClick={() => onSimilar(review)} className="rc-footer-link">
                   Similar issues
-                </button>
+                </button> */}
                 {review.status === "PENDING APPROVAL" && isApprover && (
                   <button onClick={handleReject} className="rc-footer-link rc-reject-link">
                     <X size={10} strokeWidth={3} style={{ display: "inline", marginRight: 2 }} />
