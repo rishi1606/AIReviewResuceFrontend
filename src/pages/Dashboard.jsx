@@ -135,7 +135,7 @@ const Dashboard = () => {
     .slice(0, 4);
 
   const recentReviews = filteredReviews.slice(0, 4);
-
+  console.log(filteredReviews, 'kkkkk')
   const filteredStats = {
     totalReviews: filteredReviews.length,
     avgRating: filteredReviews.length
@@ -146,8 +146,8 @@ const Dashboard = () => {
     mixedCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "mixed").length,
     neutralCount: filteredReviews.filter(r => r.sentiment?.toLowerCase() === "neutral").length,
     approvedCount: filteredReviews.filter(r => r.status === "Approved" || r.status === "RESPONDED").length,
-    escalatedCount: filteredReviews.filter(r => r.status === "ESCALATED" || r.escalation === true).length,
-    suspiciousCount: filteredReviews.filter(r => r.status === "Suspicious" || r.is_suspicious === true).length,
+    escalatedCount: filteredReviews.filter(r => r.status === "ESCALATED").length,
+    suspiciousCount: filteredReviews.filter(r => r.status === "Suspicious").length,
   };
 
   const trendData = React.useMemo(() => {
