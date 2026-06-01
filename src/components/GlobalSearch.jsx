@@ -1,8 +1,197 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, {
+    useState,
+    useRef,
+    useEffect,
+    useCallback,
+    useMemo,
+    useDeferredValue,
+} from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
+import { DEFAULT_BADGE, DEFAULT_DOT, MAX_RESULTS, MIN_QUERY_LENGTH, PLATFORM_LABELS, SENTIMENT_GLOBAL, URGENCY_DOT, URGENCY_STYLES } from "../constants/constants";
+import { dateFormat } from "../common/dateUtils";
+
+// ─── Constants (outside component — never recreated on render) ────────────────
+
+
+
+// ─── Pure helpers (outside component) ────────────────────────────────────────
+
+const getSentimentClass = (s) => SENTIMENT_GLOBAL[s] ?? DEFAULT_BADGE;
+const getUrgencyClass = (u) => URGENCY_STYLES[u] ?? DEFAULT_BADGE;
+const getUrgencyDot = (u) => URGENCY_DOT[u] ?? DEFAULT_DOT;
+const getPlatformLabel = (p) => PLATFORM_LABELS[p] ?? p ?? "Unknown";
+
+const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+};
+
+const includes = (field, q) => field?.toLowerCase().includes(q) ?? false;
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+const Badge = React.memo(({ className, children }) => (
+    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${className}`}>
+        {children}
+    </span>
+));
+Badge.displayName = "Badge";
+
+const UrgencyDot = React.memo(({ urgency }) => (
+    <span
+        className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${getUrgencyDot(urgency)}`}
+        aria-hidden="true"
+    />
+));
+UrgencyDot.displayName = "UrgencyDot";
+
+const SectionHeader = React.memo(({ label, count }) => (
+    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest px-5 pt-4 pb-2">
+        {label} · {count}
+    </p>
+));
+SectionHeader.displayName = "SectionHeader";
+
+const EmptyState = React.memo(({ query }) => {
+    if (query.length < MIN_QUERY_LENGTH) {
+        return (
+            <div className="flex flex-col items-center justify-center py-14 text-slate-400" role="status">
+                <Search size={32} className="mb-3 opacity-30" aria-hidden="true" />
+                <p className="text-sm">Type at least {MIN_QUERY_LENGTH} characters to search</p>
+                <p className="text-xs mt-1 text-slate-300">Reviews · Tickets · Guests · Departments</p>
+            </div>
+        );
+    }
+    return (
+        <div className="flex flex-col items-center justify-center py-14 text-slate-400" role="status">
+            <p className="text-sm">
+                No results for{" "}
+                <span className="text-slate-600 font-medium">"{query}"</span>
+            </p>
+        </div>
+    );
+});
+EmptyState.displayName = "EmptyState";
+
+const ReviewResult = React.memo(({ review: r, onSelect }) => {
+    const handleClick = useCallback(() => {
+        onSelect(`/reviews?search=${encodeURIComponent(r.reviewer_name ?? r.guest_name ?? "")}&highlight=${r.review_id}`);
+    }, [onSelect, r.review_id, r.reviewer_name, r.guest_name]);
+
+
+
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors focus-visible:bg-slate-50 focus-visible:outline-none"
+            aria-label={`Review by ${r.reviewer_name ?? "Unknown"} on ${r.platform}`}
+        >
+            <UrgencyDot urgency={r.urgency} />
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="text-sm font-semibold text-slate-900">{r.reviewer_name}</span>
+                    <span className="text-xs text-slate-400" aria-hidden="true">·</span>
+                    <span className="text-xs text-slate-500">{getPlatformLabel(r.platform)}</span>
+                    {r.room_number && (
+                        <>
+                            <span className="text-xs text-slate-400" aria-hidden="true">·</span>
+                            <span className="text-xs text-slate-500">Room {r.room_number}</span>
+                        </>
+                    )}
+                    {r.hotel_name && (
+                        <>
+                            <span className="text-xs text-slate-400" aria-hidden="true">·</span>
+                            <span className="text-xs text-indigo-500 font-semibold">{r.hotel_name}</span>
+                        </>
+                    )}
+                </div>
+                <p className="text-xs text-slate-500 truncate mb-2">{r.review_text}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {r.sentiment && (
+                        <Badge className={getSentimentClass(r.sentiment)}>{r.sentiment}</Badge>
+                    )}
+                    {r.primary_department && (
+                        <Badge className="bg-orange-50 text-orange-600 border border-orange-100">
+                            {r.primary_department}
+                        </Badge>
+                    )}
+                    {r.loyalty_tier && r.loyalty_tier !== "None" && (
+                        <Badge className="bg-amber-50 text-amber-600 border border-amber-100">
+                            {r.loyalty_tier}
+                        </Badge>
+                    )}
+                    {r.urgency && (
+                        <Badge className={getUrgencyClass(r.urgency)}>{r.urgency} urgency</Badge>
+                    )}
+                    {dateFormat && (
+                        <span className="text-[10px] text-slate-400 ml-auto">{dateFormat(r)}</span>
+                    )}
+                </div>
+            </div>
+        </button>
+    );
+});
+ReviewResult.displayName = "ReviewResult";
+
+// const TicketResult = React.memo(({ ticket: t, onSelect }) => {
+//     const handleClick = useCallback(() => {
+//         onSelect(`/tickets?search=${encodeURIComponent(t.ticket_id)}&highlight=${t.ticket_id}`);
+//     }, [onSelect, t.ticket_id]);
+
+//     const date = useMemo(() => formatDate(t.created_at), [t.created_at]);
+
+//     return (
+//         <button
+//             type="button"
+//             onClick={handleClick}
+//             className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors focus-visible:bg-slate-50 focus-visible:outline-none"
+//             aria-label={`Ticket ${t.ticket_id} for ${t.guest_name ?? "Unknown guest"}`}
+//         >
+//             <UrgencyDot urgency={t.urgency} />
+//             <div className="flex-1 min-w-0">
+//                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
+//                     <span className="text-sm font-semibold text-slate-900">{t.ticket_id}</span>
+//                     <span className="text-xs text-slate-400" aria-hidden="true">·</span>
+//                     <span className="text-xs text-slate-500">{t.guest_name}</span>
+//                     {t.department && (
+//                         <>
+//                             <span className="text-xs text-slate-400" aria-hidden="true">·</span>
+//                             <span className="text-xs text-orange-500 font-medium">{t.department}</span>
+//                         </>
+//                     )}
+//                 </div>
+//                 <p className="text-xs text-slate-500 truncate mb-2">{t.review_text}</p>
+//                 <div className="flex items-center gap-1.5 flex-wrap">
+//                     {t.status && (
+//                         <Badge className="bg-blue-50 text-blue-600 border border-blue-100">{t.status}</Badge>
+//                     )}
+//                     {t.urgency && (
+//                         <Badge className={getUrgencyClass(t.urgency)}>{t.urgency} urgency</Badge>
+//                     )}
+//                     {t.assignee_name && t.assignee_name !== "Unassigned" && (
+//                         <Badge className="bg-slate-100 text-slate-600 border border-slate-200">
+//                             {t.assignee_name}
+//                         </Badge>
+//                     )}
+//                     {date && (
+//                         <span className="text-[10px] text-slate-400 ml-auto">{date}</span>
+//                     )}
+//                 </div>
+//             </div>
+//         </button>
+//     );
+// });
+// TicketResult.displayName = "TicketResult";
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const GlobalSearch = () => {
     const [query, setQuery] = useState("");
@@ -10,278 +199,252 @@ const GlobalSearch = () => {
     const { state } = useAppContext();
     const navigate = useNavigate();
     const inputRef = useRef(null);
+    const triggerRef = useRef(null);
+    const modalRef = useRef(null);
+
+    // React 18 — defers heavy filter work until after input is painted
+    const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+
+    const selectedPlatform = state.activeFilters?.platform ?? "ALL";
+    const selectedProperty = state.activeFilters?.property ?? "ALL";
+
+    // ── Open / close ──────────────────────────────────────────────────────────
+
+    const closeModal = useCallback(() => {
+        setOpen(false);
+        setQuery("");
+        // Return focus to the trigger button when modal closes
+        triggerRef.current?.focus();
+    }, []);
+
+    const openModal = useCallback(() => setOpen(true), []);
+
+    // ── Keyboard shortcut (⌘K / Ctrl+K) + Escape ─────────────────────────────
 
     useEffect(() => {
         const handler = (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "k") {
                 e.preventDefault();
                 setOpen(true);
+                return;
             }
-            if (e.key === "Escape") closeModal();
+            if (e.key === "Escape" && open) {
+                closeModal();
+            }
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, []);
+    }, [open, closeModal]);
+
+    // ── Auto-focus input when modal opens ─────────────────────────────────────
 
     useEffect(() => {
-        if (open) setTimeout(() => inputRef.current?.focus(), 50);
+        if (!open) return;
+        // rAF is safer than setTimeout — fires after paint, no arbitrary delay
+        const id = requestAnimationFrame(() => inputRef.current?.focus());
+        return () => cancelAnimationFrame(id);
     }, [open]);
 
-    const closeModal = () => {
-        setOpen(false);
-        setQuery("");
-    };
+    // ── Focus trap inside modal ───────────────────────────────────────────────
 
-    const q = query.trim().toLowerCase();
+    useEffect(() => {
+        if (!open) return;
+        const modal = modalRef.current;
+        if (!modal) return;
 
-    const selectedPlatform = state.activeFilters?.platform;
-    const selectedProperty = state.activeFilters?.property; // or wherever it lives in your state
+        const focusable = () =>
+            Array.from(
+                modal.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                )
+            ).filter((el) => !el.disabled);
 
-    const matchedReviews = q.length < 2 ? [] : (state.reviews || [])
-        .filter(r => !selectedPlatform || selectedPlatform === "ALL" || r.platform === selectedPlatform)
-        .filter(r => !selectedProperty || selectedProperty === "ALL" || r.hotel_name === selectedProperty)
-        .filter(r =>
-            r.reviewer_name?.toLowerCase().includes(q) ||
-            r.review_text?.toLowerCase().includes(q) ||
-            r.room_number?.toLowerCase().includes(q) ||
-            r.platform?.toLowerCase().includes(q) ||
-            r.hotel_name?.toLowerCase().includes(q) ||
-            r.primary_department?.toLowerCase().includes(q) ||
-            r.guest_email?.toLowerCase().includes(q) ||
-            r.loyalty_tier?.toLowerCase().includes(q)
-        )
-        .slice(0, 5);
+        const handleTab = (e) => {
+            if (e.key !== "Tab") return;
+            const els = focusable();
+            const first = els[0];
+            const last = els[els.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last?.focus();
+                }
+            } else {
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first?.focus();
+                }
+            }
+        };
 
-    const matchedTickets = q.length < 2 ? [] : (state.tickets || [])
-        .filter(t => !selectedPlatform || selectedPlatform === "ALL" || t.platform === selectedPlatform)
-        .filter(t => !selectedProperty || selectedProperty === "ALL" || t.hotel_name === selectedProperty)
-        .filter(t =>
-            t.guest_name?.toLowerCase().includes(q) ||
-            t.ticket_id?.toLowerCase().includes(q) ||
-            t.department?.toLowerCase().includes(q) ||
-            t.assignee_name?.toLowerCase().includes(q) ||
-            t.review_text?.toLowerCase().includes(q)
-        )
-        .slice(0, 5);
+        modal.addEventListener("keydown", handleTab);
+        return () => modal.removeEventListener("keydown", handleTab);
+    }, [open]);
 
-    const hasResults = matchedReviews.length > 0 || matchedTickets.length > 0;
+    // ── Filtered results (deferred — won't block typing) ─────────────────────
 
-    const sentimentStyle = (s) => ({
-        Positive: "bg-green-50 text-green-700 border border-green-200",
-        Negative: "bg-red-50 text-red-700 border border-red-200",
-        Mixed: "bg-amber-50 text-amber-700 border border-amber-200",
-        Neutral: "bg-slate-100 text-slate-600 border border-slate-200",
-    }[s] || "bg-slate-100 text-slate-500 border border-slate-200");
+    const matchedReviews = useMemo(() => {
+        if (deferredQuery.length < MIN_QUERY_LENGTH) return [];
+        return (state.reviews ?? [])
+            .filter(r => selectedPlatform === "ALL" || r.platform === selectedPlatform)
+            .filter(r => selectedProperty === "ALL" || r.hotel_name === selectedProperty)
+            .filter(r =>
+                includes(r.reviewer_name, deferredQuery) ||
+                includes(r.review_text, deferredQuery) ||
+                includes(r.room_number, deferredQuery) ||
+                includes(r.platform, deferredQuery) ||
+                includes(r.hotel_name, deferredQuery) ||
+                includes(r.primary_department, deferredQuery) ||
+                includes(r.guest_email, deferredQuery) ||
+                includes(r.loyalty_tier, deferredQuery)
+            )
+            .slice(0, MAX_RESULTS);
+    }, [deferredQuery, state.reviews, selectedPlatform, selectedProperty]);
 
-    const urgencyStyle = (u) => ({
-        High: "bg-red-50 text-red-700 border border-red-200",
-        Medium: "bg-amber-50 text-amber-700 border border-amber-200",
-        Low: "bg-green-50 text-green-700 border border-green-200",
-    }[u] || "bg-slate-100 text-slate-500 border border-slate-200");
+    const matchedTickets = useMemo(() => {
+        if (deferredQuery.length < MIN_QUERY_LENGTH) return [];
+        return (state.tickets ?? [])
+            .filter(t => selectedPlatform === "ALL" || t.platform === selectedPlatform)
+            .filter(t => selectedProperty === "ALL" || t.hotel_name === selectedProperty)
+            .filter(t =>
+                includes(t.guest_name, deferredQuery) ||
+                includes(t.ticket_id, deferredQuery) ||
+                includes(t.department, deferredQuery) ||
+                includes(t.assignee_name, deferredQuery) ||
+                includes(t.review_text, deferredQuery)
+            )
+            .slice(0, MAX_RESULTS);
+    }, [deferredQuery, state.tickets, selectedPlatform, selectedProperty]);
 
-    const urgencyDot = (u) => ({
-        High: "bg-red-500",
-        Medium: "bg-amber-400",
-        Low: "bg-green-400",
-    }[u] || "bg-slate-300");
+    const totalResults = matchedReviews.length + matchedTickets.length;
+    const hasResults = totalResults > 0;
 
-    const platformIcon = (platform) => ({
-        "Google": "🔵",
-        "Airbnb": "🟢",
-        "Booking.com": "🔷",
-        "Agoda": "🟡",
-    }[platform] || "⚪");
+    // ── Navigation ────────────────────────────────────────────────────────────
 
-    const handleSelect = (path) => {
+    const handleSelect = useCallback((path) => {
         closeModal();
         navigate(path);
-    };
+    }, [closeModal, navigate]);
+
+    // ── Overlay click ─────────────────────────────────────────────────────────
+
+    const handleOverlayClick = useCallback((e) => {
+        if (e.target === e.currentTarget) closeModal();
+    }, [closeModal]);
+
+    // ── Query change ──────────────────────────────────────────────────────────
+
+    const handleQueryChange = useCallback((e) => setQuery(e.target.value), []);
+    const handleQueryClear = useCallback(() => setQuery(""), []);
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <>
-            {/* Trigger button — looks like a search input */}
+            {/* Trigger button */}
             <button
-                onClick={() => setOpen(true)}
-                className="flex items-center gap-2 h-9 w-64 pl-3 pr-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-400 hover:border-orange-300 hover:bg-white transition-all"
+                ref={triggerRef}
+                type="button"
+                onClick={openModal}
+                aria-label="Open search (Ctrl+K)"
+                aria-keyshortcuts="Control+k Meta+k"
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                className="flex items-center gap-2 h-9 w-64 pl-3 pr-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-400 hover:border-orange-300 hover:bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
             >
-                <Search size={15} className="flex-shrink-0" />
+                <Search size={15} className="flex-shrink-0" aria-hidden="true" />
                 <span className="flex-1 text-left">Search reviews, tickets…</span>
-                <kbd className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-400">⌘K</kbd>
+                <kbd
+                    className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-400"
+                    aria-hidden="true"
+                >
+                    ⌘K
+                </kbd>
             </button>
 
-            {/* Modal overlay - rendered at document body level via portal to blur the entire screen */}
+            {/* Modal — portal to document.body */}
             {open && createPortal(
                 <div
-                    className="fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh] backdrop-blur-md"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Search reviews and tickets"
+                    className="fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh]"
                     style={{
                         backgroundColor: "rgba(15, 23, 42, 0.3)",
                         backdropFilter: "blur(8px)",
-                        WebkitBackdropFilter: "blur(8px)"
+                        WebkitBackdropFilter: "blur(8px)",
                     }}
-                    onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+                    onClick={handleOverlayClick}
                 >
-                    <div className="w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
-
-                        {/* Search input inside modal */}
+                    <div
+                        ref={modalRef}
+                        className="w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
+                    >
+                        {/* Search input row */}
                         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-                            <Search size={18} className="text-slate-400 flex-shrink-0" />
+                            <Search size={18} className="text-slate-400 flex-shrink-0" aria-hidden="true" />
                             <input
                                 ref={inputRef}
-                                type="text"
+                                type="search"
+                                role="searchbox"
+                                aria-label="Search reviews and tickets"
+                                aria-autocomplete="list"
+                                aria-controls="search-results"
                                 value={query}
-                                onChange={(e) => setQuery(e.target.value)}
+                                onChange={handleQueryChange}
                                 placeholder="Search by reviewer, platform, room, department…"
                                 className="flex-1 text-sm text-slate-900 placeholder-slate-400 bg-transparent outline-none p-2"
                             />
                             {query && (
-                                <button onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600">
-                                    <X size={15} />
+                                <button
+                                    type="button"
+                                    onClick={handleQueryClear}
+                                    aria-label="Clear search"
+                                    className="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded"
+                                >
+                                    <X size={15} aria-hidden="true" />
                                 </button>
                             )}
                             <button
+                                type="button"
                                 onClick={closeModal}
-                                className="text-[11px] text-slate-400 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 hover:bg-slate-200 transition-colors"
+                                aria-label="Close search"
+                                className="text-[11px] text-slate-400 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 hover:bg-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
                             >
                                 Esc
                             </button>
                         </div>
 
                         {/* Results */}
-                        <div className="max-h-[60vh] overflow-y-auto">
-
-                            {/* Empty state — no query */}
-                            {q.length < 2 && (
-                                <div className="flex flex-col items-center justify-center py-14 text-slate-400">
-                                    <Search size={32} className="mb-3 opacity-30" />
-                                    <p className="text-sm">Type at least 2 characters to search</p>
-                                    <p className="text-xs mt-1 text-slate-300">Reviews · Tickets · Guests · Departments</p>
-                                </div>
+                        <div
+                            id="search-results"
+                            className="max-h-[60vh] overflow-y-auto"
+                            role="listbox"
+                            aria-label="Search results"
+                        >
+                            {(!hasResults) && (
+                                <EmptyState query={query} />
                             )}
 
-                            {/* No results */}
-                            {q.length >= 2 && !hasResults && (
-                                <div className="flex flex-col items-center justify-center py-14 text-slate-400">
-                                    <p className="text-sm">No results for "<span className="text-slate-600 font-medium">{query}</span>"</p>
-                                </div>
-                            )}
-
-                            {/* Reviews */}
                             {matchedReviews.length > 0 && (
-                                <div>
-                                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest px-5 pt-4 pb-2">
-                                        Reviews · {matchedReviews.length}
-                                    </p>
+                                <section aria-label={`Reviews — ${matchedReviews.length} results`}>
+                                    <SectionHeader label="Reviews" count={matchedReviews.length} />
                                     {matchedReviews.map(r => (
-                                        <button
-                                            key={r.review_id}
-                                            onClick={() => handleSelect(`/reviews?search=${encodeURIComponent(r.reviewer_name || r.guest_name || "")}&highlight=${r.review_id}`)}
-                                            className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors"
-                                        >
-                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${urgencyDot(r.urgency)}`} />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                                    <span className="text-sm font-semibold text-slate-900">{r.reviewer_name}</span>
-                                                    <span className="text-xs text-slate-400">·</span>
-                                                    <span className="text-xs text-slate-500">{platformIcon(r.platform)} {r.platform}</span>
-                                                    {r.room_number && (
-                                                        <>
-                                                            <span className="text-xs text-slate-400">·</span>
-                                                            <span className="text-xs text-slate-500">Room {r.room_number}</span>
-                                                        </>
-                                                    )}
-                                                    {r.hotel_name && (
-                                                        <>
-                                                            <span className="text-xs text-slate-400">·</span>
-                                                            <span className="text-xs text-indigo-500 font-semibold">{r.hotel_name}</span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-slate-500 truncate mb-2">{r.review_text}</p>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    {r.sentiment && (
-                                                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${sentimentStyle(r.sentiment)}`}>
-                                                            {r.sentiment}
-                                                        </span>
-                                                    )}
-                                                    {r.primary_department && (
-                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100">
-                                                            {r.primary_department}
-                                                        </span>
-                                                    )}
-                                                    {r.loyalty_tier && r.loyalty_tier !== "None" && (
-                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
-                                                            {r.loyalty_tier}
-                                                        </span>
-                                                    )}
-                                                    {r.urgency && (
-                                                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${urgencyStyle(r.urgency)}`}>
-                                                            {r.urgency} urgency
-                                                        </span>
-                                                    )}
-                                                    {r.review_date && (
-                                                        <span className="text-[10px] text-slate-400 ml-auto">
-                                                            {new Date(r.review_date).toLocaleDateString()}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </button>
+                                        <ReviewResult key={r.review_id} review={r} onSelect={handleSelect} />
                                     ))}
-                                </div>
+                                </section>
                             )}
 
-                            {/* Tickets */}
                             {matchedTickets.length > 0 && (
-                                <div className={matchedReviews.length > 0 ? "border-t border-slate-100" : ""}>
-                                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest px-5 pt-4 pb-2">
-                                        Tickets · {matchedTickets.length}
-                                    </p>
+                                <section
+                                    aria-label={`Tickets — ${matchedTickets.length} results`}
+                                    className={matchedReviews.length > 0 ? "border-t border-slate-100" : ""}
+                                >
+                                    <SectionHeader label="Tickets" count={matchedTickets.length} />
                                     {matchedTickets.map(t => (
-                                        <button
-                                            key={t.ticket_id}
-                                            onClick={() => handleSelect(`/tickets?search=${encodeURIComponent(t.ticket_id)}&highlight=${t.ticket_id}`)}
-                                            className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors"
-                                        >
-                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${urgencyDot(t.urgency)}`} />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                                    <span className="text-sm font-semibold text-slate-900">{t.ticket_id}</span>
-                                                    <span className="text-xs text-slate-400">·</span>
-                                                    <span className="text-xs text-slate-500">{t.guest_name}</span>
-                                                    {t.department && (
-                                                        <>
-                                                            <span className="text-xs text-slate-400">·</span>
-                                                            <span className="text-xs text-orange-500 font-medium">{t.department}</span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-slate-500 truncate mb-2">{t.review_text}</p>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    {t.status && (
-                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                                                            {t.status}
-                                                        </span>
-                                                    )}
-                                                    {t.urgency && (
-                                                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${urgencyStyle(t.urgency)}`}>
-                                                            {t.urgency} urgency
-                                                        </span>
-                                                    )}
-                                                    {t.assignee_name && t.assignee_name !== "Unassigned" && (
-                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                                                            👤 {t.assignee_name}
-                                                        </span>
-                                                    )}
-                                                    {t.created_at && (
-                                                        <span className="text-[10px] text-slate-400 ml-auto">
-                                                            {new Date(t.created_at).toLocaleDateString()}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </button>
+                                        <TicketResult key={t.ticket_id} ticket={t} onSelect={handleSelect} />
                                     ))}
-                                </div>
+                                </section>
                             )}
                         </div>
 
@@ -289,14 +452,16 @@ const GlobalSearch = () => {
                         {hasResults && (
                             <div className="px-5 py-2.5 border-t border-slate-100 flex items-center justify-between bg-slate-50">
                                 <span className="text-[11px] text-slate-400">
-                                    {matchedReviews.length + matchedTickets.length} result{matchedReviews.length + matchedTickets.length !== 1 ? "s" : ""}
-                                    {selectedPlatform && selectedPlatform !== "ALL" && (
+                                    {totalResults} result{totalResults !== 1 ? "s" : ""}
+                                    {selectedPlatform !== "ALL" && (
                                         <span className="ml-2 px-1.5 py-0.5 bg-orange-50 text-orange-500 rounded font-medium">
                                             {selectedPlatform} only
                                         </span>
                                     )}
                                 </span>
-                                <span className="text-[11px] text-slate-400">↵ to open · Esc to close</span>
+                                <span className="text-[11px] text-slate-400" aria-hidden="true">
+                                    ↵ to open · Esc to close
+                                </span>
                             </div>
                         )}
                     </div>

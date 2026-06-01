@@ -15,6 +15,7 @@ import {
   SkeletonKPI, SkeletonChart, SkeletonBlock, SkeletonReview
 } from "../components/Skeleton";
 import { AREA_CHART_MARGIN, CHART_TOOLTIP_STYLE, ICON_THEMES, PLATFORM_COLORS, SENTIMENT_STYLES, STATUS_STYLES, TABLE_PAGE_SIZE, TREND_CONFIG } from "../constants/constants";
+import { dateFormat } from "../common/dateUtils";
 
 // ─── Constants (outside component — never recreated on render) ───────────────
 
@@ -206,6 +207,7 @@ const Dashboard = () => {
   const goToNextPage = useCallback(() => setTablePage(p => Math.min(totalPages, p + 1)), [totalPages]);
 
   const avgRatingNum = parseFloat(filteredStats.avgRating);
+  console.log(paginatedReviews, 'paginatedReviews')
 
   return (
     <div className="flex flex-col xl:flex-row gap-6">
@@ -503,9 +505,7 @@ const ReviewRow = React.memo(({ review: r, navigate }) => {
     if (e.key === "Enter") handleClick();
   }, [handleClick]);
 
-  const formattedDate = useMemo(() => (
-    r.review_date ? new Date(r.review_date).toLocaleDateString() : "—"
-  ), [r.review_date]);
+
 
   return (
     <tr
@@ -532,7 +532,7 @@ const ReviewRow = React.memo(({ review: r, navigate }) => {
         <StatusBadge value={r.status} />
       </td>
       <td className="px-5 py-3.5 text-right">
-        <span className="text-[11px] text-zinc-400 font-medium whitespace-nowrap">{formattedDate}</span>
+        <span className="text-[11px] text-zinc-400 font-medium whitespace-nowrap">{dateFormat(r)}</span>
       </td>
     </tr>
   );

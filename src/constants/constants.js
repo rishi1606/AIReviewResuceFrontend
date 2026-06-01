@@ -43,3 +43,38 @@ export const CHART_TOOLTIP_STYLE = {
 };
 
 export const AREA_CHART_MARGIN = { top: 8, right: 8, left: -22, bottom: 0 };
+
+
+// GlobalSearch
+
+export const MIN_QUERY_LENGTH = 2;
+export const MAX_RESULTS = 5;
+
+export const SENTIMENT_GLOBAL = {
+    Positive: "bg-green-50 text-green-700 border border-green-200",
+    Negative: "bg-red-50 text-red-700 border border-red-200",
+    Mixed: "bg-amber-50 text-amber-700 border border-amber-200",
+    Neutral: "bg-slate-100 text-slate-600 border border-slate-200",
+};
+
+export const URGENCY_STYLES = {
+    High: "bg-red-50 text-red-700 border border-red-200",
+    Medium: "bg-amber-50 text-amber-700 border border-amber-200",
+    Low: "bg-green-50 text-green-700 border border-green-200",
+};
+
+export const URGENCY_DOT = {
+    High: "bg-red-500",
+    Medium: "bg-amber-400",
+    Low: "bg-green-400",
+};
+
+export const PLATFORM_LABELS = {
+    "Google": "Google",
+    "Airbnb": "Airbnb",
+    "Booking.com": "Booking.com",
+    "Agoda": "Agoda",
+};
+
+export const DEFAULT_BADGE = "bg-slate-100 text-slate-500 border border-slate-200";
+export const DEFAULT_DOT = "bg-slate-300";
