@@ -121,6 +121,10 @@ const Reviews = () => {
   const [serverTotal, setServerTotal] = useState(0);
   const [isFetchingReviews, setIsFetchingReviews] = useState(false);
   const [openFilter, setOpenFilter] = useState(null);
+  const [searchChip, setSearchChip] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("search") || "";
+  });
   const ITEMS_PER_PAGE = 10;
 
   // Reset page when filters change
@@ -160,8 +164,10 @@ const Reviews = () => {
     const searchParam = params.get("search");
     if (searchParam) {
       setSearch(searchParam);
+      setSearchChip(searchParam);
     } else {
       setSearch("");
+      setSearchChip("");
     }
   }, [location.search]);
 
@@ -486,8 +492,8 @@ const Reviews = () => {
             trigger={
               <button
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${dateRange.label === "All Time"
-                    ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                    : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
                   }`}
               >
                 <Calendar size={14} className={dateRange.label !== "All Time" ? "text-indigo-600" : "text-zinc-400"} />
@@ -514,8 +520,8 @@ const Reviews = () => {
             trigger={
               <button
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${tab === "ALL"
-                    ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                    : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
                   }`}
               >
                 <Filter size={14} className={tab !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
@@ -551,8 +557,8 @@ const Reviews = () => {
               trigger={
                 <button
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${department === "ALL"
-                      ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                      : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                    ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
+                    : "border-indigo-100 bg-indigo-50 text-indigo-600"
                     }`}
                 >
                   <Briefcase size={14} className={department !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
@@ -623,6 +629,29 @@ const Reviews = () => {
           </div>
         </div>
       </div>
+      {searchChip && (
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Search:</span>
+          <span className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-bold rounded-full">
+            <Search size={11} />
+            {searchChip}
+            <button
+              onClick={() => {
+                setSearchChip("");
+                setSearch("");
+                // Remove search param from URL without full reload
+                const params = new URLSearchParams(window.location.search);
+                params.delete("search");
+                navigate(`/reviews?${params.toString()}`, { replace: true });
+              }}
+              className="ml-1 hover:text-indigo-900 transition-colors"
+              aria-label="Clear search"
+            >
+              <X size={11} />
+            </button>
+          </span>
+        </div>
+      )}
 
       <div className={`grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 transition-opacity duration-200 ${isFetchingReviews && currentPage === 1 ? 'opacity-50' : 'opacity-100'}`}>
         {state.isAppLoading || (isFetchingReviews && currentPage === 1 && paginatedReviews.length === 0) ? (
@@ -735,8 +764,8 @@ const Reviews = () => {
                         key={r}
                         onClick={() => setFlagModal({ ...flagModal, reason: r })}
                         className={`px-4 py-3 rounded-xl text-sm font-bold border-2 transition-all text-left cursor-pointer ${flagModal.reason === r
-                            ? "border-red-600 bg-red-50 text-red-600"
-                            : "border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200"
+                          ? "border-red-600 bg-red-50 text-red-600"
+                          : "border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200"
                           }`}
                       >
                         {r}
