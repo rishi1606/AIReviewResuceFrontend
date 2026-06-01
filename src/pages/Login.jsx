@@ -1,18 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ShieldCheck, Mail, Lock, Loader2, Eye, EyeOff, AlertCircle, Sparkles, Star, TrendingUp } from "lucide-react";
 
 const Login = () => {
-  const [email, setEmail] = useState("admin@gmail.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -20,11 +20,12 @@ const Login = () => {
       await login(email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message || "Invalid email or password");
+      setError("Invalid email or password");
+      setPassword("");
     } finally {
       setLoading(false);
     }
-  };
+  }, [email, password, login, navigate]);
 
   return (
     <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 sh-grid-background font-sans text-zinc-900">
@@ -121,22 +122,24 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
 
               {error && (
-                <div className="sh-alert flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
+                <div role="alert" className="sh-alert flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
                   <AlertCircle size={18} className="shrink-0 mt-0.5" />
                   <span className="font-medium leading-snug">{error}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-zinc-500">
                   Email Address
                 </label>
                 <div className="sh-input-wrapper">
                   <input
+                    id="email"
                     type="email"
                     required
+                    autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setError(""); setEmail(e.target.value); }}
                     className="sh-input"
                     placeholder="name@hotel.com"
                   />
@@ -146,7 +149,7 @@ const Login = () => {
 
               <div>
                 <div className="flex justify-between items-center">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-zinc-500">
                     Password
                   </label>
                   {/* <a href="#" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
@@ -155,10 +158,13 @@ const Login = () => {
                 </div>
                 <div className="sh-input-wrapper">
                   <input
+                    id="password"
                     type={showPassword ? "text" : "password"}
                     required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    onChange={(e) => { setError(""); setPassword(e.target.value); }}
+
                     className="sh-input pr-12"
                     placeholder="••••••••"
                   />
@@ -166,6 +172,7 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 focus:outline-none transition-colors"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
