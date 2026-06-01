@@ -447,7 +447,7 @@ const Reviews = () => {
                   {label.toUpperCase()}
                 </button>
               ))}
-              <div className="border-t border-zinc-100 my-2 pt-2 px-2">
+              {/* <div className="border-t border-zinc-100 my-2 pt-2 px-2">
                 <label className="block text-[9px] font-black text-zinc-400 uppercase mb-2">Custom Range</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -469,7 +469,7 @@ const Reviews = () => {
                     className="w-full p-2 bg-zinc-50 border-none rounded-lg text-[9px] font-bold text-zinc-650 outline-none"
                   />
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
 

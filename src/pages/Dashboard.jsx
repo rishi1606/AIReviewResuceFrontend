@@ -15,7 +15,7 @@ import {
   SkeletonKPI, SkeletonChart, SkeletonBlock, SkeletonReview
 } from "../components/Skeleton";
 import { AREA_CHART_MARGIN, CHART_TOOLTIP_STYLE, ICON_THEMES, PLATFORM_COLORS, SENTIMENT_STYLES, STATUS_STYLES, TABLE_PAGE_SIZE, TREND_CONFIG } from "../constants/constants";
-import { dateFormat } from "../common/dateUtils";
+import { dateFormat, parseReviewDate } from "../common/dateUtils";
 
 // ─── Constants (outside component — never recreated on render) ───────────────
 
@@ -169,18 +169,38 @@ const Dashboard = () => {
   // ── Chart data ───────────────────────────────────────────────────────────────
   const trendData = useMemo(() => {
     const dateMap = {};
-    const sorted = [...filteredReviews].sort(
-      (a, b) => new Date(a.review_date ?? a.createdAt ?? 0) - new Date(b.review_date ?? b.createdAt ?? 0)
-    );
-    sorted.forEach(r => {
+
+    // Define month order for sorting (Jan–Dec)
+    const MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    filteredReviews.forEach(r => {
       const dateVal = r.review_date ?? r.createdAt;
-      if (!dateVal) return;
-      const key = new Date(dateVal).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-      if (!dateMap[key]) dateMap[key] = { date: key, Positive: 0, Negative: 0, Neutral: 0, Mixed: 0 };
+      const parsed = parseReviewDate(dateVal);
+      if (!parsed) return;
+
+      // Group by "Mon YYYY" e.g. "May 2025", "Jun 2025"
+      const key = parsed.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+
+      if (!dateMap[key]) {
+        dateMap[key] = {
+          date: key,
+          _sortKey: parsed.getFullYear() * 100 + parsed.getMonth(), // for sorting
+          Positive: 0,
+          Negative: 0,
+          Neutral: 0,
+          Mixed: 0,
+        };
+      }
+
       const sent = r.sentiment ?? "Neutral";
       if (sent in dateMap[key]) dateMap[key][sent]++;
     });
-    return Object.values(dateMap);
+
+    // Sort chronologically and strip internal sort key
+    return Object.values(dateMap)
+      .sort((a, b) => a._sortKey - b._sortKey)
+      .map(({ _sortKey, ...rest }) => rest);
+
   }, [filteredReviews]);
 
   const platformData = useMemo(() => {
@@ -207,7 +227,7 @@ const Dashboard = () => {
   const goToNextPage = useCallback(() => setTablePage(p => Math.min(totalPages, p + 1)), [totalPages]);
 
   const avgRatingNum = parseFloat(filteredStats.avgRating);
-  console.log(paginatedReviews, 'paginatedReviews')
+
 
   return (
     <div className="flex flex-col xl:flex-row gap-6">
@@ -300,7 +320,7 @@ const Dashboard = () => {
                     <p className="text-[11px] text-zinc-500 mt-0.5">Positive vs. Negative over time</p>
                   </div>
                   <div className="flex gap-4 items-center">
-                    {[["#10b981", "Positive"], ["#ef4444", "Negative"]].map(([color, label]) => (
+                    {[["#10b981", "Positive"], ["#ef4444", "Negative"], ["#a855f7", "Mixed"], ["#a1a1aa", "Neutral"]].map(([color, label]) => (
                       <div key={label} className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium">
                         <div className="w-4 h-1 rounded-full" style={{ background: color }} />
                         {label}
@@ -321,6 +341,14 @@ const Dashboard = () => {
                             <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
                             <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                           </linearGradient>
+                          <linearGradient id="gradMixed" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="gradNeutral" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#a1a1aa" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#a1a1aa" stopOpacity={0} />
+                          </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
                         <XAxis dataKey="date" stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} />
@@ -328,6 +356,8 @@ const Dashboard = () => {
                         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
                         <Area type="monotone" dataKey="Positive" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#gradPositive)" />
                         <Area type="monotone" dataKey="Negative" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#gradNegative)" />
+                        <Area type="monotone" dataKey="Mixed" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#gradMixed)" />
+                        <Area type="monotone" dataKey="Neutral" stroke="#a1a1aa" strokeWidth={3} fillOpacity={1} fill="url(#gradNeutral)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
