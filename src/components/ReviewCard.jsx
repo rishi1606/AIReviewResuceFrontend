@@ -13,6 +13,7 @@ import {
   Pencil,
   X,
   Check,
+  Copy,
   History,
   AlertCircle,
   Info,
@@ -39,6 +40,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
   const [loadingAI, setLoadingAI] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [tone, setTone] = useState(review.response_tone || (review.escalation_risk ? "Escalation" : (state.hotelConfig?.default_response_tone || "Formal")));
   const [proposal, setProposal] = useState(review.response_text || "");
   const [noteText, setNoteText] = useState("");
@@ -161,6 +163,13 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     } catch (err) {
       setNoteError("Failed to save note — try again");
     }
+  };
+
+  const handleCopy = () => {
+    if (!proposal) return;
+    navigator.clipboard.writeText(proposal);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const conf = review.confidence;
@@ -428,6 +437,9 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         .rc-tone-select:disabled { opacity: 0.5; }
         .rc-edit-btn { padding: 3px; color: #a1a1aa; cursor: pointer; border: none; background: none; transition: color 0.12s; }
         .rc-edit-btn:hover { color: #7c3aed; }
+        .rc-copy-btn { padding: 3px; color: #a1a1aa; cursor: pointer; border: none; background: none; transition: color 0.12s; display: flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 600; }
+        .rc-copy-btn:hover { color: #534AB7; }
+        .rc-copy-btn.copied { color: #3B6D11; }
 
         /* Proposal box */
         .rc-proposal-box {
@@ -756,6 +768,11 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
                     <option>Escalation</option>
                   </select>
                 )}
+                {!isEditing && proposal && (
+                  <button onClick={handleCopy} className={`rc-copy-btn${copied ? " copied" : ""}`} title="Copy response">
+                    {copied ? <><Check size={11} strokeWidth={3} />Copied</> : <Copy size={11} />}
+                  </button>
+                )}
                 {!isEditing && (
                   <button onClick={() => setIsEditing(true)} className="rc-edit-btn">
                     <Pencil size={12} />
@@ -826,7 +843,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
                   className={`rc-approve-btn ${(isMediumConfidence || review.status === "PENDING APPROVAL" || !isApprover) ? "rc-approve-amber" : "rc-approve-indigo"}`}
                 >
                   <CheckCircle2 size={12} />
-                  {isApprover ? "Approve & post" : "Submit for approval"}
+                  {isApprover ? "Approve" : "Submit for approval"}
                 </button>
               )}
             </div>
