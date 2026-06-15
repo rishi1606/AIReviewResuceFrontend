@@ -353,7 +353,7 @@ const GlobalSearch = () => {
                 className="flex items-center gap-2 h-9 w-64 pl-3 pr-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-400 hover:border-orange-300 hover:bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
             >
                 <Search size={15} className="flex-shrink-0" aria-hidden="true" />
-                <span className="flex-1 text-left">Search reviews, tickets…</span>
+                <span className="flex-1 text-left">Search reviews…</span>
                 <kbd
                     className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-400"
                     aria-hidden="true"

@@ -25,6 +25,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { generateResponse } from "../utils/aiResponseGenerator";
 import {
   approveResponse,
+  rejectResponse,
   reanalyseReview,
   updateClassification,
   addReviewNote,
@@ -79,9 +80,15 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     try {
       console.log(`[Groq] Generating response for review_id: ${review.review_id}, tone: ${selectedTone}`);
       const text = await generateResponse(review, selectedTone, state.hotelConfig);
-      setProposal(text);
+      if (text) {
+        setProposal(text);
+      } else {
+        console.warn("[Groq] Empty response returned");
+        setProposal("");
+      }
     } catch (err) {
       console.error("Generation failed", err);
+      dispatch({ type: "ADD_NOTIFICATION", payload: { type: "error", message: `AI draft generation failed: ${err.message}`, created_at: Date.now(), read: false } });
     } finally {
       setIsGenerating(false);
     }
@@ -133,10 +140,14 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
       if (result) {
         const res = await updateClassification(review.review_id, result);
         dispatch({ type: "UPDATE_REVIEW_CLASSIFICATION", payload: res.data });
+        // Auto-generate a draft after successful re-analysis
         handleGenerate(tone);
+      } else {
+        dispatch({ type: "ADD_NOTIFICATION", payload: { type: "error", message: `Re-analysis returned no results for ${review.reviewer_name}`, created_at: Date.now(), read: false } });
       }
     } catch (err) {
-      alert("Re-analysis failed — try again");
+      console.error("Re-analysis failed:", err);
+      dispatch({ type: "ADD_NOTIFICATION", payload: { type: "error", message: `Re-analysis failed: ${err.message}`, created_at: Date.now(), read: false } });
     } finally {
       setLoadingAI(false);
     }
@@ -208,6 +219,23 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     }
   };
 
+  // Avatar color palette — deterministic hash from name
+  const AVATAR_COLORS = [
+    { bg: "#fef3c7", text: "#92400e" },
+    { bg: "#dbeafe", text: "#1e40af" },
+    { bg: "#f3e8ff", text: "#6b21a8" },
+    { bg: "#dcfce7", text: "#166534" },
+    { bg: "#ffe4e6", text: "#9f1239" },
+    { bg: "#e0f2fe", text: "#075985" },
+  ];
+
+  const getAvatarColor = (name) => {
+    if (!name) return AVATAR_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  };
+
   const getInitials = (name) => {
     if (!name) return "??";
     const parts = name.split(" ");
@@ -233,13 +261,16 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
     }
   };
 
+  // Border color based on sentiment (primary), then confidence
   const getBorderClass = () => {
-    if (isLowConfidence) return "rc-border-red";
-    if (isMediumConfidence) return "rc-border-amber";
-    if (review.rating >= 4) return "rc-border-green";
-    if (review.rating === 3) return "rc-border-amber";
-    return "rc-border-red";
+    const s = review.sentiment?.toLowerCase();
+    if (s === "positive") return "rc-border-green";
+    if (s === "negative") return "rc-border-red";
+    if (s === "mixed") return "rc-border-amber";
+    return isLowConfidence ? "rc-border-red" : "rc-border-amber";
   };
+
+  const avatarColor = getAvatarColor(review.reviewer_name);
 
   const displayRaw = review.raw_rating || (review.platform === "Booking.com" || review.platform === "Agoda" ? review.rating * 2 : review.rating);
   const displayScale = review.raw_rating_scale || (review.platform === "Booking.com" || review.platform === "Agoda" ? 10 : 5);
@@ -294,10 +325,10 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         .rc-avatar-wrap { display: flex; align-items: flex-start; gap: 10px; }
         .rc-avatar {
           width: 38px; height: 38px; border-radius: 10px;
-          background: #f4f4f5; border: 0.5px solid #e4e4e7;
           display: flex; align-items: center; justify-content: center;
-          font-weight: 600; font-size: 12px; color: #52525b;
+          font-weight: 700; font-size: 12px;
           position: relative; flex-shrink: 0;
+          border: 1px solid rgba(0,0,0,0.06);
         }
         .rc-plat-badge {
           position: absolute; bottom: -4px; right: -4px;
@@ -422,9 +453,8 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
           border-bottom: 0.5px solid #e4e4e7;
         }
         .rc-console-label {
-          font-size: 10px; font-weight: 700; color: #7c3aed;
+          font-size: 11px; font-weight: 700; color: #7c3aed;
           display: flex; align-items: center; gap: 5px;
-          text-transform: uppercase; letter-spacing: 0.05em;
         }
         .rc-console-controls { display: flex; align-items: center; gap: 6px; }
         .rc-tone-select {
@@ -495,15 +525,16 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
           margin-top: 10px; padding-top: 8px;
           border-top: 0.5px solid #e4e4e7;
         }
-        .rc-footer-links { display: flex; gap: 12px; align-items: center; }
+        .rc-footer-links { display: flex; gap: 8px; align-items: center; }
         .rc-footer-link {
-          font-size: 10px; font-weight: 600; color: #a1a1aa;
-          background: none; border: none; cursor: pointer;
-          text-transform: uppercase; letter-spacing: 0.04em; padding: 0;
-          transition: color 0.12s;
+          font-size: 10px; font-weight: 600; color: #71717a;
+          background: none; border: 1px solid #e4e4e7; cursor: pointer;
+          padding: 4px 10px; border-radius: 7px;
+          transition: all 0.12s; display: inline-flex; align-items: center; gap: 4px;
         }
-        .rc-footer-link:hover { color: #52525b; }
-        .rc-footer-link-danger:hover { color: #e24b4a; }
+        .rc-footer-link:hover { color: #52525b; background: #f4f4f5; }
+        .rc-footer-link-danger { color: #ef4444; border-color: #fecaca; background: #fef2f2; }
+        .rc-footer-link-danger:hover { color: #dc2626; background: #fee2e2; }
 
         /* Action buttons */
         .rc-approve-btn {
@@ -624,7 +655,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         {/* ─── Top Row ─── */}
         <div className="rc-top">
           <div className="rc-avatar-wrap">
-            <div className="rc-avatar">
+            <div className="rc-avatar" style={{ background: avatarColor.bg, color: avatarColor.text }}>
               {getInitials(review.reviewer_name)}
               <div className={`rc-plat-badge ${getPlatformBadge(review.platform).bg}`}>
                 {getPlatformBadge(review.platform).icon}
@@ -665,12 +696,16 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
           </div>
 
           <div className="rc-top-right">
-            <span className={`rc-conf ${getConfidenceColor(review.confidence)}`}>
-              {review.confidence ?? "--"}%
+            <span
+              className={`rc-conf ${review.confidence != null ? getConfidenceColor(review.confidence) : ""}`}
+              title={review.confidence != null ? `AI confidence: ${review.confidence}% — Higher means more reliable classification` : "AI classification pending"}
+              style={{ cursor: "help" }}
+            >
+              {review.confidence != null ? <>AI {review.confidence}%</> : <span style={{ color: "#a1a1aa", fontSize: 10, fontWeight: 500 }}>Pending</span>}
             </span>
             <button
               onClick={handleReanalyse}
-              title="Re-analyse with AI"
+              title={loadingAI ? "Re-analysing…" : "Re-analyse with AI"}
               className="rc-reanalyse"
             >
               <RefreshCcw size={13} className={loadingAI ? "animate-spin" : ""} />
@@ -680,6 +715,35 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
 
         {/* ─── Review Text ─── */}
         <div className="rc-review-text">"{review.review_text}"</div>
+
+        {/* ─── AI Failure Banner ─── */}
+        {review.ai_error && (
+          <div style={{
+            padding: "12px 14px", marginBottom: 12,
+            background: "#fef2f2", border: "1px solid #fecaca",
+            borderRadius: 10, display: "flex", alignItems: "flex-start", gap: 10
+          }}>
+            <AlertTriangle size={16} style={{ color: "#ef4444", flexShrink: 0, marginTop: 1 }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", margin: 0 }}>AI analysis failed</p>
+              <p style={{ fontSize: 10, color: "#b91c1c", margin: "3px 0 0", lineHeight: 1.5 }}>{review.ai_error}</p>
+            </div>
+            <button
+              onClick={handleReanalyse}
+              disabled={loadingAI}
+              style={{
+                fontSize: 10, fontWeight: 600, color: "#dc2626",
+                background: "none", border: "1px solid #fecaca",
+                borderRadius: 6, padding: "3px 10px", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 4,
+                whiteSpace: "nowrap"
+              }}
+            >
+              {loadingAI ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* ─── Tags ─── */}
         <div className="rc-tags">
@@ -693,7 +757,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
             <span className="rc-tag rc-tag-purple">{review.primary_department}</span>
           )}
           {review.urgency && review.urgency !== "None" && (
-            <span className={`rc-tag ${review.urgency === "High" ? "rc-tag-red" : "rc-tag-amber"}`}>
+            <span className={`rc-tag ${review.urgency === "High" ? "rc-tag-red" : review.urgency === "Low" ? "rc-tag-green" : "rc-tag-amber"}`}>
               {review.urgency} urgency
             </span>
           )}
@@ -730,7 +794,11 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
           </span>
         )} */}
         {review.needs_human_review && !isLowConfidence && !isMediumConfidence && (
-          <span className="rc-trust-pill rc-trust-review">
+          <span
+            className="rc-trust-pill rc-trust-review"
+            title={review.human_review_reason || "AI flagged this review for manual review due to mixed signals or edge-case classification"}
+            style={{ cursor: "help" }}
+          >
             <AlertCircle size={11} /> Needs human review
           </span>
         )}
@@ -751,7 +819,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
             <div className="rc-console-header">
               <span className="rc-console-label">
                 <MessageSquare size={12} />
-                {isLowConfidence ? "Manual draft" : "AI proposal"}
+                {isLowConfidence ? "Manual draft" : "AI Proposal"}
               </span>
               <div className="rc-console-controls">
                 {!isLowConfidence && (
@@ -770,11 +838,11 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
                 )}
                 {!isEditing && proposal && (
                   <button onClick={handleCopy} className={`rc-copy-btn${copied ? " copied" : ""}`} title="Copy response">
-                    {copied ? <><Check size={11} strokeWidth={3} />Copied</> : <Copy size={11} />}
+                    {copied ? <><Check size={12} strokeWidth={3} />Copied!</> : <><Copy size={12} /> Copy</>}
                   </button>
                 )}
                 {!isEditing && (
-                  <button onClick={() => setIsEditing(true)} className="rc-edit-btn">
+                  <button onClick={() => setIsEditing(true)} className="rc-edit-btn" title="Edit response draft">
                     <Pencil size={12} />
                   </button>
                 )}
@@ -810,8 +878,8 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
               ) : (
                 <div className="rc-empty-draft">
                   <span className="rc-empty-label">No draft generated yet</span>
-                  <button onClick={() => handleGenerate(tone)} className="rc-gen-btn">
-                    Generate AI draft
+                  <button onClick={() => handleGenerate(tone)} disabled={isGenerating} className="rc-gen-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    {isGenerating ? <><Loader2 size={12} className="animate-spin" /> Generating…</> : "Generate AI draft"}
                   </button>
                 </div>
               )}
@@ -820,7 +888,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
             <div className="rc-console-footer">
               <div className="rc-footer-links">
                 {review.is_suspicious ? "" : <button onClick={() => onFlag(review)} className="rc-footer-link rc-footer-link-danger">
-                  Flag review
+                  <Flag size={11} /> Flag
                 </button>}
 
                 {/* <button onClick={() => onSimilar(review)} className="rc-footer-link">
@@ -840,6 +908,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
                 <button
                   onClick={handleApprove}
                   disabled={isGenerating || !proposal}
+                  title={!proposal ? "Generate a draft first to enable approval" : ""}
                   className={`rc-approve-btn ${(isMediumConfidence || review.status === "PENDING APPROVAL" || !isApprover) ? "rc-approve-amber" : "rc-approve-indigo"}`}
                 >
                   <CheckCircle2 size={12} />

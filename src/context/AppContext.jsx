@@ -165,7 +165,9 @@ const reducer = (state, action) => {
           primary_department: null,
           urgency: null,
           issues: [],
-          needs_human_review: null
+          needs_human_review: null,
+          human_review_reason: null,
+          ai_error: null
         } : r)
       };
     case actions.REMOVE_REVIEW:

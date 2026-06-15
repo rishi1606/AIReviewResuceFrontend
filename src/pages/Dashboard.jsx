@@ -2,13 +2,15 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MessageSquare, AlertTriangle, CheckCircle2, Star,
-  ArrowRight, ThumbsUp, Activity
+  ArrowRight, ThumbsUp, Activity, TrendingUp, TrendingDown, Expand, BarChart3,
+  Building2, Plus
 } from "lucide-react";
+import { Tooltip } from "../components/ui/Tooltip";
 import { useDerivedStats } from "../hooks/useDerivedStats";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
 import {
@@ -26,7 +28,7 @@ import { dateFormat, parseReviewDate } from "../common/dateUtils";
 const SentimentPill = React.memo(({ value }) => {
   const st = SENTIMENT_STYLES[value] ?? SENTIMENT_STYLES.Neutral;
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold inline-flex items-center gap-1 border ${st.wrapper}`}>
+    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1.5 ${st.wrapper}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
       {value ?? "N/A"}
     </span>
@@ -34,66 +36,110 @@ const SentimentPill = React.memo(({ value }) => {
 });
 SentimentPill.displayName = "SentimentPill";
 
+// Status badge with meaningful color coding
+const STATUS_COLOR_MAP = {
+  RESPONDED: "bg-emerald-50 text-emerald-700",
+  Approved: "bg-emerald-50 text-emerald-700",
+  ESCALATED: "bg-red-50 text-red-700",
+  Suspicious: "bg-amber-50 text-amber-700",
+  CLASSIFIED: "bg-blue-50 text-blue-700",
+  Pending: "bg-zinc-100 text-zinc-600",
+};
+
 const StatusBadge = React.memo(({ value }) => {
-  const st = STATUS_STYLES[value] ?? "bg-blue-50 text-blue-700 border-blue-200";
+  const colorClass = STATUS_COLOR_MAP[value] ?? "bg-zinc-100 text-zinc-600";
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${st}`}>
+    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${colorClass}`}>
       {value ?? "Open"}
     </span>
   );
 });
 StatusBadge.displayName = "StatusBadge";
 
-const KPICardNew = React.memo(({ title, value, icon: Icon, color = "slate", trend, trendType = "neutral", onClick }) => {
+const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "slate", trend, trendIcon: TrendIcon, trendType = "neutral", pulseClass, cardTooltip, onClick }) => {
   const themeClass = ICON_THEMES[color] ?? ICON_THEMES.slate;
   const tcClass = TREND_CONFIG[trendType] ?? TREND_CONFIG.neutral;
 
+  const trendBadge = trend ? (
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${tcClass} ${pulseClass ?? ""}`}>
+      {TrendIcon && <TrendIcon size={10} />}
+      {trend}
+    </span>
+  ) : null;
+
+  const card = (
+    <div
+      title={title}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick?.()}
+      className="bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300 active:translate-y-0 active:shadow-md select-none"
+    >
+      {/* Row 1: icon + trend badge */}
+      <div className="flex items-start justify-between mb-4">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${themeClass} group-hover:scale-110 transition-transform duration-200`}>
+          <Icon size={20} aria-hidden="true" />
+        </div>
+        {trendBadge}
+      </div>
+
+      {/* Divider line */}
+      <div className="border-t border-zinc-100 mb-3" />
+
+      {/* Row 2: label + value + subtitle */}
+      <p className="text-[11px] font-semibold text-zinc-400 tracking-wide mb-1">{title}</p>
+      <p className="text-[28px] font-bold text-zinc-900 leading-none tracking-tight">{value}</p>
+      {subtitle && (
+        <p className="text-[11px] text-zinc-500 mt-1.5 font-medium">{subtitle}</p>
+      )}
+    </div>
+  );
+
+  if (cardTooltip) {
+    return (
+      <Tooltip content={cardTooltip} position="bottom" maxWidth={220} delay={400}>
+        {card}
+      </Tooltip>
+    );
+  }
+
+  return card;
+});
+KPICardNew.displayName = "KPICardNew";
+
+// Single sentiment/status progress row with percentage + min-width bar
+const ProgressRow = React.memo(({ label, count, total, barColor, textColor, hoverColor, onClick }) => {
+  const rawPct = total > 0 ? (count / total) * 100 : 0;
+  const pct = rawPct > 0 && rawPct < 1 ? "<1" : Math.round(rawPct);
+  const barWidth = total > 0 ? Math.max(3, (count / total) * 100) : 0; // min 3% width so bars are visible
+
   return (
     <div
+      className="cursor-pointer group hover:bg-zinc-50 p-2.5 -mx-2.5 rounded-xl transition-all"
       onClick={onClick}
-      className="glass-card p-4 lg:p-5 flex flex-col gap-3 cursor-pointer group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-zinc-300"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick?.()}
+      aria-label={`View ${label} reviews`}
+      title={`${count} ${label.toLowerCase()} reviews out of ${total} total (${pct}%)`}
     >
-      <div className="flex items-center justify-between">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${themeClass} group-hover:scale-105 transition-transform`}>
-          <Icon size={18} aria-hidden="true" />
+      <div className="flex justify-between items-baseline text-xs mb-2">
+        <span className={`font-semibold text-zinc-700 ${hoverColor} transition-colors`}>{label}</span>
+        <div className="flex items-baseline gap-1.5">
+          <span className={`${textColor} font-bold text-[13px]`}>{count}</span>
+          <span className="text-zinc-300 text-[10px] font-medium">{pct}%</span>
         </div>
-        {trend && (
-          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${tcClass}`}>
-            {trend}
-          </span>
-        )}
       </div>
-      <div>
-        <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">{title}</div>
-        <div className="text-2xl lg:text-3xl font-bold text-zinc-900 leading-none mt-1">{value}</div>
+      <div className="h-2 w-full bg-zinc-200/60 rounded-full overflow-hidden" role="progressbar" aria-valuenow={count} aria-valuemax={total}>
+        <div
+          className={`h-full ${barColor} rounded-full`}
+          style={{ width: `${barWidth}%`, transition: "width 600ms cubic-bezier(0.4, 0, 0.2, 1)" }}
+        />
       </div>
     </div>
   );
 });
-KPICardNew.displayName = "KPICardNew";
-
-// Single sentiment/status progress row — extracted to avoid 8× duplicated markup
-const ProgressRow = React.memo(({ label, count, total, barColor, textColor, hoverColor, onClick }) => (
-  <div
-    className="cursor-pointer group hover:bg-zinc-50/80 p-2 -mx-2 rounded-lg transition-colors"
-    onClick={onClick}
-    role="button"
-    tabIndex={0}
-    onKeyDown={(e) => e.key === "Enter" && onClick?.()}
-    aria-label={`View ${label} reviews`}
-  >
-    <div className="flex justify-between text-xs mb-1.5">
-      <span className={`font-semibold text-zinc-700 ${hoverColor} transition-colors`}>{label}</span>
-      <span className={`${textColor} font-bold`}>{count}</span>
-    </div>
-    <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden" role="progressbar" aria-valuenow={count} aria-valuemax={total}>
-      <div
-        className={`h-full ${barColor} rounded-full transition-all duration-500`}
-        style={{ width: `${(count / (total || 1)) * 100}%` }}
-      />
-    </div>
-  </div>
-));
 ProgressRow.displayName = "ProgressRow";
 
 // Star rating display
@@ -135,6 +181,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [tablePage, setTablePage] = useState(1);
+  const [hiddenSeries, setHiddenSeries] = useState([]);
 
   const selectedPlatform = state.activeFilters?.platform ?? "ALL";
   const selectedProperty = state.activeFilters?.property ?? "ALL";
@@ -244,36 +291,50 @@ const Dashboard = () => {
               <KPICardNew
                 title="Total Reviews"
                 value={filteredStats.totalReviews}
+                subtitle="Across all connected platforms"
                 icon={MessageSquare}
                 color="orange"
-                trend="All channels"
-                trendType="neutral"
+                trend={filteredStats.totalReviews > 0 ? `+${filteredStats.totalReviews}` : "—"}
+                trendIcon={filteredStats.totalReviews > 0 ? TrendingUp : null}
+                trendType={filteredStats.totalReviews > 0 ? "up" : "neutral"}
+                tooltipText="Total reviews collected from all connected platforms"
                 onClick={goToReviews}
               />
               <KPICardNew
                 title="Avg Rating"
                 value={filteredStats.avgRating}
+                subtitle={`Based on ${filteredStats.totalReviews} reviews`}
                 icon={Star}
                 color="purple"
-                trend={`${filteredStats.avgRating} / 5`}
+                trend={avgRatingNum >= 4 ? `↑ +${(avgRatingNum - 3.5).toFixed(1)}` : avgRatingNum >= 3 ? `→ ${avgRatingNum.toFixed(1)}` : `↓ ${(3.5 - avgRatingNum).toFixed(1)}`}
+                trendIcon={avgRatingNum >= 4 ? TrendingUp : TrendingDown}
                 trendType={avgRatingNum >= 4 ? "up" : avgRatingNum >= 3 ? "warn" : "down"}
+                tooltipText={`Your average guest rating is ${filteredStats.avgRating} out of 5 stars`}
+
               />
               <KPICardNew
                 title="Escalated"
                 value={filteredStats.escalatedCount}
+                subtitle={filteredStats.escalatedCount > 0 ? "Requires immediate attention" : "No pending escalations"}
                 icon={AlertTriangle}
-                color={filteredStats.escalatedCount > 0 ? "red" : "slate"}
+                color={filteredStats.escalatedCount > 0 ? "red" : "green"}
                 trend={filteredStats.escalatedCount > 0 ? "Needs action" : "All clear"}
+                trendIcon={filteredStats.escalatedCount > 0 ? TrendingDown : CheckCircle2}
                 trendType={filteredStats.escalatedCount > 0 ? "down" : "up"}
+                pulseClass={filteredStats.escalatedCount > 0 ? "sh-badge-pulse" : ""}
+                tooltipText={filteredStats.escalatedCount > 0 ? `${filteredStats.escalatedCount} reviews flagged for escalation — click to review` : "No reviews need escalation right now"}
                 onClick={goToEscalated}
               />
               <KPICardNew
-                title="Positive Responses"
+                title="Positive Reviews"
                 value={filteredStats.positiveCount}
+                subtitle={filteredStats.totalReviews > 0 ? `${Math.round((filteredStats.positiveCount / filteredStats.totalReviews) * 100)}% of total reviews` : "No reviews yet"}
                 icon={ThumbsUp}
                 color="green"
-                trend="Looking good"
-                trendType="up"
+                trend={filteredStats.positiveCount > 0 ? `${Math.round((filteredStats.positiveCount / (filteredStats.totalReviews || 1)) * 100)}%` : "—"}
+                trendIcon={filteredStats.positiveCount > 0 ? TrendingUp : null}
+                trendType={filteredStats.positiveCount > (filteredStats.totalReviews * 0.5) ? "up" : "warn"}
+                tooltipText={`${filteredStats.positiveCount} out of ${filteredStats.totalReviews} reviews are positive`}
                 onClick={goToPositive}
               />
             </>
@@ -284,109 +345,181 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {state.isAppLoading ? (
             <>
-              <div className="glass-card lg:col-span-2 p-5 flex flex-col h-[320px]">
-                <div className="mb-4 pb-3 border-b border-zinc-100">
-                  <div className="h-4 bg-zinc-200 rounded w-32 mb-2 animate-pulse" />
-                  <div className="h-3 bg-zinc-100 rounded w-48 animate-pulse" />
+              <div className="bg-white border border-zinc-200 rounded-2xl lg:col-span-2 p-5 flex flex-col h-[380px]">
+                <div className="mb-4 pb-3 border-b border-zinc-100 flex justify-between">
+                  <div>
+                    <div className="h-4 bg-zinc-200 rounded w-36 mb-2 animate-pulse" />
+                    <div className="h-3 bg-zinc-100 rounded w-52 animate-pulse" />
+                  </div>
+                  <div className="flex gap-2">
+                    {[1, 2, 3].map(i => <div key={i} className="h-7 w-12 bg-zinc-100 rounded-lg animate-pulse" />)}
+                  </div>
                 </div>
-                <div className="flex-1 flex items-end justify-around gap-2">
+                <div className="flex-1 flex items-end justify-around gap-2 pb-4">
                   {Array.from({ length: 12 }, (_, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full bg-zinc-200 rounded-t animate-pulse" style={{ height: `${40 + (i * 7) % 60}%` }} />
+                      <div className="w-full bg-zinc-100 rounded-t animate-pulse" style={{ height: `${40 + (i * 7) % 60}%` }} />
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="glass-card p-5 flex flex-col h-[320px]">
+              <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col h-[380px]">
                 <div className="mb-4 pb-3 border-b border-zinc-100">
                   <div className="h-4 bg-zinc-200 rounded w-32 mb-2 animate-pulse" />
-                  <div className="h-3 bg-zinc-100 rounded w-40 animate-pulse" />
+                  <div className="h-3 bg-zinc-100 rounded w-44 animate-pulse" />
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center">
-                  <div className="relative w-40 h-40 flex items-center justify-center">
-                    <div className="absolute w-40 h-40 rounded-full border-[12px] border-zinc-200 animate-pulse" />
-                    <div className="absolute w-24 h-24 rounded-full bg-white" />
+                  <div className="relative w-44 h-44 flex items-center justify-center">
+                    <div className="absolute w-44 h-44 rounded-full border-[14px] border-zinc-100 animate-pulse" />
+                    <div className="absolute w-28 h-28 rounded-full bg-white" />
+                    <div className="h-4 w-8 bg-zinc-200 rounded animate-pulse" />
                   </div>
                 </div>
               </div>
             </>
           ) : (
             <>
-              {/* Sentiment Trends */}
-              <div className="glass-card lg:col-span-2 p-5 flex flex-col h-[320px]">
-                <div className="flex justify-between items-start mb-4 pb-3 border-b border-zinc-100">
+              {/* ═══ Sentiment Trends ═══ */}
+              <div className="bg-white border border-zinc-200 rounded-2xl lg:col-span-2 p-5 flex flex-col h-[380px]">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 pb-3 border-b border-zinc-100">
                   <div>
                     <h3 className="text-[15px] font-bold text-zinc-900">Sentiment Trends</h3>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">Positive vs. Negative over time</p>
+                    <p className="text-[12px] text-zinc-400 mt-0.5">All sentiments over time</p>
                   </div>
-                  <div className="flex gap-4 items-center">
-                    {[["#10b981", "Positive"], ["#ef4444", "Negative"], ["#a855f7", "Mixed"], ["#a1a1aa", "Neutral"]].map(([color, label]) => (
-                      <div key={label} className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium">
-                        <div className="w-4 h-1 rounded-full" style={{ background: color }} />
-                        {label}
-                      </div>
+                  <div className="flex items-center gap-2">
+                    {/* Clickable legend toggles */}
+                    {[
+                      { key: "Positive", color: "#10b981" },
+                      { key: "Negative", color: "#ef4444" },
+                      { key: "Mixed", color: "#a855f7" },
+                      { key: "Neutral", color: "#a1a1aa" },
+                    ].map(({ key, color }) => (
+                      <button
+                        key={key}
+                        onClick={() => setHiddenSeries(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
+                        className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${hiddenSeries.includes(key)
+                          ? "border-zinc-200 bg-zinc-50 text-zinc-300 line-through"
+                          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+                          }`}
+                      >
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: hiddenSeries.includes(key) ? "#d4d4d8" : color }} />
+                        {key}
+                      </button>
                     ))}
                   </div>
                 </div>
                 <div className="flex-1 min-h-0">
                   {trendData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={trendData} margin={AREA_CHART_MARGIN}>
+                      <AreaChart data={trendData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
                         <defs>
                           <linearGradient id="gradPositive" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.12} />
                             <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                           </linearGradient>
                           <linearGradient id="gradNegative" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1} />
                             <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                           </linearGradient>
                           <linearGradient id="gradMixed" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
+                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.1} />
                             <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                           </linearGradient>
                           <linearGradient id="gradNeutral" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#a1a1aa" stopOpacity={0.2} />
+                            <stop offset="5%" stopColor="#a1a1aa" stopOpacity={0.08} />
                             <stop offset="95%" stopColor="#a1a1aa" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
-                        <XAxis dataKey="date" stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} />
-                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        <Area type="monotone" dataKey="Positive" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#gradPositive)" />
-                        <Area type="monotone" dataKey="Negative" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#gradNegative)" />
-                        <Area type="monotone" dataKey="Mixed" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#gradMixed)" />
-                        <Area type="monotone" dataKey="Neutral" stroke="#a1a1aa" strokeWidth={3} fillOpacity={1} fill="url(#gradNeutral)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                        <XAxis dataKey="date" stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} dy={8} />
+                        <YAxis stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} label={{ value: "Reviews", angle: -90, position: "insideLeft", offset: 15, style: { fontSize: 10, fill: "#a1a1aa" } }} />
+                        <RechartsTooltip
+                          contentStyle={{ borderRadius: 12, border: "1px solid #e4e4e7", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: 12, padding: "10px 14px" }}
+                          labelStyle={{ fontWeight: 700, color: "#18181b", marginBottom: 6 }}
+                          itemStyle={{ padding: "2px 0" }}
+                          cursor={{ stroke: "#d4d4d8", strokeDasharray: "4 4" }}
+                        />
+                        {!hiddenSeries.includes("Positive") && <Area type="monotone" dataKey="Positive" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#gradPositive)" dot={false} activeDot={{ r: 4, strokeWidth: 2, fill: "#fff" }} />}
+                        {!hiddenSeries.includes("Negative") && <Area type="monotone" dataKey="Negative" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#gradNegative)" dot={false} activeDot={{ r: 4, strokeWidth: 2, fill: "#fff" }} />}
+                        {!hiddenSeries.includes("Mixed") && <Area type="monotone" dataKey="Mixed" stroke="#a855f7" strokeWidth={2.5} fillOpacity={1} fill="url(#gradMixed)" dot={false} activeDot={{ r: 4, strokeWidth: 2, fill: "#fff" }} />}
+                        {!hiddenSeries.includes("Neutral") && <Area type="monotone" dataKey="Neutral" stroke="#a1a1aa" strokeWidth={2.5} fillOpacity={1} fill="url(#gradNeutral)" dot={false} activeDot={{ r: 4, strokeWidth: 2, fill: "#fff" }} />}
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="flex items-center justify-center h-full text-zinc-400 text-xs">No data to show trends</div>
+                    <div className="flex flex-col items-center justify-center h-full text-zinc-400">
+                      <BarChart3 size={32} className="mb-2 text-zinc-300" />
+                      <p className="text-xs font-medium">No sentiment data yet</p>
+                      <p className="text-[11px] text-zinc-300 mt-0.5">Import reviews to see trends</p>
+                    </div>
                   )}
                 </div>
+                {/* Footer link */}
+
               </div>
 
-              {/* Platform Share */}
-              <div className="glass-card p-5 flex flex-col h-[320px]">
+              {/* ═══ Platform Share Donut ═══ */}
+              <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col h-[380px]">
                 <div className="mb-4 pb-3 border-b border-zinc-100">
                   <h3 className="text-[15px] font-bold text-zinc-900">Platform Share</h3>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">Distribution across channels</p>
+                  <p className="text-[12px] text-zinc-400 mt-0.5">Reviews by platform</p>
                 </div>
-                <div className="flex-1 min-h-0 flex items-center justify-center">
+                <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                   {platformData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={platformData} cx="50%" cy="45%" innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
-                          {platformData.map((_, index) => (
-                            <Cell key={index} fill={PLATFORM_COLORS[index % PLATFORM_COLORS.length]} stroke="transparent" />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        <Legend verticalAlign="bottom" align="center" iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11, color: "#52525b" }} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    <>
+                      <div className="relative w-full" style={{ height: 180 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={platformData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={55}
+                              outerRadius={80}
+                              paddingAngle={3}
+                              dataKey="value"
+                              stroke="transparent"
+                            >
+                              {platformData.map((_, index) => (
+                                <Cell key={index} fill={PLATFORM_COLORS[index % PLATFORM_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip
+                              contentStyle={{ borderRadius: 10, border: "1px solid #e4e4e7", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: 12 }}
+                              formatter={(value, name) => [`${value} reviews (${Math.round((value / filteredStats.totalReviews) * 100)}%)`, name]}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {/* Center total */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                          <span className="text-2xl font-bold text-zinc-900 leading-none">{filteredStats.totalReviews}</span>
+                          <span className="text-[10px] text-zinc-400 font-medium mt-0.5">total</span>
+                        </div>
+                      </div>
+                      {/* Custom legend with counts + percentages */}
+                      <div className="w-full mt-3 space-y-1.5 px-1">
+                        {platformData.map((item, index) => {
+                          const pct = filteredStats.totalReviews > 0 ? Math.round((item.value / filteredStats.totalReviews) * 100) : 0;
+                          return (
+                            <div key={item.name} className="flex items-center justify-between text-[11px]">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PLATFORM_COLORS[index % PLATFORM_COLORS.length] }} />
+                                <span className="font-medium text-zinc-600">{item.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-zinc-800">{item.value}</span>
+                                <span className="text-zinc-400 font-medium w-10 text-right">{pct}%</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
                   ) : (
-                    <div className="text-zinc-400 text-xs">No platform data</div>
+                    <div className="flex flex-col items-center justify-center text-zinc-400">
+                      <Activity size={32} className="mb-2 text-zinc-300" />
+                      <p className="text-xs font-medium">No platform data</p>
+                      <p className="text-[11px] text-zinc-300 mt-0.5">Connect platforms in settings</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -395,11 +528,14 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Reviews Table */}
-        <div className="glass-card flex flex-col mb-6">
-          <div className="p-5 border-b border-zinc-100 flex justify-between items-center bg-white/50 rounded-t-2xl">
-            <h3 className="text-[15px] font-bold text-zinc-900">Recent Reviews</h3>
+        <div className="bg-white border border-zinc-200 rounded-2xl flex flex-col mb-6 overflow-hidden">
+          <div className="px-5 py-4 border-b border-zinc-100 flex justify-between items-center">
+            <div>
+              <h3 className="text-[15px] font-bold text-zinc-900">Recent Reviews</h3>
+              <p className="text-[12px] text-zinc-400 mt-0.5">{filteredReviews.length} reviews total · Page {tablePage} of {totalPages}</p>
+            </div>
             <button
-              className="text-[11px] font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"
+              className="text-[11px] font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer transition-colors"
               onClick={goToReviews}
               aria-label="View all reviews"
             >
@@ -416,21 +552,28 @@ const Dashboard = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse" aria-label="Recent reviews">
                   <thead>
-                    <tr className="bg-zinc-50/50 border-b border-zinc-100">
-                      <th scope="col" className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Guest &amp; Review</th>
-                      <th scope="col" className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Platform</th>
-                      <th scope="col" className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Rating</th>
-                      <th scope="col" className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Status</th>
-                      <th scope="col" className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-right">Date</th>
+                    <tr className="bg-zinc-50 border-b border-zinc-200">
+                      <th scope="col" className="pl-5 pr-3 py-3 text-[11px] font-semibold text-zinc-400 tracking-wide" style={{ width: "40%" }}>Guest & Review</th>
+                      <th scope="col" className="px-3 py-3 text-[11px] font-semibold text-zinc-400 tracking-wide" style={{ width: "12%" }}>Platform</th>
+                      <th scope="col" className="px-3 py-3 text-[11px] font-semibold text-zinc-400 tracking-wide" style={{ width: "14%" }}>Rating</th>
+                      <th scope="col" className="px-3 py-3 text-[11px] font-semibold text-zinc-400 tracking-wide" style={{ width: "12%" }}>Sentiment</th>
+                      <th scope="col" className="px-3 py-3 text-[11px] font-semibold text-zinc-400 tracking-wide" style={{ width: "12%" }}>Status</th>
+                      <th scope="col" className="px-5 py-3 text-[11px] font-semibold text-zinc-400 tracking-wide text-right" style={{ width: "10%" }}>Date</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {paginatedReviews.map((r) => (
-                      <ReviewRow key={r.review_id} review={r} navigate={navigate} />
+                  <tbody>
+                    {paginatedReviews.map((r, idx) => (
+                      <ReviewRow key={r.review_id} review={r} navigate={navigate} isEven={idx % 2 === 0} />
                     ))}
                     {paginatedReviews.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-5 py-8 text-center text-zinc-400 text-sm">No reviews found.</td>
+                        <td colSpan={6} className="px-5 py-16 text-center">
+                          <div className="flex flex-col items-center">
+                            <MessageSquare size={32} className="text-zinc-200 mb-2" />
+                            <p className="text-sm font-semibold text-zinc-500">No reviews found</p>
+                            <p className="text-[12px] text-zinc-400 mt-0.5">Try adjusting your filters or import new reviews</p>
+                          </div>
+                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -438,22 +581,47 @@ const Dashboard = () => {
               </div>
 
               {totalPages > 1 && (
-                <div className="p-4 border-t border-zinc-100 flex items-center justify-between bg-white/50 rounded-b-2xl">
-                  <span className="text-[11px] text-zinc-500 font-medium">
-                    Page {tablePage} of {totalPages}
+                <div className="px-5 py-3.5 border-t border-zinc-200 flex items-center justify-between bg-zinc-50/50">
+                  <span className="text-[12px] text-zinc-500 font-medium">
+                    Showing <span className="font-bold text-zinc-700">{((tablePage - 1) * TABLE_PAGE_SIZE) + 1}–{Math.min(tablePage * TABLE_PAGE_SIZE, filteredReviews.length)}</span> of {filteredReviews.length}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button
                       disabled={tablePage === 1}
                       onClick={goToPrevPage}
-                      className="px-3 py-1.5 text-xs font-semibold text-zinc-600 bg-white border border-zinc-200 rounded-lg disabled:opacity-50 hover:bg-zinc-50 cursor-pointer"
+                      className="px-3 py-1.5 text-[11px] font-semibold text-zinc-600 bg-white border border-zinc-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-50 hover:border-zinc-300 cursor-pointer transition-all"
                     >
                       Previous
                     </button>
+                    {/* Page numbers */}
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (tablePage <= 3) {
+                        pageNum = i + 1;
+                      } else if (tablePage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = tablePage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setTablePage(pageNum)}
+                          className={`w-8 h-8 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${tablePage === pageNum
+                            ? "bg-orange-500 text-white shadow-sm"
+                            : "text-zinc-600 hover:bg-zinc-100"
+                            }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
                     <button
                       disabled={tablePage === totalPages}
                       onClick={goToNextPage}
-                      className="px-3 py-1.5 text-xs font-semibold text-zinc-600 bg-white border border-zinc-200 rounded-lg disabled:opacity-50 hover:bg-zinc-50 cursor-pointer"
+                      className="px-3 py-1.5 text-[11px] font-semibold text-zinc-600 bg-white border border-zinc-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-50 hover:border-zinc-300 cursor-pointer transition-all"
                     >
                       Next
                     </button>
@@ -466,7 +634,7 @@ const Dashboard = () => {
       </div>
 
       {/* ── Right Sidebar ─────────────────────────────────────────────────────── */}
-      <div className="w-full xl:w-80 flex flex-col gap-6 shrink-0">
+      <div className="w-full xl:w-80 flex flex-col gap-5 shrink-0">
         {state.isAppLoading ? (
           <>
             <SkeletonBlock />
@@ -475,47 +643,72 @@ const Dashboard = () => {
           </>
         ) : (
           <>
-            {/* Add Property CTA */}
+            {/* ─ Add Property CTA ─ */}
             <div
-              className="glass-card p-5 cursor-pointer hover:bg-zinc-50/50 transition-colors group"
+              className="border-2 border-dashed border-zinc-200 rounded-2xl p-5 cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-all group"
               onClick={goToSettings}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && goToSettings()}
               aria-label="Go to settings to add a new property"
             >
-              <h3 className="text-[15px] font-bold text-zinc-900 mb-1">Add New Property</h3>
-              <p className="text-[11px] text-zinc-500 font-medium mb-4">
-                Manage your hotels and connect new platforms in Settings.
-              </p>
-              <span className="flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 group-hover:translate-x-1 transition-transform">
-                GO TO SETTINGS <ArrowRight size={12} aria-hidden="true" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0 group-hover:bg-orange-100 transition-colors">
+                  <Plus size={18} className="text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-bold text-zinc-900">Add New Property</h3>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Connect hotels & platforms</p>
+                </div>
+              </div>
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 group-hover:text-orange-700 group-hover:translate-x-1 transition-all">
+                Go to Settings <ArrowRight size={12} aria-hidden="true" />
               </span>
             </div>
 
-            {/* Sentiment Breakdown */}
-            <div className="glass-card p-5">
-              <h3 className="text-[15px] font-bold text-zinc-900 mb-4 pb-3 border-b border-zinc-100 flex items-center gap-2">
-                <Activity size={16} className="text-orange-500" aria-hidden="true" />
-                Sentiment Breakdown
-              </h3>
-              <div className="space-y-2">
+            {/* ─ Sentiment Breakdown ─ */}
+            <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
+              <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-zinc-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center">
+                    <Activity size={14} className="text-purple-500" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-[14px] font-bold text-zinc-900">Sentiment</h3>
+                </div>
+                <span className="text-[10px] font-medium text-zinc-400">{filteredStats.totalReviews} total</span>
+              </div>
+              <div className="px-5 py-4 space-y-1">
                 <ProgressRow label="Positive" count={filteredStats.positiveCount} total={filteredStats.totalReviews} barColor="bg-emerald-500" textColor="text-emerald-600" hoverColor="group-hover:text-emerald-600" onClick={goToPositive} />
                 <ProgressRow label="Negative" count={filteredStats.negativeCount} total={filteredStats.totalReviews} barColor="bg-red-500" textColor="text-red-600" hoverColor="group-hover:text-red-600" onClick={goToNegative} />
-                <ProgressRow label="Mixed Reviews" count={filteredStats.mixedCount} total={filteredStats.totalReviews} barColor="bg-purple-500" textColor="text-purple-600" hoverColor="group-hover:text-purple-600" onClick={goToMixed} />
-                <ProgressRow label="Neutral" count={filteredStats.neutralCount} total={filteredStats.totalReviews} barColor="bg-zinc-400" textColor="text-zinc-600" hoverColor="group-hover:text-zinc-900" onClick={goToNeutral} />
+                <ProgressRow label="Mixed" count={filteredStats.mixedCount} total={filteredStats.totalReviews} barColor="bg-purple-500" textColor="text-purple-600" hoverColor="group-hover:text-purple-600" onClick={goToMixed} />
+                <ProgressRow label="Neutral" count={filteredStats.neutralCount} total={filteredStats.totalReviews} barColor="bg-zinc-400" textColor="text-zinc-600" hoverColor="group-hover:text-zinc-800" onClick={goToNeutral} />
+              </div>
+              <div className="px-5 py-3 border-t border-zinc-100 flex justify-end">
+                <button onClick={goToReviews} className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer transition-all">
+                  View all <ArrowRight size={11} />
+                </button>
               </div>
             </div>
 
-            {/* Status Breakdown */}
-            <div className="glass-card p-5">
-              <h3 className="text-[15px] font-bold text-zinc-900 mb-4 pb-3 border-b border-zinc-100 flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-orange-500" aria-hidden="true" />
-                Review Status
-              </h3>
-              <div className="space-y-2">
-                <ProgressRow label="Approved" count={filteredStats.approvedCount} total={filteredStats.totalReviews} barColor="bg-blue-500" textColor="text-blue-600" hoverColor="group-hover:text-blue-600" onClick={goToApproved} />
-                <ProgressRow label="Suspicious" count={filteredStats.suspiciousCount} total={filteredStats.totalReviews} barColor="bg-amber-500" textColor="text-amber-600" hoverColor="group-hover:text-amber-600" onClick={goToSuspicious} />
+            {/* ─ Review Status ─ */}
+            <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
+              <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-zinc-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <CheckCircle2 size={14} className="text-emerald-500" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-[14px] font-bold text-zinc-900">Review Status</h3>
+                </div>
+                <span className="text-[10px] font-medium text-zinc-400">{filteredStats.totalReviews} total</span>
+              </div>
+              <div className="px-5 py-4 space-y-1">
+                <ProgressRow label="Approved" count={filteredStats.approvedCount} total={filteredStats.totalReviews} barColor="bg-emerald-500" textColor="text-emerald-600" hoverColor="group-hover:text-emerald-600" onClick={goToApproved} />
+                <ProgressRow label="Suspicious" count={filteredStats.suspiciousCount} total={filteredStats.totalReviews} barColor="bg-red-500" textColor="text-red-600" hoverColor="group-hover:text-red-600" onClick={goToSuspicious} />
+              </div>
+              <div className="px-5 py-3 border-t border-zinc-100 flex justify-end">
+                <button onClick={goToReviews} className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer transition-all">
+                  View all <ArrowRight size={11} />
+                </button>
               </div>
             </div>
           </>
@@ -525,8 +718,41 @@ const Dashboard = () => {
   );
 };
 
+// ─── Platform colors for dot indicators ───────────────────────────────────────
+const PLATFORM_DOT_COLORS = {
+  Google: "#ea4335",
+  "Booking.com": "#003580",
+  Airbnb: "#ff5a5f",
+  Agoda: "#5fc4ee",
+  TripAdvisor: "#00af87",
+  Expedia: "#1a1a2e",
+};
+
+// ─── Sentiment → left border color mapping ────────────────────────────────────
+const SENTIMENT_BORDER = {
+  Positive: "border-l-emerald-400",
+  Negative: "border-l-red-400",
+  Mixed: "border-l-purple-400",
+  Neutral: "border-l-amber-400",
+};
+
+// ─── Get initials from name ───────────────────────────────────────────────────
+const getReviewerInitials = (name) => {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts[0][0]?.toUpperCase() ?? "?";
+};
+
+// ─── Format full date for tooltip ─────────────────────────────────────────────
+const getFullDate = (review) => {
+  const parsed = parseReviewDate(review?.review_date);
+  if (!parsed) return "";
+  return parsed.toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+
 // Extracted table row — prevents full table re-render when only one row changes
-const ReviewRow = React.memo(({ review: r, navigate }) => {
+const ReviewRow = React.memo(({ review: r, navigate, isEven }) => {
   const handleClick = useCallback(() => {
     navigate(`/reviews?search=${encodeURIComponent(r.reviewer_name ?? r.guest_name ?? "")}`);
   }, [navigate, r.reviewer_name, r.guest_name]);
@@ -535,34 +761,60 @@ const ReviewRow = React.memo(({ review: r, navigate }) => {
     if (e.key === "Enter") handleClick();
   }, [handleClick]);
 
-
+  const sentiment = r.sentiment ?? "Neutral";
+  const sentimentStyle = SENTIMENT_STYLES[sentiment] ?? SENTIMENT_STYLES.Neutral;
+  const borderColor = SENTIMENT_BORDER[sentiment] ?? "border-l-zinc-200";
+  const initials = getReviewerInitials(r.reviewer_name);
+  const platformColor = PLATFORM_DOT_COLORS[r.platform] ?? "#a1a1aa";
+  const fullDate = getFullDate(r);
 
   return (
     <tr
-      className="hover:bg-zinc-50/50 transition-colors cursor-pointer group"
+      className={`border-l-[3px] ${borderColor} border-b border-zinc-100 cursor-pointer group transition-colors ${isEven ? "bg-white hover:bg-orange-50/40" : "bg-zinc-50/30 hover:bg-orange-50/40"
+        }`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="row"
       aria-label={`Review by ${r.reviewer_name}`}
     >
-      <td className="px-5 py-3.5 max-w-[300px]">
-        <p className="text-[13px] font-bold text-zinc-900 truncate group-hover:text-orange-600 transition-colors">
-          {r.reviewer_name}
-        </p>
-        <p className="text-[11px] text-zinc-500 truncate mt-0.5">{r.review_text}</p>
+      {/* Guest & Review */}
+      <td className="pl-4 pr-3 py-3.5">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
+            <span className="text-[10px] font-bold text-orange-600">{initials}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold text-zinc-900 truncate group-hover:text-orange-600 transition-colors">{r.reviewer_name}</p>
+            <p className="text-[11px] text-zinc-400 truncate mt-0.5 max-w-[280px]" title={r.review_text}>{r.review_text}</p>
+          </div>
+        </div>
       </td>
-      <td className="px-5 py-3.5">
-        <span className="text-xs font-medium text-zinc-700">{r.platform}</span>
+      {/* Platform */}
+      <td className="px-3 py-3.5">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full shrink-0 ring-2 ring-white shadow-sm" style={{ background: platformColor }} />
+          <span className="text-[12px] font-semibold text-zinc-700">{r.platform}</span>
+        </div>
       </td>
-      <td className="px-5 py-3.5">
-        <StarRating rating={r.rating} />
+      {/* Rating */}
+      <td className="px-3 py-3.5">
+        <div className="flex items-center gap-1.5">
+          <StarRating rating={r.rating} />
+          <span className="text-[11px] font-bold text-zinc-500 leading-none mt-px">{r.rating ?? 0}</span>
+        </div>
       </td>
-      <td className="px-5 py-3.5">
+      {/* Sentiment */}
+      <td className="px-3 py-3.5">
+        <SentimentPill value={sentiment} />
+      </td>
+      {/* Status */}
+      <td className="px-3 py-3.5">
         <StatusBadge value={r.status} />
       </td>
+      {/* Date */}
       <td className="px-5 py-3.5 text-right">
-        <span className="text-[11px] text-zinc-400 font-medium whitespace-nowrap">{dateFormat(r)}</span>
+        <span className="text-[11px] text-zinc-400 font-medium whitespace-nowrap" title={fullDate}>{dateFormat(r)}</span>
       </td>
     </tr>
   );

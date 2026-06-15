@@ -127,6 +127,9 @@ const Reviews = () => {
   });
   const ITEMS_PER_PAGE = 10;
 
+  // Page title
+  useEffect(() => { document.title = "ReviewRescue \u2014 Reviews"; }, []);
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -476,11 +479,11 @@ const Reviews = () => {
       <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal size={16} className="text-indigo-600 animate-pulse" />
-            <h3 className="font-bold text-sm text-zinc-800 font-display uppercase tracking-wider">Filters</h3>
+            <SlidersHorizontal size={16} className="text-orange-500" />
+            <h3 className="font-bold text-sm text-zinc-800">Filters</h3>
           </div>
-          <span className="text-xs text-zinc-400 font-medium">
-            Showing <span className="text-indigo-600 font-bold">{serverTotal}</span> reviews
+          <span className="text-xs text-zinc-400 font-medium flex items-center gap-1.5">
+            Showing <span className="bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full text-[11px]">{serverTotal}</span> reviews
           </span>
         </div>
 
@@ -491,12 +494,12 @@ const Reviews = () => {
             align="left"
             trigger={
               <button
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${dateRange.label === "All Time"
-                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-semibold border-2 transition-all cursor-pointer ${dateRange.label === "All Time"
+                  ? "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                  : "border-orange-200 bg-orange-50 text-orange-700"
                   }`}
               >
-                <Calendar size={14} className={dateRange.label !== "All Time" ? "text-indigo-600" : "text-zinc-400"} />
+                <Calendar size={14} className={dateRange.label !== "All Time" ? "text-orange-500" : "text-zinc-400"} />
                 {dateRange.label}
                 <ChevronDown size={14} className="ml-1 opacity-50" />
               </button>
@@ -506,10 +509,10 @@ const Reviews = () => {
               <button
                 key={label}
                 onClick={() => setPresetRange(label)}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${dateRange.label === label ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${dateRange.label === label ? "bg-orange-50 text-orange-600" : "text-zinc-600 hover:bg-zinc-50"
                   }`}
               >
-                {label.toUpperCase()}
+                {label}
               </button>
             ))}
           </FilterDropdown>
@@ -519,12 +522,12 @@ const Reviews = () => {
             align="left"
             trigger={
               <button
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${tab === "ALL"
-                  ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                  : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-semibold border-2 transition-all cursor-pointer ${tab === "ALL"
+                  ? "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                  : "border-orange-200 bg-orange-50 text-orange-700"
                   }`}
               >
-                <Filter size={14} className={tab !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
+                <Filter size={14} className={tab !== "ALL" ? "text-orange-500" : "text-zinc-400"} />
                 {tab === "ALL" ? "All Categories" : tab}
                 <ChevronDown size={14} className="ml-1 opacity-50" />
               </button>
@@ -534,7 +537,7 @@ const Reviews = () => {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${tab === t ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${tab === t ? "bg-orange-50 text-orange-600" : "text-zinc-600 hover:bg-zinc-50"
                   }`}
               >
                 {t}
@@ -546,7 +549,7 @@ const Reviews = () => {
           {isScopedUser ? (
             <button
               disabled
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 border-zinc-200 bg-zinc-50 text-zinc-400 cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-semibold border-2 border-zinc-200 bg-zinc-50 text-zinc-400 cursor-not-allowed"
             >
               <Briefcase size={14} className="text-zinc-400" />
               {currentUser?.department} (Locked)
@@ -556,12 +559,12 @@ const Reviews = () => {
               align="right"
               trigger={
                 <button
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 transition-all cursor-pointer ${department === "ALL"
-                    ? "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300"
-                    : "border-indigo-100 bg-indigo-50 text-indigo-600"
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-semibold border-2 transition-all cursor-pointer ${department === "ALL"
+                    ? "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                    : "border-orange-200 bg-orange-50 text-orange-700"
                     }`}
                 >
-                  <Briefcase size={14} className={department !== "ALL" ? "text-indigo-600" : "text-zinc-400"} />
+                  <Briefcase size={14} className={department !== "ALL" ? "text-orange-500" : "text-zinc-400"} />
                   {department === "ALL" ? "All Departments" : department}
                   <ChevronDown size={14} className="ml-1 opacity-50" />
                 </button>
@@ -569,19 +572,19 @@ const Reviews = () => {
             >
               <button
                 onClick={() => setDepartment("ALL")}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${department === "ALL" ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${department === "ALL" ? "bg-orange-50 text-orange-600" : "text-zinc-600 hover:bg-zinc-50"
                   }`}
               >
-                ALL DEPARTMENTS
+                All Departments
               </button>
               {departments.map(d => (
                 <button
                   key={d}
                   onClick={() => setDepartment(d)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${department === d ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-zinc-50"
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${department === d ? "bg-orange-50 text-orange-600" : "text-zinc-600 hover:bg-zinc-50"
                     }`}
                 >
-                  {d.toUpperCase()}
+                  {d}
                 </button>
               ))}
             </FilterDropdown>
@@ -591,9 +594,9 @@ const Reviews = () => {
           <FilterDropdown
             align="right"
             trigger={
-              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border-2 border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 transition-all cursor-pointer">
+              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-semibold border-2 border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 transition-all cursor-pointer">
                 <ArrowUpDown size={14} className="text-zinc-400" />
-                {sortBy.replace("_", " ")}
+                {sortBy === "NEWEST" ? "Newest first" : sortBy === "OLDEST" ? "Oldest first" : sortBy === "LOWEST_RATING" ? "Lowest rating" : sortBy.replace("_", " ")}
                 <ChevronDown size={14} className="ml-1 opacity-50" />
               </button>
             }
@@ -606,10 +609,10 @@ const Reviews = () => {
               <button
                 key={option.id}
                 onClick={() => setSortBy(option.id)}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${sortBy === option.id ? "bg-indigo-50 text-indigo-600" : "text-zinc-500 hover:bg-slate-50"
+                className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${sortBy === option.id ? "bg-orange-50 text-orange-600" : "text-zinc-600 hover:bg-zinc-50"
                   }`}
               >
-                {option.label.toUpperCase()}
+                {option.label}
               </button>
             ))}
           </FilterDropdown>
@@ -618,13 +621,13 @@ const Reviews = () => {
           <div className="h-6 w-[1px] bg-zinc-200 hidden md:block mx-1"></div>
 
           {/* ── Hide Low Confidence Toggle ── */}
-          <div className="flex items-center gap-2.5 px-4 py-2 bg-zinc-50 rounded-xl border border-zinc-200/60 shadow-sm">
-            <span className="text-[10px] font-black text-zinc-455 uppercase tracking-wider select-none">Hide Low Confidence</span>
+          <div className="flex items-center gap-2.5 px-4 py-2 bg-zinc-50 rounded-xl border border-zinc-200/60 shadow-sm" title={`Hides reviews with AI confidence below ${confidenceThreshold}%`}>
+            <span className="text-[11px] font-semibold text-zinc-500 select-none">{hideLowConfidence ? "Hiding low confidence" : "Hide low confidence"}</span>
             <button
               onClick={() => setHideLowConfidence(!hideLowConfidence)}
-              className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${hideLowConfidence ? "bg-indigo-600" : "bg-zinc-200"}`}
+              className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${hideLowConfidence ? "bg-orange-500" : "bg-zinc-200"}`}
             >
-              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${hideLowConfidence ? "left-6" : "left-1"}`} />
+              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${hideLowConfidence ? "left-6" : "left-1"}`} />
             </button>
           </div>
         </div>
@@ -658,9 +661,9 @@ const Reviews = () => {
           [1, 2, 3, 4, 5, 6].map(i => <SkeletonReviewCard key={i} />)
         ) : paginatedReviews.length > 0 ? (
           <>
-            {paginatedReviews.map(r => (
+            {paginatedReviews.map((r, idx) => (
+              <div key={r.review_id} style={{ animationDelay: `${idx * 40}ms` }} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
               <ReviewCard
-                key={r.review_id}
                 review={r}
                 confidenceThreshold={confidenceThreshold}
                 highlight={highlightId === r.review_id || highlightId === r._id}
@@ -672,6 +675,7 @@ const Reviews = () => {
                   setSimilarModal({ open: true, review: rev, matches, loading: false });
                 }}
               />
+              </div>
             ))}
             {isFetchingReviews && currentPage > 1 && (
               [1, 2, 3].map(i => <SkeletonReviewCard key={`loading-more-${i}`} />)
@@ -682,8 +686,8 @@ const Reviews = () => {
             <div className="w-20 h-20 bg-white border border-zinc-200 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-400 shadow-sm">
               <Filter size={32} />
             </div>
-            <h3 className="text-lg font-black text-zinc-800 uppercase tracking-wider font-display">No reviews matched your filters</h3>
-            <p className="text-zinc-500 mt-2 text-xs font-medium">Try selecting a different tab or clearing your search.</p>
+            <h3 className="text-lg font-bold text-zinc-800">No reviews matched your filters</h3>
+            <p className="text-zinc-500 mt-2 text-sm font-medium">Try selecting a different tab or clearing your search.</p>
           </div>
         )}
       </div>

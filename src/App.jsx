@@ -14,6 +14,7 @@ import Import from "./pages/Import";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -34,6 +35,9 @@ function App() {
               <Route path="settings" element={<Settings />} />
               <Route index element={<Navigate to="dashboard" />} />
             </Route>
+
+            {/* Catch-all 404 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Router>
       </AppProvider>

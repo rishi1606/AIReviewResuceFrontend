@@ -578,4 +578,36 @@
   border-left: 4px solid var(--color-indigo-500);
 }
 
+/* ─── Skeleton shimmer loading ─── */
+.sh-skeleton {
+  background: linear-gradient(
+    90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Pulse animation for badge ─── */
+@keyframes badgePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+.sh-badge-pulse {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* ─── Bar grow animation for sidebar progress bars ─── */
+@keyframes barGrow {
+  from { width: 0%; }
+  to   { width: var(--bar-width); }
+}
+.sh-bar-animate {
+  animation: barGrow 600ms cubic-bezier(0.4,0,0.2,1) forwards;
+}
 
