@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MessageSquare, AlertTriangle, CheckCircle2, Star,
   ArrowRight, ThumbsUp, Activity, TrendingUp, TrendingDown, Expand, BarChart3,
-  Building2, Plus
+  Building2, Plus, Clock, Percent, ShieldCheck, Zap, Shield
 } from "lucide-react";
 import { Tooltip } from "../components/ui/Tooltip";
 import { useDerivedStats } from "../hooks/useDerivedStats";
@@ -11,7 +11,7 @@ import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, BarChart, Bar
 } from "recharts";
 import {
   SkeletonKPI, SkeletonChart, SkeletonBlock, SkeletonReview
@@ -28,7 +28,7 @@ import { dateFormat, parseReviewDate } from "../common/dateUtils";
 const SentimentPill = React.memo(({ value }) => {
   const st = SENTIMENT_STYLES[value] ?? SENTIMENT_STYLES.Neutral;
   return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1.5 ${st.wrapper}`}>
+    <span className={`text-[10px] font-bold inline-flex items-center gap-1.5 ${st.wrapper}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
       {value ?? "N/A"}
     </span>
@@ -38,25 +38,26 @@ SentimentPill.displayName = "SentimentPill";
 
 // Status badge with meaningful color coding
 const STATUS_COLOR_MAP = {
-  RESPONDED: "bg-emerald-50 text-emerald-700",
-  Approved: "bg-emerald-50 text-emerald-700",
-  ESCALATED: "bg-red-50 text-red-700",
-  Suspicious: "bg-amber-50 text-amber-700",
-  CLASSIFIED: "bg-blue-50 text-blue-700",
-  Pending: "bg-zinc-100 text-zinc-600",
+  RESPONDED: "text-emerald-600",
+  Approved: "text-emerald-600",
+  ESCALATED: "text-red-600",
+  Suspicious: "text-amber-600",
+  CLASSIFIED: "text-blue-600",
+  Pending: "text-zinc-400",
 };
 
 const StatusBadge = React.memo(({ value }) => {
-  const colorClass = STATUS_COLOR_MAP[value] ?? "bg-zinc-100 text-zinc-600";
+  const colorClass = STATUS_COLOR_MAP[value] ?? "text-zinc-400";
   return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${colorClass}`}>
+    <span className={`text-[10px] font-bold capitalize ${colorClass}`}>
       {value ?? "Open"}
     </span>
   );
 });
 StatusBadge.displayName = "StatusBadge";
 
-const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "slate", trend, trendIcon: TrendIcon, trendType = "neutral", pulseClass, cardTooltip, onClick }) => {
+const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "slate", trend, trendIcon: TrendIcon, trendType = "neutral", pulseClass, cardTooltip, tooltipText, onClick }) => {
+  const resolvedTooltip = cardTooltip || tooltipText;
   const themeClass = ICON_THEMES[color] ?? ICON_THEMES.slate;
   const tcClass = TREND_CONFIG[trendType] ?? TREND_CONFIG.neutral;
 
@@ -69,7 +70,6 @@ const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "sl
 
   const card = (
     <div
-      title={title}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -96,9 +96,9 @@ const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "sl
     </div>
   );
 
-  if (cardTooltip) {
+  if (resolvedTooltip) {
     return (
-      <Tooltip content={cardTooltip} position="bottom" maxWidth={220} delay={400}>
+      <Tooltip content={resolvedTooltip} position="bottom" maxWidth={340} delay={400}>
         {card}
       </Tooltip>
     );
@@ -143,18 +143,24 @@ const ProgressRow = React.memo(({ label, count, total, barColor, textColor, hove
 ProgressRow.displayName = "ProgressRow";
 
 // Star rating display
-const StarRating = React.memo(({ rating }) => (
-  <div className="flex gap-0.5" aria-label={`${rating} out of 5 stars`}>
-    {Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        size={12}
-        aria-hidden="true"
-        className={i < (rating || 0) ? "fill-orange-400 text-orange-400" : "fill-zinc-100 text-zinc-200"}
-      />
-    ))}
-  </div>
-));
+const StarRating = React.memo(({ rating, platform }) => {
+  const is10 = platform === "Booking.com" || platform === "Agoda";
+  const starCount = is10 ? 10 : 5;
+  const rawVal = is10 ? (rating * 2) : rating;
+  const filled = Math.round(rawVal || 0);
+  return (
+    <div className="flex gap-0.5" aria-label={`${rawVal} out of ${starCount} stars`}>
+      {Array.from({ length: starCount }, (_, i) => (
+        <Star
+          key={i}
+          size={is10 ? 9 : 12}
+          aria-hidden="true"
+          className={i < filled ? "fill-orange-400 text-orange-400" : "fill-zinc-100 text-zinc-200"}
+        />
+      ))}
+    </div>
+  );
+});
 StarRating.displayName = "StarRating";
 
 // ─── Derived stats helper (pure function — outside component) ─────────────────
@@ -169,8 +175,8 @@ const deriveFilteredStats = (reviews) => ({
   mixedCount: reviews.filter(r => r.sentiment?.toLowerCase() === "mixed").length,
   neutralCount: reviews.filter(r => r.sentiment?.toLowerCase() === "neutral").length,
   approvedCount: reviews.filter(r => r.status === "Approved" || r.status === "RESPONDED").length,
-  escalatedCount: reviews.filter(r => r.status === "ESCALATED").length,
-  suspiciousCount: reviews.filter(r => r.status === "Suspicious").length,
+  escalatedCount: reviews.filter(r => r.escalation || r.status === "ESCALATED").length,
+  suspiciousCount: reviews.filter(r => r.is_suspicious || r.status === "Suspicious").length,
 });
 
 // ─── Main Dashboard Component ─────────────────────────────────────────────────
@@ -182,6 +188,7 @@ const Dashboard = () => {
   const { currentUser } = useAuth();
   const [tablePage, setTablePage] = useState(1);
   const [hiddenSeries, setHiddenSeries] = useState([]);
+  const [comparisonRange, setComparisonRange] = useState(30);
 
   const selectedPlatform = state.activeFilters?.platform ?? "ALL";
   const selectedProperty = state.activeFilters?.property ?? "ALL";
@@ -259,9 +266,12 @@ const Dashboard = () => {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filteredReviews]);
 
+  // ── Page title ──
+  useEffect(() => { document.title = "ReviewRescue — Dashboard"; }, []);
+
   // ── Stable navigation callbacks ───────────────────────────────────────────────
   const goToReviews = useCallback(() => navigate("/reviews"), [navigate]);
-  const goToSettings = useCallback(() => navigate("/settings"), [navigate]);
+  const goToSettings = useCallback(() => navigate("/settings?tab=properties"), [navigate]);
   const goToEscalated = useCallback(() => navigate("/reviews?tab=Escalated"), [navigate]);
   const goToPositive = useCallback(() => navigate("/reviews?tab=Positive"), [navigate]);
   const goToNegative = useCallback(() => navigate("/reviews?tab=Negative"), [navigate]);
@@ -297,7 +307,7 @@ const Dashboard = () => {
                 trend={filteredStats.totalReviews > 0 ? `+${filteredStats.totalReviews}` : "—"}
                 trendIcon={filteredStats.totalReviews > 0 ? TrendingUp : null}
                 trendType={filteredStats.totalReviews > 0 ? "up" : "neutral"}
-                tooltipText="Total reviews collected from all connected platforms"
+                tooltipText="Total number of guest reviews collected from all connected platforms (Google, Booking.com, Agoda, etc.). Each review is imported automatically via your scraper schedule and processed by AI for sentiment, department, and urgency classification."
                 onClick={goToReviews}
               />
               <KPICardNew
@@ -309,7 +319,7 @@ const Dashboard = () => {
                 trend={avgRatingNum >= 4 ? `↑ +${(avgRatingNum - 3.5).toFixed(1)}` : avgRatingNum >= 3 ? `→ ${avgRatingNum.toFixed(1)}` : `↓ ${(3.5 - avgRatingNum).toFixed(1)}`}
                 trendIcon={avgRatingNum >= 4 ? TrendingUp : TrendingDown}
                 trendType={avgRatingNum >= 4 ? "up" : avgRatingNum >= 3 ? "warn" : "down"}
-                tooltipText={`Your average guest rating is ${filteredStats.avgRating} out of 5 stars`}
+                tooltipText={`Your average guest rating is ${filteredStats.avgRating} out of 5 stars, calculated across ${filteredStats.totalReviews} reviews from all connected platforms. Ratings from different scales (e.g. Booking.com's /10, Agoda's /10) are normalised to a /5 scale before averaging, so you get a consistent score regardless of platform. This value updates in real-time as new reviews are imported.`}
 
               />
               <KPICardNew
@@ -322,7 +332,7 @@ const Dashboard = () => {
                 trendIcon={filteredStats.escalatedCount > 0 ? TrendingDown : CheckCircle2}
                 trendType={filteredStats.escalatedCount > 0 ? "down" : "up"}
                 pulseClass={filteredStats.escalatedCount > 0 ? "sh-badge-pulse" : ""}
-                tooltipText={filteredStats.escalatedCount > 0 ? `${filteredStats.escalatedCount} reviews flagged for escalation — click to review` : "No reviews need escalation right now"}
+                tooltipText={filteredStats.escalatedCount > 0 ? `${filteredStats.escalatedCount} reviews have been escalated for immediate attention. A review is escalated when the guest rating falls at or below your configured threshold (default: ≤ 2/5 stars, or ≤ 4/10 on Booking.com / Agoda), or when it's flagged as high-urgency by the AI. Click this card to view all escalated reviews and take action.` : "No reviews currently need escalation. Reviews are auto-escalated when the rating falls below your configured threshold or the AI detects high urgency. You can adjust the escalation threshold in Settings → Rules."}
                 onClick={goToEscalated}
               />
               <KPICardNew
@@ -334,9 +344,22 @@ const Dashboard = () => {
                 trend={filteredStats.positiveCount > 0 ? `${Math.round((filteredStats.positiveCount / (filteredStats.totalReviews || 1)) * 100)}%` : "—"}
                 trendIcon={filteredStats.positiveCount > 0 ? TrendingUp : null}
                 trendType={filteredStats.positiveCount > (filteredStats.totalReviews * 0.5) ? "up" : "warn"}
-                tooltipText={`${filteredStats.positiveCount} out of ${filteredStats.totalReviews} reviews are positive`}
+                tooltipText={`${filteredStats.positiveCount} out of ${filteredStats.totalReviews} reviews are classified as positive by the AI. A review is marked positive when the overall sentiment is favourable (e.g. compliments about service, room quality, or staff). This percentage helps you gauge overall guest satisfaction at a glance.`}
                 onClick={goToPositive}
               />
+              {/* <KPICardNew
+                title="Suspicious"
+                value={filteredStats.suspiciousCount}
+                subtitle={filteredStats.suspiciousCount > 0 ? "Flagged for review" : "No suspicious reviews"}
+                icon={Shield}
+                color={filteredStats.suspiciousCount > 0 ? "red" : "green"}
+                trend={filteredStats.suspiciousCount > 0 ? "Needs review" : "All clear"}
+                trendIcon={filteredStats.suspiciousCount > 0 ? AlertTriangle : CheckCircle2}
+                trendType={filteredStats.suspiciousCount > 0 ? "down" : "up"}
+                pulseClass={filteredStats.suspiciousCount > 0 ? "sh-badge-pulse" : ""}
+                tooltipText={filteredStats.suspiciousCount > 0 ? `${filteredStats.suspiciousCount} reviews flagged as suspicious or by keyword alerts` : "No suspicious reviews detected"}
+                onClick={goToSuspicious}
+              /> */}
             </>
           )}
         </div>
@@ -527,6 +550,186 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* ══ Insights & Analytics Section ══ */}
+        {!state.isAppLoading && filteredReviews.length > 0 && (() => {
+          // ── Accurate calculations ──
+          const respondedReviews = filteredReviews.filter(r => r.status === "RESPONDED" || r.status === "Approved");
+          const approvalRate = filteredReviews.length > 0 ? Math.round((respondedReviews.length / filteredReviews.length) * 100) : 0;
+
+          // Avg time to approve (imported_at → approved_at)
+          const reviewsWithApproval = filteredReviews.filter(r => r.approved_at && r.imported_at && r.approved_at > r.imported_at);
+          let avgApprovalTime = null;
+          if (reviewsWithApproval.length > 0) {
+            const totalMs = reviewsWithApproval.reduce((sum, r) => sum + (r.approved_at - r.imported_at), 0);
+            const avgMs = totalMs / reviewsWithApproval.length;
+            const avgHrs = avgMs / (1000 * 60 * 60);
+            avgApprovalTime = avgHrs < 1 ? `${Math.round(avgMs / (1000 * 60))}m` : avgHrs < 24 ? `${avgHrs.toFixed(1)}h` : `${(avgHrs / 24).toFixed(1)}d`;
+          }
+
+          // Escalation rate
+          const escalationRate = filteredReviews.length > 0 ? Math.round((filteredStats.escalatedCount / filteredReviews.length) * 100) : 0;
+
+          // Avg AI Confidence
+          const reviewsWithConf = filteredReviews.filter(r => r.confidence != null);
+          const avgConf = reviewsWithConf.length > 0 ? Math.round(reviewsWithConf.reduce((s, r) => s + r.confidence, 0) / reviewsWithConf.length) : 0;
+
+          // Department distribution
+          const deptMap = {};
+          filteredReviews.forEach(r => {
+            const dept = r.primary_department || "Unassigned";
+            if (!deptMap[dept]) deptMap[dept] = { name: dept, Positive: 0, Negative: 0, Mixed: 0, Neutral: 0, total: 0 };
+            deptMap[dept].total++;
+            const sent = r.sentiment || "Neutral";
+            if (deptMap[dept][sent] !== undefined) deptMap[dept][sent]++;
+          });
+          const deptData = Object.values(deptMap).sort((a, b) => b.total - a.total);
+
+          // Period comparison (dynamic range)
+          const RANGE_OPTIONS = [
+            { label: '7d', days: 7, tip: 'Compare last 7 days vs the 7 days before' },
+            { label: '30d', days: 30, tip: 'Compare last 30 days vs the 30 days before' },
+            { label: '60d', days: 60, tip: 'Compare last 60 days vs the 60 days before' },
+            { label: '90d', days: 90, tip: 'Compare last 90 days vs the 90 days before' },
+            { label: 'All', days: 0, tip: 'Show all reviews by sentiment (no comparison)' },
+          ];
+          const rangeDays = comparisonRange;
+          const now = new Date();
+          now.setHours(23, 59, 59, 999);
+
+          const fmtShort = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+          let currentPeriod, previousPeriod, currentLabel, previousLabel, currentDateRange, previousDateRange;
+
+          if (rangeDays === 0) {
+            currentPeriod = filteredReviews;
+            previousPeriod = [];
+            currentLabel = 'All Time';
+            previousLabel = '—';
+            currentDateRange = 'All reviews';
+            previousDateRange = '';
+          } else {
+            const currentStart = new Date(now);
+            currentStart.setDate(currentStart.getDate() - rangeDays);
+            currentStart.setHours(0, 0, 0, 0);
+            const prevStart = new Date(currentStart);
+            prevStart.setDate(prevStart.getDate() - rangeDays);
+
+            currentPeriod = filteredReviews.filter(r => {
+              const parsed = parseReviewDate(r.review_date ?? r.createdAt);
+              return parsed && parsed.getTime() >= currentStart.getTime();
+            });
+            previousPeriod = filteredReviews.filter(r => {
+              const parsed = parseReviewDate(r.review_date ?? r.createdAt);
+              return parsed && parsed.getTime() >= prevStart.getTime() && parsed.getTime() < currentStart.getTime();
+            });
+
+            currentDateRange = `${fmtShort(currentStart)} – ${fmtShort(now)}`;
+            previousDateRange = `${fmtShort(prevStart)} – ${fmtShort(currentStart)}`;
+            currentLabel = currentDateRange;
+            previousLabel = previousDateRange;
+          }
+
+          const comparisonData = rangeDays === 0 ? [
+            { label: 'All Time', Positive: currentPeriod.filter(r => r.sentiment === 'Positive').length, Negative: currentPeriod.filter(r => r.sentiment === 'Negative').length, Mixed: currentPeriod.filter(r => r.sentiment === 'Mixed').length, Neutral: currentPeriod.filter(r => r.sentiment === 'Neutral').length, Total: currentPeriod.length },
+          ] : [
+            { label: previousLabel, Positive: previousPeriod.filter(r => r.sentiment === 'Positive').length, Negative: previousPeriod.filter(r => r.sentiment === 'Negative').length, Mixed: previousPeriod.filter(r => r.sentiment === 'Mixed').length, Neutral: previousPeriod.filter(r => r.sentiment === 'Neutral').length, Total: previousPeriod.length },
+            { label: currentLabel, Positive: currentPeriod.filter(r => r.sentiment === 'Positive').length, Negative: currentPeriod.filter(r => r.sentiment === 'Negative').length, Mixed: currentPeriod.filter(r => r.sentiment === 'Mixed').length, Neutral: currentPeriod.filter(r => r.sentiment === 'Neutral').length, Total: currentPeriod.length },
+          ];
+          const periodChange = previousPeriod.length > 0 ? Math.round(((currentPeriod.length - previousPeriod.length) / previousPeriod.length) * 100) : currentPeriod.length > 0 ? 100 : 0;
+
+          return (
+            <div className="space-y-6">
+
+              {/* ── Charts Row ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Department Distribution */}
+                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col" style={{ minHeight: 340 }}>
+                  <div className="mb-4 pb-3 border-b border-zinc-100">
+                    <h3 className="text-[15px] font-bold text-zinc-900">Department Distribution</h3>
+                    <p className="text-[12px] text-zinc-400 mt-0.5">Reviews routed per department</p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {deptData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={deptData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
+                          <XAxis type="number" stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis type="category" dataKey="name" stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} width={100} />
+                          <RechartsTooltip contentStyle={{ borderRadius: 10, border: "1px solid #e4e4e7", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: 12 }} />
+                          <Bar dataKey="Positive" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                          <Bar dataKey="Negative" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+                          <Bar dataKey="Mixed" stackId="a" fill="#a855f7" radius={[0, 0, 0, 0]} />
+                          <Bar dataKey="Neutral" stackId="a" fill="#d4d4d8" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-zinc-400 text-xs">No department data</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Period Comparison */}
+                <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col" style={{ minHeight: 340 }}>
+                  <div className="mb-4 pb-3 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                      <h3 className="text-[15px] font-bold text-zinc-900">Period Comparison</h3>
+                      <p className="text-[12px] text-zinc-400 mt-0.5">{rangeDays === 0 ? 'All reviews by sentiment' : `${currentLabel} vs ${previousLabel}`}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {/* Time range toggles */}
+                      <div className="flex items-center bg-zinc-100 rounded-lg p-0.5">
+                        {RANGE_OPTIONS.map(opt => (
+                          <button
+                            key={opt.days}
+                            onClick={() => setComparisonRange(opt.days)}
+                            title={opt.tip}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                              comparisonRange === opt.days
+                                ? 'bg-white text-zinc-900 shadow-sm'
+                                : 'text-zinc-400 hover:text-zinc-600'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={comparisonData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
+                        <XAxis dataKey="label" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} />
+                        <RechartsTooltip contentStyle={{ borderRadius: 10, border: "1px solid #e4e4e7", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: 12 }} />
+                        <Bar dataKey="Positive" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+                        <Bar dataKey="Negative" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={32} />
+                        <Bar dataKey="Mixed" fill="#a855f7" radius={[4, 4, 0, 0]} barSize={32} />
+                        <Bar dataKey="Neutral" fill="#a1a1aa" radius={[4, 4, 0, 0]} barSize={32} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {/* Stats footer — matches chart bar order: previous (left) → current (right) */}
+                  <div className={`pt-3 border-t border-zinc-100 grid gap-4 ${rangeDays === 0 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {rangeDays !== 0 && (
+                      <div title={`Previous period: ${previousDateRange}`}>
+                        <p className="text-[10px] text-zinc-400 font-semibold">PREVIOUS PERIOD</p>
+                        <p className="text-[11px] text-zinc-500 font-medium">{previousDateRange}</p>
+                        <p className="text-sm font-bold text-zinc-800">{previousPeriod.length} <span className="text-[10px] text-zinc-400 font-normal">reviews</span></p>
+                      </div>
+                    )}
+                    <div title={`Current period: ${currentDateRange}`}>
+                      <p className="text-[10px] text-zinc-400 font-semibold">CURRENT PERIOD</p>
+                      <p className="text-[11px] text-zinc-500 font-medium">{currentDateRange}</p>
+                      <p className="text-sm font-bold text-zinc-800">{currentPeriod.length} <span className="text-[10px] text-zinc-400 font-normal">reviews</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Recent Reviews Table */}
         <div className="bg-white border border-zinc-200 rounded-2xl flex flex-col mb-6 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-100 flex justify-between items-center">
@@ -703,6 +906,7 @@ const Dashboard = () => {
               </div>
               <div className="px-5 py-4 space-y-1">
                 <ProgressRow label="Approved" count={filteredStats.approvedCount} total={filteredStats.totalReviews} barColor="bg-emerald-500" textColor="text-emerald-600" hoverColor="group-hover:text-emerald-600" onClick={goToApproved} />
+                <ProgressRow label="Escalated" count={filteredStats.escalatedCount} total={filteredStats.totalReviews} barColor="bg-orange-500" textColor="text-orange-600" hoverColor="group-hover:text-orange-600" onClick={goToEscalated} />
                 <ProgressRow label="Suspicious" count={filteredStats.suspiciousCount} total={filteredStats.totalReviews} barColor="bg-red-500" textColor="text-red-600" hoverColor="group-hover:text-red-600" onClick={goToSuspicious} />
               </div>
               <div className="px-5 py-3 border-t border-zinc-100 flex justify-end">
@@ -754,8 +958,8 @@ const getFullDate = (review) => {
 // Extracted table row — prevents full table re-render when only one row changes
 const ReviewRow = React.memo(({ review: r, navigate, isEven }) => {
   const handleClick = useCallback(() => {
-    navigate(`/reviews?search=${encodeURIComponent(r.reviewer_name ?? r.guest_name ?? "")}`);
-  }, [navigate, r.reviewer_name, r.guest_name]);
+    navigate(`/reviews/${r.review_id}`);
+  }, [navigate, r.review_id]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === "Enter") handleClick();
@@ -800,8 +1004,10 @@ const ReviewRow = React.memo(({ review: r, navigate, isEven }) => {
       {/* Rating */}
       <td className="px-3 py-3.5">
         <div className="flex items-center gap-1.5">
-          <StarRating rating={r.rating} />
-          <span className="text-[11px] font-bold text-zinc-500 leading-none mt-px">{r.rating ?? 0}</span>
+          <StarRating rating={r.rating} platform={r.platform} />
+          <span className="text-[11px] font-bold text-zinc-500 leading-none mt-px">
+            {(r.platform === "Booking.com" || r.platform === "Agoda") ? `${r.raw_rating || (r.rating * 2).toFixed(1)}/10` : `${r.rating ?? 0}/5`}
+          </span>
         </div>
       </td>
       {/* Sentiment */}

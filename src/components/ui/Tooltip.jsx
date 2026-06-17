@@ -50,16 +50,16 @@ export const Tooltip = ({ content, children, position = "top", maxWidth, delay =
 
   return (
     <>
-      <span
+      <div
         ref={triggerRef}
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
         onBlur={hide}
-        style={{ display: "inline-flex" }}
+        style={{ minWidth: 0 }}
       >
         {children}
-      </span>
+      </div>
 
       {visible && (
         <div

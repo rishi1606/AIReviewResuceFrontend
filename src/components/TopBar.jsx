@@ -4,8 +4,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
 import GlobalSearch from "./GlobalSearch";
-import { Menu, User, Settings, LogOut, Loader2, RefreshCw } from "lucide-react";
+import { Menu, User, Settings, LogOut, Loader2, RefreshCw, BrainCircuit, CheckCircle2, X, Bell, Star, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Clock, RotateCw, ChevronRight } from "lucide-react";
 import { Tooltip } from "./ui/Tooltip";
+import HelpModal from "./HelpModal";
+import { getPendingStatus } from "../api/apiClient";
 
 // ─── Constants (outside component — stable across renders) ───────────────────
 
@@ -14,26 +16,43 @@ const ROUTE_MAP = [
     match: (p) => p.startsWith("/dashboard"),
     title: "Hotel Performance",
     subtitle: (hotelName) => `Here's what's happening at ${hotelName} today.`,
+    helpPage: "dashboard",
+  },
+  {
+    match: (p) => /^\/reviews\/[a-zA-Z0-9]+/.test(p),
+    title: "Review Detail",
+    subtitle: () => "Full review analysis, response drafting, and approval workflow.",
+    helpPage: "reviewDetail",
   },
   {
     match: (p) => p.startsWith("/reviews"),
     title: "Guest Reviews",
     subtitle: () => "Monitor, analyze, and respond to your guests.",
+    helpPage: "reviews",
   },
   {
     match: (p) => p.startsWith("/settings"),
     title: "Settings",
     subtitle: () => "Configure properties, team notifications, and automations.",
+    helpPage: "settings",
   },
   {
     match: (p) => p.startsWith("/tickets"),
     title: "Operations Tickets",
     subtitle: () => "Track automated escalations and guest request resolution.",
+    helpPage: null,
   },
   {
     match: (p) => p.startsWith("/reports") || p.startsWith("/analytics"),
     title: "Reports & Analytics",
     subtitle: () => "Visual trends and department breakdown insights.",
+    helpPage: null,
+  },
+  {
+    match: (p) => p.startsWith("/coming-soon"),
+    title: "What's Next",
+    subtitle: () => "Upcoming features and improvements on our roadmap.",
+    helpPage: null,
   },
 ];
 
@@ -173,14 +192,14 @@ const UserAvatarDropdown = React.memo(({ user, navigate, logout }) => {
             className="absolute right-0 top-full mt-2 bg-white border border-zinc-200 rounded-xl shadow-lg overflow-hidden z-50"
             style={{ minWidth: 160 }}
           >
-            <button
+            {/* <button
               type="button"
               onClick={() => { setOpen(false); navigate("/settings"); }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-zinc-700 hover:bg-zinc-50 transition-colors"
             >
               <User size={14} className="text-zinc-400" />
               Profile
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={() => { setOpen(false); navigate("/settings"); }}
@@ -237,26 +256,175 @@ const UserAvatarDropdown = React.memo(({ user, navigate, logout }) => {
 });
 UserAvatarDropdown.displayName = "UserAvatarDropdown";
 
+// ─── Notification Bell ─────────────────────────────────────────────────────────
+
+const NOTIF_ICONS = {
+  import: { icon: Sparkles, color: 'text-blue-500', bg: 'bg-blue-50' },
+  classified: { icon: BrainCircuit, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  escalated: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+  suspicious: { icon: ShieldAlert, color: 'text-amber-500', bg: 'bg-amber-50' },
+  response: { icon: MessageSquare, color: 'text-purple-500', bg: 'bg-purple-50' },
+  success: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  warning: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
+  info: { icon: RefreshCw, color: 'text-blue-500', bg: 'bg-blue-50' },
+  default: { icon: Bell, color: 'text-zinc-500', bg: 'bg-zinc-50' }
+};
+
+const timeAgo = (ts) => {
+  if (!ts) return '';
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+};
+
+const NotificationBell = React.memo(({ notifications, dispatch, navigate }) => {
+  const [open, setOpen] = useState(false);
+  const bellRef = useRef(null);
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleMarkAllRead = () => {
+    dispatch({ type: 'MARK_ALL_NOTIFICATIONS_READ' });
+  };
+
+  const handleClick = (notif, idx) => {
+    dispatch({ type: 'MARK_NOTIFICATION_READ', payload: idx });
+    if (notif.link_to) {
+      navigate(notif.link_to);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={bellRef}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="relative p-2 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all cursor-pointer"
+        aria-label="Notifications"
+      >
+        <Bell size={18} />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full px-0.5 shadow-sm animate-pulse">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-2 bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden z-50"
+          style={{ width: 360, maxHeight: 440, animation: 'shSlideDown 200ms ease forwards' }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+            <div className="flex items-center gap-2">
+              <Bell size={14} className="text-zinc-500" />
+              <span className="text-[13px] font-bold text-zinc-800">Notifications</span>
+              {unreadCount > 0 && (
+                <span className="text-[10px] font-semibold text-white bg-red-500 rounded-full px-1.5 py-0.5 leading-none">{unreadCount} new</span>
+              )}
+            </div>
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+
+          {/* List */}
+          <div className="overflow-y-auto" style={{ maxHeight: 370 }}>
+            {notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
+                <Bell size={28} className="mb-2 opacity-30" />
+                <p className="text-[12px] font-medium">No notifications yet</p>
+                <p className="text-[11px] mt-0.5">Activity will appear here</p>
+              </div>
+            ) : (
+              notifications.slice(0, 20).map((notif, i) => {
+                const cfg = NOTIF_ICONS[notif.type] || NOTIF_ICONS.default;
+                const Icon = cfg.icon;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleClick(notif, i)}
+                    className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 group/notif ${
+                      !notif.read ? 'bg-orange-50/40' : ''
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                      <Icon size={15} className={cfg.color} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[12px] leading-snug ${!notif.read ? 'font-bold text-zinc-900' : 'font-medium text-zinc-600'}`}>
+                        {notif.title || notif.message || 'Notification'}
+                      </p>
+                      {notif.title && notif.message && (
+                        <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-2" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{notif.message}</p>
+                      )}
+                      <p className="text-[10px] text-zinc-300 mt-1">{timeAgo(notif.timestamp || notif.created_at)}</p>
+                    </div>
+                    {notif.link_to ? (
+                      <ChevronRight size={14} className="text-zinc-300 shrink-0 mt-1.5 group-hover/notif:text-orange-500 transition-colors" />
+                    ) : !notif.read ? (
+                      <div className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-2" />
+                    ) : null}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+NotificationBell.displayName = 'NotificationBell';
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const TopBar = ({ setMobileMenuOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
-  const { state } = useAppContext();
+  const { state, dispatch, refreshData } = useAppContext();
   const [syncing, setSyncing] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [toast, setToast] = useState(null);
+  const [pollInterval, setPollIntervalState] = useState(() => {
+    const saved = localStorage.getItem('rr_poll_interval');
+    return saved ? parseInt(saved) : 30;
+  });
+  const setPollInterval = (val) => { setPollIntervalState(val); localStorage.setItem('rr_poll_interval', val); };
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastUpdatedLabel, setLastUpdatedLabel] = useState('Just now');
+  const prevPendingRef = useRef(null);
+  const prevTotalRef = useRef(null);
 
   const selectedProperty = state.activeFilters?.property ?? "ALL";
   const hotelName = selectedProperty === "ALL"
     ? "your properties"
     : selectedProperty;
 
-  const { title, subtitle } = useMemo(() => {
+  const { title, subtitle, helpPage } = useMemo(() => {
     const path = location.pathname;
     const route = ROUTE_MAP.find((r) => r.match(path)) ?? DEFAULT_ROUTE;
     return {
       title: route.title,
       subtitle: route.subtitle(hotelName),
+      helpPage: route.helpPage || null,
     };
   }, [location.pathname, hotelName]);
 
@@ -275,20 +443,110 @@ const TopBar = ({ setMobileMenuOpen }) => {
     setTimeout(() => setSyncing(false), 1500);
   }, [syncing]);
 
+  // ── Auto-poll for pending reviews ──────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    const poll = async () => {
+      try {
+        const res = await getPendingStatus();
+        if (!mounted) return;
+        const { pendingCount: newPending, totalCount: newTotal } = res.data;
+
+        setLastUpdated(Date.now());
+
+        // Detect newly classified reviews
+        if (prevPendingRef.current !== null && prevPendingRef.current > 0 && newPending < prevPendingRef.current) {
+          const justClassified = prevPendingRef.current - newPending;
+          setToast({ message: `${justClassified} review${justClassified > 1 ? 's' : ''} just classified!`, type: 'success' });
+          dispatch({ type: 'ADD_NOTIFICATION', payload: {
+            type: 'classified',
+            title: `${justClassified} review${justClassified > 1 ? 's' : ''} classified`,
+            message: 'Analysis complete — sentiment, department, and urgency assigned.',
+            timestamp: Date.now(),
+            read: false,
+            link_to: '/reviews'
+          }});
+          refreshData();
+        }
+
+        // Detect new imports — notification only, no toast
+        if (prevTotalRef.current !== null && newTotal > prevTotalRef.current) {
+          const newImported = newTotal - prevTotalRef.current;
+          dispatch({ type: 'ADD_NOTIFICATION', payload: {
+            type: 'import',
+            title: `${newImported} new review${newImported > 1 ? 's' : ''} imported`,
+            message: 'Reviews scraped and queued for classification.',
+            timestamp: Date.now(),
+            read: false,
+            link_to: '/reviews'
+          }});
+          refreshData();
+        }
+
+        prevPendingRef.current = newPending;
+        prevTotalRef.current = newTotal;
+        setPendingCount(newPending);
+      } catch (e) { /* silent */ }
+    };
+    poll();
+    const interval = setInterval(poll, pollInterval * 1000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [refreshData, pollInterval]);
+
+  // ── Update "Updated X ago" label every second ─────────────────────────────
+  useEffect(() => {
+    if (!lastUpdated) return;
+    const tick = () => {
+      const diff = Math.floor((Date.now() - lastUpdated) / 1000);
+      if (diff < 5) setLastUpdatedLabel('Just now');
+      else if (diff < 60) setLastUpdatedLabel(`${diff}s ago`);
+      else setLastUpdatedLabel(`${Math.floor(diff / 60)}m ago`);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [lastUpdated]);
+
+  const handleManualRefresh = useCallback(async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await getPendingStatus();
+      const { pendingCount: newPending, totalCount: newTotal } = res.data;
+      prevPendingRef.current = newPending;
+      prevTotalRef.current = newTotal;
+      setPendingCount(newPending);
+      setLastUpdated(Date.now());
+      refreshData();
+    } catch (e) { /* silent */ }
+    setSyncing(false);
+  }, [syncing, refreshData]);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   return (
+    <>
     <header
       className="sticky top-0 z-30 flex items-center justify-between px-4 md:px-6 lg:px-8 py-3 md:py-4 bg-white/95 backdrop-blur-sm border-b border-zinc-200/80 transition-all duration-300"
       role="banner"
     >
       <div className="flex items-center gap-3">
         <MobileMenuButton onClick={handleMenuOpen} />
-        <PageHeading
-          title={title}
-          subtitle={subtitle}
-          greeting={greeting}
-          syncing={syncing}
-          onSync={handleSync}
-        />
+        <div className="flex items-center gap-1">
+          <PageHeading
+            title={title}
+            subtitle={subtitle}
+            greeting={greeting}
+            syncing={syncing}
+            onSync={handleSync}
+          />
+          {helpPage && <HelpModal page={helpPage} />}
+        </div>
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
@@ -296,11 +554,80 @@ const TopBar = ({ setMobileMenuOpen }) => {
           <GlobalSearch />
         </div>
 
+        {/* Updated Status + Polling Toggle + Refresh */}
+        <div className="hidden sm:flex items-center gap-1 bg-zinc-50/80 border border-zinc-200/80 rounded-full px-1.5 py-1 text-[11px]">
+          {/* Updated label */}
+          <span className="flex items-center gap-1 px-2 text-zinc-400 font-medium select-none whitespace-nowrap">
+            <CheckCircle2 size={11} className="text-emerald-400" />
+            Updated {lastUpdatedLabel}
+          </span>
+
+          {/* Polling toggle */}
+          <div className="flex items-center bg-white border border-zinc-200 rounded-full overflow-hidden">
+            {[
+              { label: '30s', value: 30 },
+              { label: '1m', value: 60 },
+              { label: '5m', value: 300 },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPollInterval(opt.value)}
+                className={`flex items-center gap-1 px-2 py-1 text-[11px] font-semibold transition-all duration-200 cursor-pointer rounded-full ${
+                  pollInterval === opt.value
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-600'
+                }`}
+                title={`Poll every ${opt.label}`}
+              >
+                <Clock size={10} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Refresh button */}
+          <button
+            onClick={handleManualRefresh}
+            disabled={syncing}
+            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-700 hover:bg-white rounded-full transition-all duration-200 cursor-pointer"
+            title="Refresh now"
+          >
+            <RotateCw size={11} className={syncing ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+
+        {/* Notification Bell */}
+        <NotificationBell notifications={state.notifications} dispatch={dispatch} navigate={navigate} />
+
         <div className="h-8 w-px bg-zinc-200 hidden sm:block" aria-hidden="true" />
 
         <UserAvatarDropdown user={currentUser} navigate={navigate} logout={logout} />
       </div>
     </header>
+
+    {/* Toast Notification */}
+    {toast && createPortal(
+      <div className={`fixed top-4 right-4 z-[200] flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border backdrop-blur-sm ${
+        toast.type === 'success'
+          ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
+          : 'bg-amber-50/95 border-amber-200 text-amber-800'
+      }`}
+        style={{ animation: 'shSlideDown 300ms ease forwards', minWidth: 280 }}
+      >
+        {toast.type === 'success' ? (
+          <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+        ) : (
+          <BrainCircuit size={18} className="text-amber-500 shrink-0" />
+        )}
+        <span className="text-[13px] font-semibold">{toast.message}</span>
+        <button onClick={() => setToast(null)} className="ml-auto text-zinc-400 hover:text-zinc-600 cursor-pointer">
+          <X size={14} />
+        </button>
+      </div>,
+      document.body
+    )}
+    </>
   );
 };
 

@@ -59,7 +59,7 @@ const Import = () => {
   const [scrapingStatus, setScrapingStatus] = useState({}); // { [platform]: 'idle' | 'loading' | 'done' | 'error' }
 
   useEffect(() => {
-    // Polling disabled as requested
+    document.title = "ReviewRescue — Import Reviews";
   }, []);
 
   const handleScrape = async (platform) => {
@@ -84,6 +84,7 @@ const Import = () => {
             review_date: r.reviewDate || "Recent",
             review_text: r.reviewText || "",
             platform: "Google",
+            photo_urls: r.photoUrls || [],
             categoryRatings: r.categoryRatings,
             highlights: r.highlights
           }));
@@ -109,18 +110,18 @@ const Import = () => {
           const mappedReviews = res.reviews.map((r, idx) => ({
             review_id: `booking_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
             reviewer_name: r.reviewerName || "Anonymous",
-            rating: r.rating ? Number((r.rating / 2).toFixed(1)) : 5, // Normalize 10-star to 5-star
+            rating: r.rating ? Number((r.rating / 2).toFixed(1)) : 5,
+            raw_rating: r.rating || null,
+            raw_rating_scale: 10,
             review_date: r.reviewDate || "Recent",
             review_text: r.reviewText || "",
             platform: "Booking.com",
-            metadata: {
-              original_rating: r.rating,
-              country: r.country,
-              roomType: r.roomType,
-              stayDuration: r.stayDuration,
-              stayDate: r.stayDate,
-              travelerType: r.travelerType
-            }
+            photo_urls: r.photoUrls || [],
+            country: r.country || '',
+            room_type: r.roomType || '',
+            stay_duration: r.stayDuration || '',
+            stay_date: r.stayDate || '',
+            traveler_type: r.travelerType || ''
           }));
 
           setPreview({
@@ -311,7 +312,7 @@ const Import = () => {
       dispatch({ type: "IMPORT_REVIEWS", payload: preview.valid });
 
       // 2. Start AI Classification
-      setProgress({ current: 0, total: preview.valid.length, phase: "AI Classification & Ticket Creation..." });
+      setProgress({ current: 0, total: preview.valid.length, phase: "Classifying reviews & creating tickets..." });
 
       const results = [];
       await classifyAllPending(
@@ -583,7 +584,7 @@ const Import = () => {
           <div className="flex items-center justify-between p-8 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl text-white shadow-2xl shadow-indigo-500/30">
             <div>
               <p className="font-black text-2xl">Ready to import {preview.validCount} reviews?</p>
-              <p className="text-indigo-100 text-sm mt-1">Our AI will automatically categorize these and create tickets for your team.</p>
+              <p className="text-indigo-100 text-sm mt-1">Reviews will be automatically categorised and tickets created for your team.</p>
             </div>
             <button
               onClick={handleImport}

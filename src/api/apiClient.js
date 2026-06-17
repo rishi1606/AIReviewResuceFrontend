@@ -68,6 +68,16 @@ export const getImportHistory = () => apiClient.get("/import/history");
 export const runFullAnalysis = () => apiClient.post("/import/analyze-all");
 export const deleteAllReviews = () => apiClient.delete("/reviews/delete-all");
 export const deleteReview = (id) => apiClient.delete(`/reviews/${id}`);
+export const getPendingStatus = () => apiClient.get("/reviews/pending-status");
+
+// Review Detail Page
+export const getReviewDetail = (review_id) => apiClient.get(`/reviews/${review_id}/detail`);
+export const saveDraft = (review_id, data) => apiClient.post(`/reviews/${review_id}/drafts`, data);
+export const flagReviewEnhanced = (review_id, data) => apiClient.put(`/reviews/${review_id}/flag-suspicious`, data);
+export const removeFlag = (review_id) => apiClient.put(`/reviews/${review_id}/remove-flag`);
+export const getReviewerProfile = (name) => apiClient.get(`/reviews/reviewer/${encodeURIComponent(name)}`);
+export const getSimilarReviews = (review_id) => apiClient.get(`/reviews/${review_id}/similar`);
+export const reopenReview = (review_id) => apiClient.put(`/reviews/${review_id}/reopen`);
 
 // Tickets
 export const getTickets = (filters) => apiClient.get("/tickets", { params: filters });

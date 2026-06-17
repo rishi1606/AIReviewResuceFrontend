@@ -39,7 +39,7 @@ function validateRows(rows, existingReviews) {
     duplicateIds.add(row.review_id);
 
     if (rowErrors.length === 0) {
-      valid.push({ ...row, rating: parseInt(row.rating), status: "Pending AI", imported_at: Date.now() });
+      valid.push({ ...row, rating: parseInt(row.rating), status: "Pending", imported_at: Date.now() });
     } else {
       errors.push({ row: index + 2, data: row, errors: rowErrors });
     }

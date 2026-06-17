@@ -125,7 +125,7 @@ const Login = () => {
   const navigate = useNavigate();
 
   /* Autofocus email on mount */
-  useEffect(() => { emailRef.current?.focus(); }, []);
+  useEffect(() => { document.title = "ReviewRescue — Sign In"; emailRef.current?.focus(); }, []);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();

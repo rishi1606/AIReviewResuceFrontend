@@ -4,7 +4,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard, MessageSquare, Settings,
     LogOut, ChevronLeft, ChevronRight, ShieldCheck, X, Loader2,
-    Building2, Globe, ChevronDown
+    Building2, Globe, ChevronDown, Rocket
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
@@ -173,6 +173,36 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                     }
                     return <React.Fragment key={item.path}>{link}</React.Fragment>;
                 })}
+
+                {/* Divider before Coming Soon */}
+                {(!collapsed || mobileOpen) && (
+                    <div className="mt-3 mb-1 mx-1 border-t border-zinc-200" />
+                )}
+                {(!collapsed || mobileOpen) && (
+                    <div className="px-1 pt-1">
+                        <span className="text-[10px] font-bold text-zinc-400 tracking-wider uppercase px-3">Coming Soon</span>
+                    </div>
+                )}
+                {(() => {
+                    const comingSoonLink = (
+                        <NavLink
+                            to="/coming-soon"
+                            className={({ isActive }) =>
+                                `sidebar-link ${isActive ? "sidebar-link-active" : ""} ${isCollapsedDesktop ? "lg:justify-center lg:px-0" : ""}`
+                            }
+                        >
+                            <div className="relative">
+                                <Rocket size={20} className="shrink-0" />
+                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-400 rounded-full" style={{ animation: "pulse 2s infinite" }} />
+                            </div>
+                            {(!collapsed || mobileOpen) && <span className="truncate">What's Next</span>}
+                        </NavLink>
+                    );
+                    if (isCollapsedDesktop) {
+                        return <Tooltip content="What's Next" position="right">{comingSoonLink}</Tooltip>;
+                    }
+                    return comingSoonLink;
+                })()}
             </nav>
 
             {/* ─── User Profile + Logout ─── */}

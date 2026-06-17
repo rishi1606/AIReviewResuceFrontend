@@ -25,7 +25,7 @@ export function useDerivedStats() {
   const mixedCount = filteredReviews.filter(r => r.sentiment === "Mixed").length;
   const neutralCount = filteredReviews.filter(r => r.sentiment === "Neutral").length;
   const activeTicketsCount = filteredTickets.filter(t => !["Closed", "Resolved"].includes(t.status)).length;
-  const pendingAI = filteredReviews.filter(r => r.status === "Pending AI").length;
+  const pendingAI = filteredReviews.filter(r => r.status === "Pending AI" || r.status === "Pending").length;
   const criticalCount = filteredTickets.filter(t => t.urgency === "High" && (t.status === "Open" || t.status === "In Progress")).length;
   const approvedCount = filteredReviews.filter(r => r.status === "Approved").length;
   const resolvedTickets = filteredTickets.filter(t => t.status === "Closed" || t.status === "Resolved").length;

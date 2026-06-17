@@ -35,6 +35,7 @@ import {
 import { createTicketFromReview } from "../utils/ticketFactory";
 import { DEPARTMENTS } from "../utils/constants";
 import { SkeletonKPI, SkeletonReviewCard } from "../components/Skeleton";
+import { FileText } from "lucide-react";
 
 // ─── Click-outside hook ────────────────────────────────────────────────────
 function useClickOutside(ref, handler) {
@@ -474,17 +475,204 @@ const Reviews = () => {
     );
   };
 
+  // ─── Fetch ALL reviews for export (respects current filters) ────────────
+  const fetchAllForExport = async () => {
+    try {
+      let statusParam = "ALL";
+      let sentimentParam = "ALL";
+      const upperTab = tab.toUpperCase();
+      if (upperTab === "APPROVED") statusParam = "RESPONDED,Approved";
+      else if (upperTab === "PENDING APPROVAL") statusParam = "PENDING APPROVAL";
+      else if (upperTab === "SUSPICIOUS") statusParam = "Suspicious";
+      else if (upperTab === "ESCALATED") statusParam = "ESCALATED";
+      else sentimentParam = tab;
+
+      let sortByParam = "NEWEST";
+      if (sortBy === "OLDEST") sortByParam = "OLDEST";
+      if (sortBy === "LOWEST_RATING") sortByParam = "RATING_LOW";
+      if (sortBy === "HIGHEST_RISK") sortByParam = "CONFIDENCE_LOW";
+
+      const res = await getReviews({
+        page: 1,
+        limit: 9999,
+        sentiment: sentimentParam,
+        status: statusParam,
+        department: department,
+        search: search,
+        minConfidence: hideLowConfidence ? confidenceThreshold : undefined,
+        sortBy: sortByParam,
+        platform: state.activeFilters?.platform || "ALL",
+        property: state.activeFilters?.property || "ALL",
+        dateStart: dateRange.start ? new Date(dateRange.start).toISOString() : undefined,
+        dateEnd: dateRange.end ? new Date(dateRange.end).toISOString() : undefined
+      });
+      return res.data.reviews || [];
+    } catch (err) {
+      console.error("Export fetch failed:", err);
+      return state.reviews || [];
+    }
+  };
+
+  // ─── Export CSV ─────────────────────────────────────────────────────────
+  const handleExportCSV = async () => {
+    const rows = await fetchAllForExport();
+    if (!rows.length) return alert("No reviews to export.");
+    const headers = ["Reviewer", "Platform", "Hotel", "Rating", "Sentiment", "Department", "Urgency", "Status", "Confidence", "Review Text", "Date"];
+    const escape = (v) => `"${String(v || "").replace(/"/g, '""')}"`;
+    const csvRows = [headers.join(",")];
+    rows.forEach(r => {
+      const rawRating = r.raw_rating || r.rating;
+      const scale = r.raw_rating_scale || ((r.platform === "Booking.com" || r.platform === "Agoda") ? 10 : 5);
+      csvRows.push([
+        escape(r.reviewer_name),
+        escape(r.platform),
+        escape(r.hotel_name),
+        escape(`${rawRating}/${scale}`),
+        escape(r.sentiment),
+        escape(r.primary_department),
+        escape(r.urgency),
+        escape(r.status),
+        escape(r.confidence != null ? `${r.confidence}%` : ""),
+        escape(r.review_text),
+        escape(r.review_date)
+      ].join(","));
+    });
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ReviewRescue_Export_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // ─── Export PDF ─────────────────────────────────────────────────────────
+  const handleExportPDF = async () => {
+    try {
+      const rows = await fetchAllForExport();
+      if (!rows.length) return alert("No reviews to export.");
+
+      const jsPDFModule = await import("jspdf");
+      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
+      const autoTableModule = await import("jspdf-autotable");
+      const autoTable = autoTableModule.default || autoTableModule.autoTable;
+
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+      // Header
+      doc.setFillColor(83, 74, 183);
+      doc.rect(0, 0, 297, 22, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("ReviewRescue - Review Export", 14, 14);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generated: ${new Date().toLocaleString()} | Total: ${rows.length} reviews`, 297 - 14, 14, { align: "right" });
+
+      // Summary row
+      const pos = rows.filter(r => r.sentiment === "Positive").length;
+      const neg = rows.filter(r => r.sentiment === "Negative").length;
+      const esc = rows.filter(r => r.status === "ESCALATED").length;
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(9);
+      doc.text(`Positive: ${pos}  |  Negative: ${neg}  |  Escalated: ${esc}  |  Avg Confidence: ${rows.length ? Math.round(rows.reduce((s, r) => s + (r.confidence || 0), 0) / rows.length) : 0}%`, 14, 30);
+
+      // Table
+      const tableData = rows.map(r => {
+        const rawRating = r.raw_rating || r.rating;
+        const scale = r.raw_rating_scale || ((r.platform === "Booking.com" || r.platform === "Agoda") ? 10 : 5);
+        return [
+          r.reviewer_name || "",
+          r.platform || "",
+          r.hotel_name || "",
+          `${rawRating}/${scale}`,
+          r.sentiment || "",
+          r.primary_department || "",
+          r.urgency || "",
+          r.status || "",
+          r.confidence != null ? `${r.confidence}%` : "",
+          (r.review_text || "").slice(0, 80) + ((r.review_text || "").length > 80 ? "..." : ""),
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 35,
+        head: [["Reviewer", "Platform", "Hotel", "Rating", "Sentiment", "Dept", "Urgency", "Status", "Conf", "Review"]],
+        body: tableData,
+        styles: { fontSize: 7, cellPadding: 2, overflow: "linebreak" },
+        headStyles: { fillColor: [83, 74, 183], textColor: 255, fontStyle: "bold", fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [250, 249, 255] },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 14 },
+          4: { cellWidth: 18 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 16 },
+          7: { cellWidth: 20 },
+          8: { cellWidth: 12 },
+          9: { cellWidth: "auto" },
+        },
+        margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 4) {
+            const val = data.cell.raw;
+            if (val === "Positive") data.cell.styles.textColor = [22, 163, 74];
+            else if (val === "Negative") data.cell.styles.textColor = [220, 38, 38];
+            else data.cell.styles.textColor = [217, 119, 6];
+          }
+        },
+      });
+
+      // Footer
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(160, 160, 160);
+        doc.text(`ReviewRescue | Page ${i} of ${pageCount}`, 297 / 2, 205, { align: "center" });
+      }
+
+      doc.save(`ReviewRescue_Export_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error("PDF export error:", err);
+      alert("PDF export failed: " + err.message);
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 pb-20">
+    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 pb-32">
       <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div className="flex items-center gap-2">
             <SlidersHorizontal size={16} className="text-orange-500" />
             <h3 className="font-bold text-sm text-zinc-800">Filters</h3>
           </div>
-          <span className="text-xs text-zinc-400 font-medium flex items-center gap-1.5">
-            Showing <span className="bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full text-[11px]">{serverTotal}</span> reviews
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-zinc-400 font-medium flex items-center gap-1.5">
+              Showing <span className="bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full text-[11px]">{serverTotal}</span> reviews
+            </span>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-700 transition-all cursor-pointer"
+              title="Export filtered reviews as CSV"
+            >
+              <Download size={12} />
+              CSV
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-700 transition-all cursor-pointer"
+              title="Export filtered reviews as PDF report"
+            >
+              <FileText size={12} />
+              PDF
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

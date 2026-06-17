@@ -159,7 +159,7 @@ const reducer = (state, action) => {
         ...state,
         reviews: state.reviews.map(r => r.review_id === action.payload ? {
           ...r,
-          status: "Pending AI",
+          status: "Pending",
           sentiment: null,
           confidence: null,
           primary_department: null,

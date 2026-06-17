@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import { updateClassification, createTicket, deleteReview } from "../api/apiClient";
+import { updateClassification, createTicket } from "../api/apiClient";
 import { createTicketFromReview } from "./ticketFactory";
 
 const apiKey = import.meta.env.VITE_GROQ_API_KEY;
@@ -36,15 +36,18 @@ Star rating: ${review.rating}
 Return ONLY this JSON:
 {
   "sentiment": "Positive|Negative|Mixed|Neutral",
+  "sentiment_reason": "Brief explanation of why this sentiment was assigned",
   "confidence": number 0-100,
   "primary_department": "Pick the most relevant from: [Front Office, Housekeeping, Maintenance, Food & Beverage, Spa, Gym, Management, Security, IT Support]",
   "urgency": "High|Medium|Low",
+  "urgency_reason": "Brief explanation of why this urgency level",
   "guest_emotion": "Angry|Frustrated|Disappointed|Neutral|Satisfied|Delighted|Concerned|Anxious",
-  "issues": ["list of specific complaints"],
-  "positive_aspects": ["list of positive highlights"],
+  "issues": ["ONLY complaints explicitly stated in the review text. Empty array if none mentioned."],
+  "positive_aspects": ["ONLY positives explicitly stated in the review text. Do NOT invent or assume. Empty array if none mentioned."],
   "is_factual_only": false,
   "is_suspicious": false,
-  "escalation_risk": false
+  "escalation_risk": false,
+  "staff_mentions": ["staff names mentioned in review"]
 }`
         }
       ]
@@ -73,7 +76,7 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
   const isAutoTicketOn = hotelConfig?.aiConfig?.autoTicket;
 
   // 1. Identify reviews that need AI analysis
-  const needsAI = reviews.filter(r => r.status === "Pending AI" || !r.status);
+  const needsAI = reviews.filter(r => r.status === "Pending AI" || r.status === "Pending" || !r.status);
 
   // 2. Identify reviews that are already classified (have sentiment/urgency) but MISSING tickets
   const needsTicketOnly = isAutoTicketOn ? reviews.filter(r =>
@@ -125,7 +128,7 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
         dispatch({
           type: "ADD_NOTIFICATION",
           payload: {
-            message: "Ai analysis failed due to token low",
+            message: "Analysis paused — API rate limit reached. Please wait a moment and try again.",
             type: "sla_breach", // Uses the red icon
             urgency: "High",
             read: false
@@ -141,12 +144,12 @@ export async function classifyAllPending(reviews, onProgress, dispatch, currentU
       const review = batch[idx];
 
       if (!result) {
-        console.warn(`[AI] Analysis failed for ${review.review_id}. Deleting from DB.`);
+        console.warn(`[AI] Analysis failed for ${review.review_id}. Marking as failed.`);
         try {
-          await deleteReview(review.review_id);
-          dispatch({ type: actions.REMOVE_REVIEW, payload: review.review_id });
+          await updateClassification(review.review_id, { status: "Failed", needs_human_review: true, human_review_reason: "Analysis could not process this review" });
+          dispatch({ type: "UPDATE_REVIEW_CLASSIFICATION", payload: { review_id: review.review_id, status: "Failed", needs_human_review: true } });
         } catch (err) {
-          console.error("[AI] Cleanup failed:", err);
+          console.error("[AI] Marking failed review:", err);
         }
         continue;
       }

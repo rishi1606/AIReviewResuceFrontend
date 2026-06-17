@@ -65,7 +65,7 @@ const EmptyState = React.memo(({ query }) => {
             <div className="flex flex-col items-center justify-center py-14 text-slate-400" role="status">
                 <Search size={32} className="mb-3 opacity-30" aria-hidden="true" />
                 <p className="text-sm">Type at least {MIN_QUERY_LENGTH} characters to search</p>
-                <p className="text-xs mt-1 text-slate-300">Reviews · Tickets · Guests · Departments</p>
+                <p className="text-xs mt-1 text-slate-300">Reviews · Guests · Departments</p>
             </div>
         );
     }
@@ -82,8 +82,8 @@ EmptyState.displayName = "EmptyState";
 
 const ReviewResult = React.memo(({ review: r, onSelect }) => {
     const handleClick = useCallback(() => {
-        onSelect(`/reviews?search=${encodeURIComponent(r.reviewer_name ?? r.guest_name ?? "")}&highlight=${r.review_id}`);
-    }, [onSelect, r.review_id, r.reviewer_name, r.guest_name]);
+        onSelect(`/reviews/${r.review_id}`);
+    }, [onSelect, r.review_id]);
 
 
 
@@ -367,7 +367,7 @@ const GlobalSearch = () => {
                 <div
                     role="dialog"
                     aria-modal="true"
-                    aria-label="Search reviews and tickets"
+                    aria-label="Search reviews"
                     className="fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh]"
                     style={{
                         backgroundColor: "rgba(15, 23, 42, 0.3)",
@@ -387,7 +387,7 @@ const GlobalSearch = () => {
                                 ref={inputRef}
                                 type="search"
                                 role="searchbox"
-                                aria-label="Search reviews and tickets"
+                                aria-label="Search reviews"
                                 aria-autocomplete="list"
                                 aria-controls="search-results"
                                 value={query}

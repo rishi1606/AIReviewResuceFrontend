@@ -21,18 +21,18 @@ export const TREND_CONFIG = {
 };
 
 export const SENTIMENT_STYLES = {
-    Positive: { wrapper: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-    Negative: { wrapper: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
-    Mixed: { wrapper: "bg-purple-50 text-purple-700 border-purple-200", dot: "bg-purple-500" },
-    Neutral: { wrapper: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+    Positive: { wrapper: "text-emerald-600", dot: "bg-emerald-500" },
+    Negative: { wrapper: "text-red-600", dot: "bg-red-500" },
+    Mixed: { wrapper: "text-purple-600", dot: "bg-purple-500" },
+    Neutral: { wrapper: "text-amber-600", dot: "bg-amber-500" },
 };
 
 export const STATUS_STYLES = {
-    RESPONDED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    Approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    ESCALATED: "bg-red-50 text-red-700 border-red-200",
-    Suspicious: "bg-amber-50 text-amber-700 border-amber-200",
-    CLASSIFIED: "bg-blue-50 text-blue-700 border-blue-200",
+    RESPONDED: "text-emerald-600",
+    Approved: "text-emerald-600",
+    ESCALATED: "text-red-600",
+    Suspicious: "text-amber-600",
+    CLASSIFIED: "text-blue-600",
 };
 
 export const CHART_TOOLTIP_STYLE = {
