@@ -400,10 +400,10 @@ const HelpModal = ({ page }) => {
               ))}
 
               <div className="mt-4 p-3 rounded-xl bg-gradient-to-r from-orange-50 to-zinc-50 border border-orange-100/50">
-                <p className="text-[11px] text-zinc-500 flex items-center gap-2">
+                {/* <p className="text-[11px] text-zinc-500 flex items-center gap-2">
                   <BookOpen size={13} className="text-orange-400 shrink-0" />
                   <span>Need more help? Reach out to your ReviewRescue administrator or check the team documentation.</span>
-                </p>
+                </p> */}
               </div>
             </div>
           </div>
