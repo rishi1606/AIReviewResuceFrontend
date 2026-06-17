@@ -54,6 +54,12 @@ const ROUTE_MAP = [
     subtitle: () => "Upcoming features and improvements on our roadmap.",
     helpPage: null,
   },
+  {
+    match: (p) => p.startsWith("/notifications"),
+    title: "Notifications",
+    subtitle: () => "All activity and alerts from your team.",
+    helpPage: null,
+  },
 ];
 
 const DEFAULT_ROUTE = {
@@ -279,7 +285,7 @@ const timeAgo = (ts) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
-const NotificationBell = React.memo(({ notifications, dispatch, navigate }) => {
+const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead, navigate }) => {
   const [open, setOpen] = useState(false);
   const bellRef = useRef(null);
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -293,12 +299,8 @@ const NotificationBell = React.memo(({ notifications, dispatch, navigate }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const handleMarkAllRead = () => {
-    dispatch({ type: 'MARK_ALL_NOTIFICATIONS_READ' });
-  };
-
   const handleClick = (notif, idx) => {
-    dispatch({ type: 'MARK_NOTIFICATION_READ', payload: idx });
+    onMarkRead(idx);
     if (notif.link_to) {
       navigate(notif.link_to);
       setOpen(false);
@@ -336,7 +338,7 @@ const NotificationBell = React.memo(({ notifications, dispatch, navigate }) => {
             </div>
             {unreadCount > 0 && (
               <button
-                onClick={handleMarkAllRead}
+                onClick={onMarkAllRead}
                 className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
               >
                 Mark all read
@@ -386,6 +388,18 @@ const NotificationBell = React.memo(({ notifications, dispatch, navigate }) => {
               })
             )}
           </div>
+
+          {/* View All */}
+          {notifications.length > 0 && (
+            <div className="border-t border-zinc-100 px-4 py-2.5">
+              <button
+                onClick={() => { navigate('/notifications'); setOpen(false); }}
+                className="w-full text-center text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+              >
+                View all notifications →
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -399,7 +413,7 @@ const TopBar = ({ setMobileMenuOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
-  const { state, dispatch, refreshData } = useAppContext();
+  const { state, dispatch, refreshData, sendNotification, handleMarkNotificationRead, handleMarkAllRead } = useAppContext();
   const [syncing, setSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [toast, setToast] = useState(null);
@@ -458,28 +472,20 @@ const TopBar = ({ setMobileMenuOpen }) => {
         if (prevPendingRef.current !== null && prevPendingRef.current > 0 && newPending < prevPendingRef.current) {
           const justClassified = prevPendingRef.current - newPending;
           setToast({ message: `${justClassified} review${justClassified > 1 ? 's' : ''} just classified!`, type: 'success' });
-          dispatch({ type: 'ADD_NOTIFICATION', payload: {
-            type: 'classified',
-            title: `${justClassified} review${justClassified > 1 ? 's' : ''} classified`,
-            message: 'Analysis complete — sentiment, department, and urgency assigned.',
-            timestamp: Date.now(),
-            read: false,
-            link_to: '/reviews'
-          }});
           refreshData();
         }
 
         // Detect new imports — notification only, no toast
         if (prevTotalRef.current !== null && newTotal > prevTotalRef.current) {
           const newImported = newTotal - prevTotalRef.current;
-          dispatch({ type: 'ADD_NOTIFICATION', payload: {
+          sendNotification({
             type: 'import',
             title: `${newImported} new review${newImported > 1 ? 's' : ''} imported`,
             message: 'Reviews scraped and queued for classification.',
             timestamp: Date.now(),
             read: false,
             link_to: '/reviews'
-          }});
+          });
           refreshData();
         }
 
@@ -598,7 +604,7 @@ const TopBar = ({ setMobileMenuOpen }) => {
         </div>
 
         {/* Notification Bell */}
-        <NotificationBell notifications={state.notifications} dispatch={dispatch} navigate={navigate} />
+        <NotificationBell notifications={state.notifications} onMarkRead={handleMarkNotificationRead} onMarkAllRead={handleMarkAllRead} navigate={navigate} />
 
         <div className="h-8 w-px bg-zinc-200 hidden sm:block" aria-hidden="true" />
 

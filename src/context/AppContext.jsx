@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { initialState } from "./initialState";
 import * as actions from "./actions";
-import { getReviews, getTickets, getStaff, getHotel } from "../api/apiClient";
+import { getReviews, getTickets, getStaff, getHotel, getNotifications as fetchNotifications, createNotification as postNotification, markNotificationRead, markAllNotificationsRead as apiMarkAllRead } from "../api/apiClient";
 import { useAuth } from "./AuthContext";
 
 const AppContext = createContext();
@@ -123,12 +123,15 @@ const reducer = (state, action) => {
         tickets: state.tickets.map(t => t.ticket_id === action.payload.ticket_id ? { ...t, ...action.payload } : t)
       };
     case actions.ADD_NOTIFICATION:
-      return { ...state, notifications: [action.payload, ...state.notifications] };
-    case actions.MARK_NOTIFICATION_READ:
+      return { ...state, notifications: [{ ...action.payload, read: false, created_at: action.payload.created_at || new Date().toISOString() }, ...state.notifications] };
+    case actions.LOAD_NOTIFICATIONS:
+      return { ...state, notifications: action.payload || [] };
+    case actions.MARK_NOTIFICATION_READ: {
       return {
         ...state,
         notifications: state.notifications.map((n, i) => i === action.payload ? { ...n, read: true } : n)
       };
+    }
     case actions.MARK_ALL_NOTIFICATIONS_READ:
       return {
         ...state,
@@ -206,6 +209,14 @@ export const AppProvider = ({ children }) => {
           hotelConfig: hotel.data
         }
       });
+
+      // Load notifications from backend
+      try {
+        const notifs = await fetchNotifications();
+        dispatch({ type: actions.LOAD_NOTIFICATIONS, payload: Array.isArray(notifs) ? notifs : (notifs.data || []) });
+      } catch (e) {
+        console.warn('[Notifications] Load failed:', e.message);
+      }
     } catch (err) {
       console.error("Failed to load initial data", err);
       dispatch({ type: actions.SET_APP_LOADING, payload: false });
@@ -218,8 +229,29 @@ export const AppProvider = ({ children }) => {
     }
   }, [isAuthenticated]);
 
+  // Notification helpers — API + state in one call, no side effects in reducer
+  const sendNotification = async (payload) => {
+    dispatch({ type: actions.ADD_NOTIFICATION, payload });
+    try {
+      await postNotification(payload);
+    } catch (e) {
+      console.warn('[Notification] Save failed:', e.message);
+    }
+  };
+
+  const handleMarkNotificationRead = (index) => {
+    const notif = state.notifications[index];
+    dispatch({ type: actions.MARK_NOTIFICATION_READ, payload: index });
+    if (notif?._id) markNotificationRead(notif._id).catch(() => {});
+  };
+
+  const handleMarkAllRead = () => {
+    dispatch({ type: actions.MARK_ALL_NOTIFICATIONS_READ });
+    apiMarkAllRead().catch(() => {});
+  };
+
   return (
-    <AppContext.Provider value={{ state, dispatch, refreshData: loadData }}>
+    <AppContext.Provider value={{ state, dispatch, refreshData: loadData, sendNotification, handleMarkNotificationRead, handleMarkAllRead }}>
       {children}
     </AppContext.Provider>
   );

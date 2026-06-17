@@ -16,6 +16,7 @@ import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import ComingSoon from "./pages/ComingSoon";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
               <Route path="coming-soon" element={<ComingSoon />} />
+              <Route path="notifications" element={<Notifications />} />
               <Route index element={<Navigate to="dashboard" />} />
             </Route>
 

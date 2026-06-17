@@ -21,7 +21,7 @@ import ConfirmModal from "../components/ConfirmModal";
 const ReviewDetail = () => {
   const { review_id } = useParams();
   const navigate = useNavigate();
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, sendNotification } = useAppContext();
   const { currentUser } = useAuth();
 
   const [review, setReview] = useState(null);
@@ -74,14 +74,14 @@ const ReviewDetail = () => {
     try {
       const res = await reopenReview(review.review_id);
       setReview(res.data);
-      dispatch({ type: "ADD_NOTIFICATION", payload: {
+      sendNotification({
         type: "info",
         title: `Review reopened — ${review?.reviewer_name || "guest"}`,
         message: `"${(review?.review_text || "").slice(0, 80)}${(review?.review_text || "").length > 80 ? "…" : ""}"`,
         link_to: `/reviews/${review?.review_id || review_id}`,
         timestamp: Date.now(),
         read: false
-      } });
+      });
       setShowReopenModal(false);
     } catch (err) {
       alert(err.message || "Failed to reopen");
@@ -95,14 +95,14 @@ const ReviewDetail = () => {
     try {
       const res = await removeFlag(review.review_id);
       setReview(res.data);
-      dispatch({ type: "ADD_NOTIFICATION", payload: {
+      sendNotification({
         type: "info",
         title: `Flag removed — ${review?.reviewer_name || "guest"}`,
         message: `Review returned to Classified status. "${(review?.review_text || "").slice(0, 80)}${(review?.review_text || "").length > 80 ? "…" : ""}"`,
         link_to: `/reviews/${review?.review_id || review_id}`,
         timestamp: Date.now(),
         read: false
-      } });
+      });
     } catch (err) {
       console.error("Remove flag failed:", err);
     } finally {
@@ -246,14 +246,14 @@ const ReviewDetail = () => {
       });
       setReview(res.data);
       dispatch({ type: "APPROVE_RESPONSE", payload: res.data });
-      dispatch({ type: "ADD_NOTIFICATION", payload: {
+      sendNotification({
         type: "success",
         title: `Response approved for ${review?.reviewer_name || "guest"}`,
         message: `"${(review?.review_text || "").slice(0, 80)}${(review?.review_text || "").length > 80 ? "…" : ""}"`,
         link_to: `/reviews/${review_id}`,
         timestamp: Date.now(),
         read: false
-      } });
+      });
     } catch (err) {
       console.error("Approve failed:", err);
     } finally {
@@ -291,14 +291,14 @@ const ReviewDetail = () => {
         flag_assigned_to_name: assignee?.name || null
       });
       setReview(res.data);
-      dispatch({ type: "ADD_NOTIFICATION", payload: {
+      sendNotification({
         type: "warning",
         title: `Review flagged — ${review?.reviewer_name || "guest"}`,
         message: `${flagCategory || "Suspicious"}: "${(review?.review_text || "").slice(0, 60)}${(review?.review_text || "").length > 60 ? "…" : ""}"`,
         link_to: `/reviews/${review_id}`,
         timestamp: Date.now(),
         read: false
-      } });
+      });
       setShowFlagPanel(false);
       setFlagReason("");
       setFlagCategory("");

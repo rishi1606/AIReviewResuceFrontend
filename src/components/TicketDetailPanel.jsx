@@ -22,7 +22,7 @@ const TicketDetailPanel = ({ ticket, onClose, staff }) => {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const sla = useSLAStatus(ticket);
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, sendNotification } = useAppContext();
 
   // Find the linked review to check for flags
   const linkedReview = state.reviews.find(r => r.review_id === ticket.review_id);
@@ -90,14 +90,11 @@ const TicketDetailPanel = ({ ticket, onClose, staff }) => {
       if (gm) {
         dispatch({ type: "ASSIGN_TICKET", payload: res.data });
       }
-      dispatch({
-        type: "ADD_NOTIFICATION",
-        payload: {
-          message: `Ticket ${ticket.ticket_id} escalated to management.`,
-          type: "escalation_success",
-          urgency: "Info",
-          read: false
-        }
+      sendNotification({
+        message: `Ticket ${ticket.ticket_id} escalated to management.`,
+        type: "escalation_success",
+        urgency: "Info",
+        read: false
       });
       setShowEscalateModal(false);
       setEscalateReason("");

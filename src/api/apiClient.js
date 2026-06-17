@@ -94,4 +94,11 @@ export const bulkStatus = (ticket_ids, data) => apiClient.put("/tickets/bulk-sta
 // Analytics
 export const getAnalyticsSummary = (filters) => apiClient.get("/analytics/summary", { params: filters });
 
+// Notifications
+export const getNotifications = () => apiClient.get("/notifications");
+export const createNotification = (data) => apiClient.post("/notifications", data);
+export const markNotificationRead = (id) => apiClient.put(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => apiClient.put("/notifications/read-all");
+export const deleteNotification = (id) => apiClient.delete(`/notifications/${id}`);
+
 export default apiClient;

@@ -79,7 +79,7 @@ function FilterDropdown({ trigger, children, align = "left" }) {
 }
 
 const Reviews = () => {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, sendNotification } = useAppContext();
   const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -356,15 +356,13 @@ const Reviews = () => {
       await flagSuspicious(flagModal.review.review_id, fullReason);
 
       dispatch({ type: "FLAG_SUSPICIOUS", payload: { review_id: flagModal.review.review_id, suspicious_reason: fullReason } });
-      dispatch({
-        type: "ADD_NOTIFICATION", payload: {
-          type: "suspicious",
-          message: `Review flagged — ${flagModal.review.reviewer_name} on ${flagModal.review.platform}`,
-          urgency: "High",
-          link_to: `/reviews?tab=suspicious&highlight=${flagModal.review.review_id}`,
-          created_at: Date.now(),
-          read: false
-        }
+      sendNotification({
+        type: "suspicious",
+        message: `Review flagged — ${flagModal.review.reviewer_name} on ${flagModal.review.platform}`,
+        urgency: "High",
+        link_to: `/reviews?tab=suspicious&highlight=${flagModal.review.review_id}`,
+        created_at: Date.now(),
+        read: false
       });
 
       setFlagModal({ open: false, review: null, reason: "", notes: "", loading: false });
@@ -411,16 +409,13 @@ const Reviews = () => {
         type: "CREATE_CLUSTER_TICKET",
         payload: { ticket: masterTicket, cluster_id, review_ids: [review.review_id, ...matches.map(m => m.review_id)] }
       });
-      dispatch({
-        type: "ADD_NOTIFICATION",
-        payload: {
-          type: "recurring_issue",
-          message: `Cluster ticket created — ${review.primary_department} (${matches.length + 1} issues)`,
-          urgency: "High",
-          link_to: "/tickets?highlight=" + masterTicket.ticket_id,
-          created_at: Date.now(),
-          read: false
-        }
+      sendNotification({
+        type: "recurring_issue",
+        message: `Cluster ticket created — ${review.primary_department} (${matches.length + 1} issues)`,
+        urgency: "High",
+        link_to: "/tickets?highlight=" + masterTicket.ticket_id,
+        created_at: Date.now(),
+        read: false
       });
       setSimilarModal({ open: false, review: null, matches: [], loading: false });
     } catch (err) {

@@ -36,7 +36,7 @@ import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 
 const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelected, onSelect, confidenceThreshold = 75 }) => {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, sendNotification } = useAppContext();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [loadingAI, setLoadingAI] = useState(false);
@@ -66,10 +66,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         staff_name: selectedStaff.name
       });
       dispatch({ type: "UPDATE_REVIEW", payload: res.data });
-      dispatch({
-        type: "ADD_NOTIFICATION",
-        payload: { type: "success", message: `Assigned to ${selectedStaff.name}`, created_at: Date.now() }
-      });
+      sendNotification({ type: "success", message: `Assigned to ${selectedStaff.name}`, created_at: Date.now() });
     } catch (err) {
       alert("Assignment failed: " + err.message);
     }
@@ -89,7 +86,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
       }
     } catch (err) {
       console.error("Generation failed", err);
-      dispatch({ type: "ADD_NOTIFICATION", payload: { type: "error", message: `Draft generation failed: ${err.message}`, created_at: Date.now(), read: false } });
+      sendNotification({ type: "error", message: `Draft generation failed: ${err.message}`, created_at: Date.now(), read: false });
     } finally {
       setIsGenerating(false);
     }
@@ -109,12 +106,10 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
       });
       dispatch({ type: "UPDATE_REVIEW", payload: res.data });
       if (!isSubmission) {
-        dispatch({
-          type: "ADD_NOTIFICATION", payload: {
-            type: "success",
-            message: `Response posted for ${review.reviewer_name}`,
-            created_at: Date.now()
-          }
+        sendNotification({
+          type: "success",
+          message: `Response posted for ${review.reviewer_name}`,
+          created_at: Date.now()
         });
       }
     } catch (err) {
@@ -144,11 +139,11 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
         // Auto-generate a draft after successful re-analysis
         handleGenerate(tone);
       } else {
-        dispatch({ type: "ADD_NOTIFICATION", payload: { type: "error", message: `Re-analysis returned no results for ${review.reviewer_name}`, created_at: Date.now(), read: false } });
+        sendNotification({ type: "error", message: `Re-analysis returned no results for ${review.reviewer_name}`, created_at: Date.now(), read: false });
       }
     } catch (err) {
       console.error("Re-analysis failed:", err);
-      dispatch({ type: "ADD_NOTIFICATION", payload: { type: "error", message: `Re-analysis failed: ${err.message}`, created_at: Date.now(), read: false } });
+      sendNotification({ type: "error", message: `Re-analysis failed: ${err.message}`, created_at: Date.now(), read: false });
     } finally {
       setLoadingAI(false);
     }
