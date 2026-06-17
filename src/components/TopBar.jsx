@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
 import GlobalSearch from "./GlobalSearch";
-import { Menu, User, Settings, LogOut, Loader2, RefreshCw, BrainCircuit, CheckCircle2, X, Bell, Star, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Clock, RotateCw, ChevronRight } from "lucide-react";
+import { Menu, User, Settings, LogOut, Loader2, RefreshCw, BrainCircuit, CheckCircle2, X, Bell, Star, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Clock, RotateCw, ChevronRight, Search } from "lucide-react";
 import { Tooltip } from "./ui/Tooltip";
 import HelpModal from "./HelpModal";
 import { getPendingStatus } from "../api/apiClient";
@@ -106,17 +106,17 @@ const MobileMenuButton = React.memo(({ onClick }) => (
 MobileMenuButton.displayName = "MobileMenuButton";
 
 const PageHeading = React.memo(({ title, subtitle, greeting, syncing, onSync }) => (
-  <div className="flex flex-col">
-    <h1 className="text-lg md:text-xl font-bold text-zinc-900 font-display leading-tight">
+  <div className="flex flex-col min-w-0">
+    <h1 className="text-lg md:text-xl font-bold text-zinc-900 font-display leading-tight truncate">
       {title}
     </h1>
     {greeting && (
-      <p className="hidden md:block text-[13px] text-zinc-500 font-normal mt-0.5">
+      <p className="hidden xl:block text-[13px] text-zinc-500 font-normal mt-0.5 truncate">
         {greeting}
       </p>
     )}
     {subtitle && (
-      <p className="hidden md:block text-[11px] md:text-xs text-zinc-400 font-normal mt-0.5">
+      <p className="hidden xl:block text-[11px] md:text-xs text-zinc-400 font-normal mt-0.5 truncate">
         {subtitle}
       </p>
     )}
@@ -328,7 +328,7 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
           style={{ width: 360, maxHeight: 440, animation: 'shSlideDown 200ms ease forwards' }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 shrink-0">
             <div className="flex items-center gap-2">
               <Bell size={14} className="text-zinc-500" />
               <span className="text-[13px] font-bold text-zinc-800">Notifications</span>
@@ -347,7 +347,7 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
           </div>
 
           {/* List */}
-          <div className="overflow-y-auto" style={{ maxHeight: 370 }}>
+          <div className="flex-1 overflow-y-auto rounded-b-2xl">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
                 <Bell size={28} className="mb-2 opacity-30" />
@@ -362,9 +362,8 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
                   <button
                     key={i}
                     onClick={() => handleClick(notif, i)}
-                    className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 group/notif ${
-                      !notif.read ? 'bg-orange-50/40' : ''
-                    }`}
+                    className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 group/notif ${!notif.read ? 'bg-orange-50/40' : ''
+                      }`}
                   >
                     <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0 mt-0.5`}>
                       <Icon size={15} className={cfg.color} />
@@ -406,6 +405,47 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
   );
 });
 NotificationBell.displayName = 'NotificationBell';
+
+// ─── Mobile Search Toggle ─────────────────────────────────────────────────────
+
+const MobileSearchToggle = React.memo(({ children }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="md:hidden p-2 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all cursor-pointer"
+        aria-label="Search"
+      >
+        <Search size={18} />
+      </button>
+
+      {open && createPortal(
+        <div
+          className="fixed inset-0 z-[80] bg-white flex flex-col"
+          style={{ animation: 'shSlideDown 200ms ease forwards' }}
+        >
+          <div className="flex items-center gap-2 px-3 py-3 border-b border-zinc-200">
+            <div className="flex-1">
+              {children}
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer shrink-0"
+              aria-label="Close search"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+});
+MobileSearchToggle.displayName = 'MobileSearchToggle';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -537,102 +577,111 @@ const TopBar = ({ setMobileMenuOpen }) => {
 
   return (
     <>
-    <header
-      className="sticky top-0 z-30 flex items-center justify-between px-4 md:px-6 lg:px-8 py-3 md:py-4 bg-white/95 backdrop-blur-sm border-b border-zinc-200/80 transition-all duration-300"
-      role="banner"
-    >
-      <div className="flex items-center gap-3">
-        <MobileMenuButton onClick={handleMenuOpen} />
-        <div className="flex items-center gap-1">
-          <PageHeading
-            title={title}
-            subtitle={subtitle}
-            greeting={greeting}
-            syncing={syncing}
-            onSync={handleSync}
-          />
-          {helpPage && <HelpModal page={helpPage} />}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 md:gap-4">
-        <div className="hidden sm:block">
-          <GlobalSearch />
+      <header
+        className="sticky top-0 z-30 flex items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8 py-2.5 md:py-3 bg-white/95 backdrop-blur-sm border-b border-zinc-200/80 transition-all duration-300"
+        role="banner"
+      >
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <MobileMenuButton onClick={handleMenuOpen} />
+          <div className="flex items-center gap-1 min-w-0">
+            <PageHeading
+              title={title}
+              subtitle={subtitle}
+              greeting={greeting}
+              syncing={syncing}
+              onSync={handleSync}
+            />
+            {helpPage && <HelpModal page={helpPage} />}
+          </div>
         </div>
 
-        {/* Updated Status + Polling Toggle + Refresh */}
-        <div className="hidden sm:flex items-center gap-1 bg-zinc-50/80 border border-zinc-200/80 rounded-full px-1.5 py-1 text-[11px]">
-          {/* Updated label */}
-          <span className="flex items-center gap-1 px-2 text-zinc-400 font-medium select-none whitespace-nowrap">
-            <CheckCircle2 size={11} className="text-emerald-400" />
-            Updated {lastUpdatedLabel}
-          </span>
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+          {/* Search — full on md+, icon toggle on smaller */}
+          <div className="hidden md:block">
+            <GlobalSearch />
+          </div>
+          <MobileSearchToggle>
+            <GlobalSearch />
+          </MobileSearchToggle>
 
-          {/* Polling toggle */}
-          <div className="flex items-center bg-white border border-zinc-200 rounded-full overflow-hidden">
-            {[
-              { label: '30s', value: 30 },
-              { label: '1m', value: 60 },
-              { label: '5m', value: 300 },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setPollInterval(opt.value)}
-                className={`flex items-center gap-1 px-2 py-1 text-[11px] font-semibold transition-all duration-200 cursor-pointer rounded-full ${
-                  pollInterval === opt.value
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm'
-                    : 'text-zinc-400 hover:text-zinc-600'
-                }`}
-                title={`Poll every ${opt.label}`}
-              >
-                <Clock size={10} />
-                {opt.label}
-              </button>
-            ))}
+          {/* Polling status + Refresh — only on xl+ (enough room with sidebar) */}
+          <div className="hidden xl:flex items-center gap-1 bg-zinc-50/80 border border-zinc-200/80 rounded-full px-1.5 py-1 text-[11px]">
+            <span className="flex items-center gap-1 px-2 text-zinc-400 font-medium select-none whitespace-nowrap">
+              <CheckCircle2 size={11} className="text-emerald-400" />
+              Updated {lastUpdatedLabel}
+            </span>
+            <div className="flex items-center bg-white border border-zinc-200 rounded-full overflow-hidden">
+              {[
+                { label: '30s', value: 30 },
+                { label: '1m', value: 60 },
+                { label: '5m', value: 300 },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPollInterval(opt.value)}
+                  className={`flex items-center gap-1 px-2 py-1 text-[11px] font-semibold transition-all duration-200 cursor-pointer rounded-full ${pollInterval === opt.value
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-600'
+                    }`}
+                  title={`Poll every ${opt.label}`}
+                >
+                  <Clock size={10} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleManualRefresh}
+              disabled={syncing}
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-700 hover:bg-white rounded-full transition-all duration-200 cursor-pointer"
+              title="Refresh now"
+            >
+              <RotateCw size={11} className={syncing ? 'animate-spin' : ''} />
+              Refresh
+            </button>
           </div>
 
-          {/* Refresh button */}
-          <button
-            onClick={handleManualRefresh}
-            disabled={syncing}
-            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-700 hover:bg-white rounded-full transition-all duration-200 cursor-pointer"
-            title="Refresh now"
-          >
-            <RotateCw size={11} className={syncing ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+          {/* Mobile/tablet refresh icon */}
+          <Tooltip content={`Updated ${lastUpdatedLabel}`} position="bottom">
+            <button
+              onClick={handleManualRefresh}
+              disabled={syncing}
+              className="xl:hidden p-2 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all cursor-pointer"
+              aria-label={`Refresh — Updated ${lastUpdatedLabel}`}
+            >
+              <RotateCw size={18} className={syncing ? 'animate-spin' : ''} />
+            </button>
+          </Tooltip>
+
+          {/* Notification Bell */}
+          <NotificationBell notifications={state.notifications} onMarkRead={handleMarkNotificationRead} onMarkAllRead={handleMarkAllRead} navigate={navigate} />
+
+          <div className="h-8 w-px bg-zinc-200 hidden md:block" aria-hidden="true" />
+
+          <UserAvatarDropdown user={currentUser} navigate={navigate} logout={logout} />
         </div>
+      </header>
 
-        {/* Notification Bell */}
-        <NotificationBell notifications={state.notifications} onMarkRead={handleMarkNotificationRead} onMarkAllRead={handleMarkAllRead} navigate={navigate} />
-
-        <div className="h-8 w-px bg-zinc-200 hidden sm:block" aria-hidden="true" />
-
-        <UserAvatarDropdown user={currentUser} navigate={navigate} logout={logout} />
-      </div>
-    </header>
-
-    {/* Toast Notification */}
-    {toast && createPortal(
-      <div className={`fixed top-4 right-4 z-[200] flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border backdrop-blur-sm ${
-        toast.type === 'success'
-          ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
-          : 'bg-amber-50/95 border-amber-200 text-amber-800'
-      }`}
-        style={{ animation: 'shSlideDown 300ms ease forwards', minWidth: 280 }}
-      >
-        {toast.type === 'success' ? (
-          <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-        ) : (
-          <BrainCircuit size={18} className="text-amber-500 shrink-0" />
-        )}
-        <span className="text-[13px] font-semibold">{toast.message}</span>
-        <button onClick={() => setToast(null)} className="ml-auto text-zinc-400 hover:text-zinc-600 cursor-pointer">
-          <X size={14} />
-        </button>
-      </div>,
-      document.body
-    )}
+      {/* Toast Notification */}
+      {toast && createPortal(
+        <div className={`fixed top-4 right-4 z-[200] flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border backdrop-blur-sm ${toast.type === 'success'
+            ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
+            : 'bg-amber-50/95 border-amber-200 text-amber-800'
+          }`}
+          style={{ animation: 'shSlideDown 300ms ease forwards', minWidth: 280 }}
+        >
+          {toast.type === 'success' ? (
+            <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+          ) : (
+            <BrainCircuit size={18} className="text-amber-500 shrink-0" />
+          )}
+          <span className="text-[13px] font-semibold">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-auto text-zinc-400 hover:text-zinc-600 cursor-pointer">
+            <X size={14} />
+          </button>
+        </div>,
+        document.body
+      )}
     </>
   );
 };
