@@ -324,7 +324,7 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden z-50"
+          className="absolute right-0 top-full mt-2 bg-white border border-zinc-200 rounded-2xl shadow-2xl z-50 flex flex-col"
           style={{ width: 360, maxHeight: 440, animation: 'shSlideDown 200ms ease forwards' }}
         >
           {/* Header */}
