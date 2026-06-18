@@ -614,12 +614,23 @@ const Dashboard = () => {
             const prevStart = new Date(currentStart);
             prevStart.setDate(prevStart.getDate() - rangeDays);
 
+            const getReviewTimestamp = (r) => {
+              // Prefer the pre-parsed date from DB, then try parsing the raw string,
+              // then fall back to createdAt — matches backend query fallback behavior
+              if (r.review_date_parsed) return new Date(r.review_date_parsed);
+              const parsed = parseReviewDate(r.review_date);
+              if (parsed) return parsed;
+              if (r.createdAt) return new Date(r.createdAt);
+              if (r.imported_at) return new Date(r.imported_at);
+              return null;
+            };
+
             currentPeriod = filteredReviews.filter(r => {
-              const parsed = parseReviewDate(r.review_date ?? r.createdAt);
+              const parsed = getReviewTimestamp(r);
               return parsed && parsed.getTime() >= currentStart.getTime();
             });
             previousPeriod = filteredReviews.filter(r => {
-              const parsed = parseReviewDate(r.review_date ?? r.createdAt);
+              const parsed = getReviewTimestamp(r);
               return parsed && parsed.getTime() >= prevStart.getTime() && parsed.getTime() < currentStart.getTime();
             });
 
@@ -629,11 +640,20 @@ const Dashboard = () => {
             previousLabel = previousDateRange;
           }
 
+          const countSentiments = (reviews) => {
+            const pos = reviews.filter(r => r.sentiment === 'Positive').length;
+            const neg = reviews.filter(r => r.sentiment === 'Negative').length;
+            const mix = reviews.filter(r => r.sentiment === 'Mixed').length;
+            // Count everything else (null, undefined, unrecognised) as Neutral so bars sum to total
+            const neu = reviews.length - pos - neg - mix;
+            return { Positive: pos, Negative: neg, Mixed: mix, Neutral: neu, Total: reviews.length };
+          };
+
           const comparisonData = rangeDays === 0 ? [
-            { label: 'All Time', Positive: currentPeriod.filter(r => r.sentiment === 'Positive').length, Negative: currentPeriod.filter(r => r.sentiment === 'Negative').length, Mixed: currentPeriod.filter(r => r.sentiment === 'Mixed').length, Neutral: currentPeriod.filter(r => r.sentiment === 'Neutral').length, Total: currentPeriod.length },
+            { label: 'All Time', ...countSentiments(currentPeriod) },
           ] : [
-            { label: previousLabel, Positive: previousPeriod.filter(r => r.sentiment === 'Positive').length, Negative: previousPeriod.filter(r => r.sentiment === 'Negative').length, Mixed: previousPeriod.filter(r => r.sentiment === 'Mixed').length, Neutral: previousPeriod.filter(r => r.sentiment === 'Neutral').length, Total: previousPeriod.length },
-            { label: currentLabel, Positive: currentPeriod.filter(r => r.sentiment === 'Positive').length, Negative: currentPeriod.filter(r => r.sentiment === 'Negative').length, Mixed: currentPeriod.filter(r => r.sentiment === 'Mixed').length, Neutral: currentPeriod.filter(r => r.sentiment === 'Neutral').length, Total: currentPeriod.length },
+            { label: previousLabel, ...countSentiments(previousPeriod) },
+            { label: currentLabel, ...countSentiments(currentPeriod) },
           ];
           const periodChange = previousPeriod.length > 0 ? Math.round(((currentPeriod.length - previousPeriod.length) / previousPeriod.length) * 100) : currentPeriod.length > 0 ? 100 : 0;
 
