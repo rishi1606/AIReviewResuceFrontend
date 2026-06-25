@@ -4,7 +4,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard, MessageSquare, Settings,
     LogOut, ChevronLeft, ChevronRight, ShieldCheck, X, Loader2,
-    Building2, Globe, ChevronDown, Rocket
+    Building2, Globe, ChevronDown, Rocket, Plus
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
@@ -37,7 +37,12 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     const platforms = ["ALL", ...new Set((state.reviews || []).map(r => r.platform).filter(Boolean))];
     const properties = [
         "ALL",
-        ...new Set((state?.hotelConfig?.properties || []).map(property => property.name).filter(Boolean)),
+        ...new Set((state?.hotelConfig?.properties || [])
+            .filter(p => p.is_active !== false)
+            .map(property => property.name).filter(Boolean)),
+        ...new Set((state.managedProperties || [])
+            .filter(p => p.is_active !== false && p.business_is_active !== false)
+            .map(p => p.name).filter(Boolean)),
         ...new Set((state.reviews || []).map(r => r.hotel_name).filter(Boolean))
     ];
     const uniqueProperties = [...new Set(properties)];
@@ -60,10 +65,13 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     const userInitials = currentUser?.avatar_initials || (currentUser?.name ? currentUser.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U");
     const userRole = currentUser?.role?.replace("_", " ") || "User";
 
+    const isSuperadmin = currentUser?.role === "superadmin";
+
     const navItems = [
         { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
         { name: "Reviews", path: "/reviews", icon: MessageSquare },
         { name: "Settings", path: "/settings", icon: Settings },
+        ...(isSuperadmin ? [{ name: "Admin Panel", path: "/admin", icon: ShieldCheck }] : []),
     ];
 
     const isCollapsedDesktop = !mobileOpen && collapsed;

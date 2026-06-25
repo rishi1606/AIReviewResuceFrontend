@@ -4,6 +4,7 @@ export const initialState = {
   notifications: [],
   staff: [],
   hotelConfig: {},
+  managedProperties: [],
   activeFilters: {
     dateRange: { start: null, end: null },
     sentiment: "ALL",

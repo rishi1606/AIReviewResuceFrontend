@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
 import GlobalSearch from "./GlobalSearch";
-import { Menu, User, Settings, LogOut, Loader2, RefreshCw, BrainCircuit, CheckCircle2, X, Bell, Star, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Clock, RotateCw, ChevronRight, Search } from "lucide-react";
+import { Menu, User, Settings, LogOut, Loader2, RefreshCw, BrainCircuit, CheckCircle2, X, Bell, Star, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Clock, RotateCw, ChevronRight, Search, ShieldCheck, Building2 } from "lucide-react";
 import { Tooltip } from "./ui/Tooltip";
 import HelpModal from "./HelpModal";
 import { getPendingStatus } from "../api/apiClient";
@@ -214,6 +214,18 @@ const UserAvatarDropdown = React.memo(({ user, navigate, logout }) => {
               <Settings size={14} className="text-zinc-400" />
               Settings
             </button>
+            {user?.role === "superadmin" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setOpen(false); navigate("/admin"); }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-orange-700 hover:bg-orange-50 transition-colors font-semibold"
+                >
+                  <ShieldCheck size={14} className="text-orange-500" />
+                  Admin Panel
+                </button>
+              </>
+            )}
             <div className="border-t border-zinc-100" />
             <button
               type="button"

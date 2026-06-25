@@ -94,11 +94,48 @@ export const bulkStatus = (ticket_ids, data) => apiClient.put("/tickets/bulk-sta
 // Analytics
 export const getAnalyticsSummary = (filters) => apiClient.get("/analytics/summary", { params: filters });
 
+// Properties
+export const getProperties = () => apiClient.get("/hotel/properties");
+export const getPortfolioStats = () => apiClient.get("/properties/portfolio-stats");
+export const addProperty = (body) => apiClient.post("/properties", body);
+export const updatePropertyApi = (id, body) => apiClient.put(`/properties/${id}`, body);
+export const deletePropertyApi = (id) => apiClient.delete(`/properties/${id}`);
+
+// Staff Ticket Management (for staff members)
+export const getMyTickets = (filters) => apiClient.get("/staff/tickets/my", { params: filters });
+export const getTicketDetail = (ticketId) => apiClient.get(`/staff/tickets/${ticketId}`);
+export const submitTicketForApproval = (ticketId, data) => apiClient.post(`/staff/tickets/${ticketId}/submit-approval`, data);
+export const publishTicketResponse = (ticketId, data) => apiClient.post(`/staff/tickets/${ticketId}/publish`, data);
+export const closeTicket = (ticketId) => apiClient.post(`/staff/tickets/${ticketId}/close`);
+export const reassignTicket = (ticketId, data) => apiClient.post(`/staff/tickets/${ticketId}/reassign`, data);
+
+// GM Approval Management (for staff tickets)
+export const getPendingApprovals = () => apiClient.get("/staff/approvals/pending");
+export const approveTicketResponse = (ticketId) => apiClient.post(`/staff/approvals/${ticketId}/approve`);
+export const modifyAndApproveTicket = (ticketId, data) => apiClient.post(`/staff/approvals/${ticketId}/modify-approve`, data);
+export const rejectTicketResponse = (ticketId, data) => apiClient.post(`/staff/approvals/${ticketId}/reject`, data);
+export const getEscalatedTickets = () => apiClient.get("/staff/escalations/list");
+export const getStaffWorkload = () => apiClient.get("/staff/analytics/workload");
+
 // Notifications
-export const getNotifications = () => apiClient.get("/notifications");
+export const getNotifications = (filters) => apiClient.get("/notifications", { params: filters });
 export const createNotification = (data) => apiClient.post("/notifications", data);
+export const getNotificationUnreadCount = () => apiClient.get("/notifications/unread/count");
+export const getNotificationById = (id) => apiClient.get(`/notifications/${id}`);
 export const markNotificationRead = (id) => apiClient.put(`/notifications/${id}/read`);
 export const markAllNotificationsRead = () => apiClient.put("/notifications/read-all");
 export const deleteNotification = (id) => apiClient.delete(`/notifications/${id}`);
+
+// Admin Panel
+export const getAdminBusinesses = () => apiClient.get("/admin/businesses");
+export const addAdminBusiness = (body) => apiClient.post("/admin/businesses", body);
+export const updateAdminBusiness = (id, body) => apiClient.put(`/admin/businesses/${id}`, body);
+export const deleteAdminBusiness = (id) => apiClient.delete(`/admin/businesses/${id}`);
+export const getAdminProperties = () => apiClient.get("/admin/properties");
+export const addAdminProperty = (body) => apiClient.post("/admin/properties", body);
+export const updateAdminProperty = (id, body) => apiClient.put(`/admin/properties/${id}`, body);
+export const deleteAdminProperty = (id) => apiClient.delete(`/admin/properties/${id}`);
+export const toggleBusinessActive = (id) => apiClient.patch(`/admin/businesses/${id}/toggle-active`);
+export const togglePropertyActive = (id) => apiClient.patch(`/admin/properties/${id}/toggle-active`);
 
 export default apiClient;

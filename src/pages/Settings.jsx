@@ -287,13 +287,18 @@ const Settings = () => {
     finally { setLoading(false); }
   };
 
+  const isSuperadmin = currentUser?.role === "superadmin";
   const tabs = [
-    { id: "hotel", name: "Hotel Profile", icon: Building2 },
+    { id: "hotel", name: "Business Profile", icon: Building2 },
     { id: "properties", name: "Properties", icon: Hotel },
     { id: "ai", name: "Rules", icon: Shield },
     { id: "account", name: "Account", icon: User },
   ];
-  const visibleTabs = tabs.filter(t => !isScopedUser || t.id === "account");
+  const visibleTabs = tabs.filter(t => {
+    if (isScopedUser && t.id !== "account") return false;
+    if (isSuperadmin && t.id === "properties") return false;
+    return true;
+  });
   const departments = DEPARTMENTS;
 
   if (state.isAppLoading) return <SettingsSkeleton />;
@@ -328,71 +333,150 @@ const Settings = () => {
       {/* ── Main Card ── */}
       <Card>
 
-        {/* ════ HOTEL PROFILE ════ */}
+        {/* ════ BUSINESS PROFILE ════ */}
         {activeTab === "hotel" && (
           <div className="flex flex-col gap-5">
-            <SectionHeader icon={Building2} iconColor="purple" title="Hotel Profile" subtitle="Public information and core property settings" />
+            <SectionHeader icon={Building2} iconColor="purple" title="Business Profile" subtitle={isSuperadmin ? "All managed businesses" : "Your business information"} />
 
-            <div>
-              <Label required>Hotel Name</Label>
-              <Input icon={Building2} error={errors.hotel_name}
-                type="text" placeholder="Grand Plaza Hotel"
-                value={hotelFields.hotel_name || ""}
-                onChange={e => setHotelFields({ ...hotelFields, hotel_name: e.target.value })} />
-              <FieldError msg={errors.hotel_name} />
-            </div>
+            {isSuperadmin ? (
+              // Superadmin: Show all businesses as editable cards
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {state.managedProperties && state.managedProperties.length > 0 ? (
+                  Array.from(new Set(state.managedProperties.map(p => p.business_id))).map(bizId => {
+                    const bizProps = state.managedProperties.filter(p => p.business_id === bizId);
+                    const firstProp = bizProps[0];
+                    return (
+                      <div key={bizId} className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                        <div className="p-6 space-y-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3 flex-1">
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
+                                {firstProp.business_name?.charAt(0)?.toUpperCase() || "B"}
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="text-sm font-bold text-zinc-900">{firstProp.business_name || "Unnamed Business"}</h3>
+                                <div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
+                                  <MapPin size={12} />
+                                  {bizProps[0]?.city || "Location"}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {firstProp.business_is_active === false && (
+                                <span className="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg border border-red-200 flex items-center gap-1">
+                                  <AlertCircle size={10} /> Inactive
+                                </span>
+                              )}
+                              <span className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-lg border border-emerald-200">
+                                {bizProps.length} Properties
+                              </span>
+                            </div>
+                          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <Label required>City</Label>
-                <Input icon={MapPin} error={errors.city}
-                  type="text" placeholder="New York"
-                  value={hotelFields.city || ""}
-                  onChange={e => setHotelFields({ ...hotelFields, city: e.target.value })} />
-                <FieldError msg={errors.city} />
-              </div>
-              <div>
-                <Label required>Property Size (Rooms)</Label>
-                <Input icon={Hotel} error={errors.number_of_rooms}
-                  type="number" placeholder="150"
-                  value={hotelFields.number_of_rooms || ""}
-                  onChange={e => setHotelFields({ ...hotelFields, number_of_rooms: e.target.value })} />
-                <FieldError msg={errors.number_of_rooms} />
-              </div>
-              <div>
-                <Label>Operational Timezone</Label>
-                <Select icon={Globe}
-                  value={hotelFields.timezone || "IST"}
-                  onChange={e => setHotelFields({ ...hotelFields, timezone: e.target.value })}>
-                  <option value="IST">IST (New Delhi / Mumbai)</option>
-                </Select>
-              </div>
-            </div>
+                          <div className="border-t border-zinc-100 pt-4 space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-zinc-500">Rooms</span>
+                              <span className="font-semibold text-zinc-900">{bizProps[0]?.rooms || 0}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-zinc-500">Timezone</span>
+                              <span className="font-semibold text-zinc-900">{bizProps[0]?.timezone || "IST"}</span>
+                            </div>
+                          </div>
 
-            <div>
-              <Label>Active Review Platforms</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {["Agoda", "Booking.com", "Google Hotels", "Airbnb"].map(p => (
-                  <span key={p} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-xs font-semibold border border-purple-100">
-                    <CheckCircle2 size={12} /> {p}
-                  </span>
-                ))}
+                          <div className="border-t border-zinc-100 pt-4">
+                            <button
+                              onClick={() => window.open('/admin', '_blank')}
+                              className="w-full py-2 px-3 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 border-none"
+                            >
+                              <Edit2 size={12} /> Edit in Admin Panel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <Building2 size={32} className="text-zinc-300 mx-auto mb-3" />
+                    <p className="text-zinc-500 text-sm">No businesses created yet</p>
+                    <p className="text-zinc-400 text-xs mt-1">Go to Admin Panel to create your first business</p>
+                  </div>
+                )}
               </div>
-              <p className="text-[11px] text-zinc-400 mt-2">
-                Platform links are configured per-property in the Properties tab.
-              </p>
-            </div>
+            ) : (
+              // Regular User: Show single read-only business card
+              <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
+                <div className="p-6 space-y-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white text-2xl font-bold shrink-0">
+                      {hotelFields.hotel_name?.charAt(0)?.toUpperCase() || "B"}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-zinc-900 mb-1 flex items-center gap-2">
+                        {hotelFields.hotel_name || "Unnamed Business"}
+                        {hotelFields.is_active === false && (
+                          <span className="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg border border-red-200 flex items-center gap-1">
+                            <AlertCircle size={10} /> Inactive
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex items-center gap-3 flex-wrap text-sm text-zinc-600">
+                        <div className="flex items-center gap-1">
+                          <MapPin size={14} className="text-zinc-400" />
+                          {hotelFields.city || "Location not set"}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Hotel size={14} className="text-zinc-400" />
+                          {hotelFields.number_of_rooms || 0} rooms
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Globe size={14} className="text-zinc-400" />
+                          {hotelFields.timezone || "IST"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-            <div className="pt-4 border-t border-zinc-100">
-              <PrimaryBtn loading={loading} onClick={() => handleSaveHotel()}>
-                <Save size={14} /> Update Property Profile
-              </PrimaryBtn>
-            </div>
+                  <div className="border-t border-zinc-100 pt-6">
+                    <h4 className="text-sm font-bold text-zinc-900 mb-3">Business Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-zinc-50 rounded-xl p-4">
+                        <p className="text-[11px] font-bold text-zinc-500 uppercase mb-1">Business Name</p>
+                        <p className="text-sm font-semibold text-zinc-900">{hotelFields.hotel_name || "-"}</p>
+                      </div>
+                      <div className="bg-zinc-50 rounded-xl p-4">
+                        <p className="text-[11px] font-bold text-zinc-500 uppercase mb-1">City</p>
+                        <p className="text-sm font-semibold text-zinc-900">{hotelFields.city || "-"}</p>
+                      </div>
+                      <div className="bg-zinc-50 rounded-xl p-4">
+                        <p className="text-[11px] font-bold text-zinc-500 uppercase mb-1">Property Size</p>
+                        <p className="text-sm font-semibold text-zinc-900">{hotelFields.number_of_rooms || 0} rooms</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-zinc-100 pt-6">
+                    <h4 className="text-sm font-bold text-zinc-900 mb-3">Review Platforms</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {["Agoda", "Booking.com", "Google Hotels", "Airbnb"].map(p => (
+                        <span key={p} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-xs font-semibold border border-purple-100">
+                          <CheckCircle2 size={12} /> {p}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-3">
+                      Platform links are configured per-property in the Properties tab.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* ════ PROPERTIES ════ */}
-        {activeTab === "properties" && (() => {
+        {activeTab === "properties" && !isSuperadmin && (() => {
           const properties = hotelFields.properties || [];
           const PLATFORM_META = {
             "Google": { logo: "https://www.google.com/favicon.ico", color: "#4285F4", bg: "#EBF3FF", border: "#C4DAFF", label: "Google Hotels" },
@@ -511,13 +595,6 @@ const Settings = () => {
                         {connectedCount} platform{connectedCount !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    {/* Toggle */}
-                    <button className="absolute top-3 right-3 bg-white/90 rounded-lg p-1 border-none cursor-pointer backdrop-blur-sm"
-                      onClick={() => updateProp({ is_active: !prop.is_active })}>
-                      {prop.is_active
-                        ? <ToggleRight size={24} className="text-orange-500" />
-                        : <ToggleLeft size={24} className="text-zinc-400" />}
-                    </button>
                   </div>
 
                   {/* Property Details Form */}
@@ -733,14 +810,6 @@ const Settings = () => {
                     <span className="text-[11px] font-bold text-zinc-400">
                       {properties.length} / 3
                     </span>
-                    <PrimaryBtn className="px-4 py-2 text-xs"
-                      onClick={() => {
-                        if (properties.length >= 3) { flashError("Maximum 3 properties allowed."); return; }
-                        setDraftProperty({ _uid: genUid(), name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {}, urgent_sync_interval: "5hr", low_sync_interval: "10hr", image: "", description: "" });
-                        setSelectedPropertyIdx("new");
-                      }}>
-                      <Plus size={13} /> Add Property
-                    </PrimaryBtn>
                   </div>
                 }
               />
@@ -753,14 +822,7 @@ const Settings = () => {
                     <Building2 size={24} />
                   </div>
                   <p className="font-bold text-zinc-900 m-0">No properties yet</p>
-                  <p className="text-zinc-400 text-[13px] mt-1.5">Add your first property to start collecting reviews</p>
-                  <PrimaryBtn className="mt-4 mx-auto"
-                    onClick={() => {
-                      setDraftProperty({ _uid: genUid(), name: "", city: "", rooms: "", timezone: "IST", is_active: true, platforms: {}, urgent_sync_interval: "5hr", low_sync_interval: "10hr", image: "", description: "" });
-                      setSelectedPropertyIdx("new");
-                    }}>
-                    <Plus size={13} /> Add Property
-                  </PrimaryBtn>
+                  <p className="text-zinc-400 text-[13px] mt-1.5">Contact your administrator to add properties</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

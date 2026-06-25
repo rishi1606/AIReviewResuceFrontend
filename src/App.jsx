@@ -17,6 +17,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import ComingSoon from "./pages/ComingSoon";
 import Notifications from "./pages/Notifications";
+import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
 
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/admin" element={<AdminPanel />} />
 
             <Route path="/" element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />

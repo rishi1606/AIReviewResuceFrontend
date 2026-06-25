@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { initialState } from "./initialState";
 import * as actions from "./actions";
-import { getReviews, getTickets, getStaff, getHotel, getNotifications as fetchNotifications, createNotification as postNotification, markNotificationRead, markAllNotificationsRead as apiMarkAllRead } from "../api/apiClient";
+import { getReviews, getTickets, getHotel, getProperties, getAdminProperties, getNotifications as fetchNotifications, createNotification as postNotification, markNotificationRead, markAllNotificationsRead as apiMarkAllRead } from "../api/apiClient";
 import { useAuth } from "./AuthContext";
 
 const AppContext = createContext();
@@ -17,6 +17,7 @@ const reducer = (state, action) => {
         tickets: action.payload.tickets || [],
         staff: action.payload.staff || [],
         hotelConfig: action.payload.hotelConfig || {},
+        managedProperties: action.payload.managedProperties || [],
         isAppLoading: false
       };
     case actions.SET_APP_LOADING:
@@ -125,7 +126,13 @@ const reducer = (state, action) => {
     case actions.ADD_NOTIFICATION:
       return { ...state, notifications: [{ ...action.payload, read: false, created_at: action.payload.created_at || new Date().toISOString() }, ...state.notifications] };
     case actions.LOAD_NOTIFICATIONS:
-      return { ...state, notifications: action.payload || [] };
+      return {
+        ...state,
+        notifications: (action.payload || []).map(n => ({
+          ...n,
+          read: n.isRead !== undefined ? n.isRead : n.read
+        }))
+      };
     case actions.MARK_NOTIFICATION_READ: {
       return {
         ...state,
@@ -186,16 +193,21 @@ const reducer = (state, action) => {
 
 export const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, currentUser } = useAuth();
 
   const loadData = async () => {
     dispatch({ type: actions.SET_APP_LOADING, payload: true });
     try {
-      const [revs, tkts, stf, hotel] = await Promise.all([
+      const isSuperadmin = currentUser?.role === "superadmin";
+      const propsPromise = isSuperadmin
+        ? getAdminProperties().catch(() => ({ data: [] }))
+        : getProperties().catch(() => ({ data: [] }));
+
+      const [revs, tkts, hotel, props] = await Promise.all([
         getReviews(),
         getTickets(),
-        getStaff(),
-        getHotel()
+        getHotel(),
+        propsPromise
       ]);
 
       const reviews = revs.data.reviews || [];
@@ -205,8 +217,9 @@ export const AppProvider = ({ children }) => {
         payload: {
           reviews,
           tickets: tkts.data.tickets,
-          staff: stf.data,
-          hotelConfig: hotel.data
+          staff: [],
+          hotelConfig: hotel.data,
+          managedProperties: props.data || []
         }
       });
 
@@ -227,7 +240,7 @@ export const AppProvider = ({ children }) => {
     if (isAuthenticated) {
       loadData();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, currentUser?.role]);
 
   // Notification helpers — API + state in one call, no side effects in reducer
   const sendNotification = async (payload) => {

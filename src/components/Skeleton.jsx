@@ -458,3 +458,42 @@ export const AnalyticsSkeleton = () => (
     </div>
   </div>
 );
+
+// ─── Admin Panel Skeleton ───
+export const AdminPanelSkeleton = () => (
+  <div className="space-y-6">
+    {/* Stats Cards */}
+    <div className="grid grid-cols-3 gap-4">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="bg-white rounded-2xl border border-zinc-200 p-5">
+          <SkeletonBase className="h-4 w-32 mb-3" />
+          <SkeletonBase className="h-8 w-20" />
+        </div>
+      ))}
+    </div>
+
+    {/* Table Header */}
+    <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center">
+        <SkeletonBase className="h-6 w-40" />
+        <SkeletonBase className="h-10 w-32" />
+      </div>
+
+      {/* Table Rows */}
+      <div className="divide-y divide-zinc-100">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="px-6 py-4 flex items-center justify-between">
+            <div className="flex-1 space-y-2">
+              <SkeletonBase className="h-4 w-32" />
+              <SkeletonBase className="h-3 w-24" />
+            </div>
+            <div className="flex gap-3 ml-4">
+              <SkeletonBase className="h-8 w-8 rounded-lg" />
+              <SkeletonBase className="h-8 w-8 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
