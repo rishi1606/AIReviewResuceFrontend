@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import ComingSoon from "./pages/ComingSoon";
 import Notifications from "./pages/Notifications";
 import AdminPanel from "./pages/AdminPanel";
+import StaffManagement from "./pages/StaffManagement";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
               <Route path="analytics" element={<Analytics />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="staff" element={<StaffManagement />} />
               <Route path="coming-soon" element={<ComingSoon />} />
               <Route path="notifications" element={<Notifications />} />
               <Route index element={<Navigate to="dashboard" />} />

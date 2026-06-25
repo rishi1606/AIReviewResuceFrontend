@@ -196,13 +196,16 @@ export const AppProvider = ({ children }) => {
   const { isAuthenticated, currentUser } = useAuth();
 
   const loadData = async () => {
+    console.log('=== AppContext loadData START ===');
     dispatch({ type: actions.SET_APP_LOADING, payload: true });
     try {
       const isSuperadmin = currentUser?.role === "superadmin";
+      console.log('[AppContext] Current user:', currentUser);
       const propsPromise = isSuperadmin
         ? getAdminProperties().catch(() => ({ data: [] }))
         : getProperties().catch(() => ({ data: [] }));
 
+      console.log('[AppContext] Calling getReviews()...');
       const [revs, tkts, hotel, props] = await Promise.all([
         getReviews(),
         getTickets(),
@@ -211,6 +214,8 @@ export const AppProvider = ({ children }) => {
       ]);
 
       const reviews = revs.data.reviews || [];
+      console.log('[AppContext] ✅ REVIEWS LOADED:', { count: reviews.length, first: reviews[0] });
+      console.log('[AppContext] Full response:', { reviews: reviews.length, revs });
 
       dispatch({
         type: actions.LOAD_INITIAL_DATA,

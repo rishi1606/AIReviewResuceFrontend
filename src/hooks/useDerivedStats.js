@@ -4,6 +4,16 @@ export function useDerivedStats() {
   const { state } = useAppContext();
   const { reviews, tickets, activeFilters } = state;
 
+  console.log('=== useDerivedStats ===');
+  console.log('[useDerivedStats] Reviews count:', reviews?.length || 0);
+  console.log('[useDerivedStats] First review:', reviews?.[0]);
+  console.log('[useDerivedStats] Reviews by sentiment:', {
+    positive: reviews?.filter(r => r.sentiment === 'Positive').length,
+    negative: reviews?.filter(r => r.sentiment === 'Negative').length,
+    mixed: reviews?.filter(r => r.sentiment === 'Mixed').length,
+    neutral: reviews?.filter(r => r.sentiment === 'Neutral').length
+  });
+
   const filterByDate = (items, dateField) => {
     if (!activeFilters.dateRange.start) return items;
     const start = new Date(activeFilters.dateRange.start);

@@ -182,10 +182,15 @@ const deriveFilteredStats = (reviews) => ({
 // ─── Main Dashboard Component ─────────────────────────────────────────────────
 
 const Dashboard = () => {
+  console.log('=== DASHBOARD RENDERING ===');
   const stats = useDerivedStats();
   const { state } = useAppContext();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+
+  console.log('[Dashboard] Current user role:', currentUser?.role);
+  console.log('[Dashboard] Reviews count:', state.reviews?.length);
+  console.log('[Dashboard] App loading:', state.isAppLoading);
   const [tablePage, setTablePage] = useState(1);
   const [hiddenSeries, setHiddenSeries] = useState([]);
   const [comparisonRange, setComparisonRange] = useState(30);

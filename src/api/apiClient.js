@@ -42,11 +42,17 @@ export const completeOnboarding = () => apiClient.post("/hotel/complete-onboardi
 export const getHotel = () => apiClient.get("/hotel");
 export const updateHotel = (fields) => apiClient.put("/hotel", fields);
 
-// Staff
+// Staff Management
+export const createStaff = (body) => apiClient.post("/staff", body);
+export const getStaffByBusiness = (business_id) => apiClient.get(`/staff/business/${business_id}`);
+export const getStaffByProperty = (business_id, property_id) => apiClient.get(`/staff/business/${business_id}/property/${property_id}`);
+export const updateStaff = (id, fields) => apiClient.put(`/staff/${id}`, fields);
+export const deactivateStaff = (id) => apiClient.patch(`/staff/${id}/deactivate`);
+export const removeStaff = (id) => apiClient.delete(`/staff/${id}`);
+
+// Legacy
 export const getStaff = () => apiClient.get("/staff");
 export const addStaff = (body) => apiClient.post("/staff", body);
-export const updateStaff = (id, fields) => apiClient.put(`/staff/${id}`, fields);
-export const removeStaff = (id) => apiClient.delete(`/staff/${id}`);
 
 // Reviews
 export const getReviews = (filters) => apiClient.get("/reviews", { params: filters });

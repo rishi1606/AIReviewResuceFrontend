@@ -14,6 +14,7 @@ import {
 import { AdminPanelSkeleton } from "../components/Skeleton";
 import InfoTooltip from "../components/InfoTooltip";
 import { Tooltip as SharedTooltip } from "../components/ui/Tooltip";
+import AdminStaffManagement from "./AdminStaffManagement";
 
 /* ─── Input ──────────────────────────────────────────────────────────── */
 const Input = ({ icon: Icon, error, ...props }) => (
@@ -181,6 +182,7 @@ const AdminPanel = () => {
   const [bizPage, setBizPage] = useState(1);
   const [propPage, setPropPage] = useState(1);
   const [filterBusinessId, setFilterBusinessId] = useState(null);
+  const [selectedBusinessForStaff, setSelectedBusinessForStaff] = useState(null);
 
   const [showAddBiz, setShowAddBiz] = useState(false);
   const [bizForm, setBizForm] = useState({ hotel_name: "", city: "", number_of_rooms: "", admin_name: "", admin_email: "", admin_password: "" });
@@ -526,7 +528,7 @@ const AdminPanel = () => {
           <div className="flex items-center gap-2 mb-3 px-2">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Management</span>
           </div>
-          {["Businesses", "Properties"].map((item, idx) => (
+          {["Businesses", "Properties", "Staff"].map((item, idx) => (
             <button
               key={idx}
               onClick={() => { setActiveTab(item.toLowerCase()); setFilterBusinessId(null); setSearch(""); }}
@@ -541,7 +543,7 @@ const AdminPanel = () => {
               <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
                 activeTab === item.toLowerCase() ? "bg-orange-100 text-orange-600" : "bg-zinc-200 text-zinc-500"
               }`}>
-                {item === "Businesses" ? businesses.length : properties.length}
+                {item === "Businesses" ? businesses.length : item === "Properties" ? properties.length : ""}
               </span>
             </button>
           ))}
@@ -774,7 +776,7 @@ const AdminPanel = () => {
                 <Pagination currentPage={bizPage} totalPages={bizTotalPages} onPageChange={setBizPage} />
               </div>
             </div>
-          ) : (
+          ) : activeTab === "properties" ? (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {[
@@ -904,7 +906,15 @@ const AdminPanel = () => {
                 <Pagination currentPage={propPage} totalPages={propTotalPages} onPageChange={setPropPage} />
               </div>
             </div>
-          )}
+          ) : activeTab === "staff" ? (
+            <AdminStaffManagement
+              selectedBusiness={selectedBusinessForStaff || (businesses.length > 0 ? businesses[0] : null)}
+              onBack={() => {
+                setSelectedBusinessForStaff(null);
+                setActiveTab("businesses");
+              }}
+            />
+          ) : null}
         </main>
       </div>
 

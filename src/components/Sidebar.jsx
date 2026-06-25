@@ -4,7 +4,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard, MessageSquare, Settings,
     LogOut, ChevronLeft, ChevronRight, ShieldCheck, X, Loader2,
-    Building2, Globe, ChevronDown, Rocket, Plus
+    Building2, Globe, ChevronDown, Rocket, Plus, Users
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
@@ -66,12 +66,15 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     const userRole = currentUser?.role?.replace("_", " ") || "User";
 
     const isSuperadmin = currentUser?.role === "superadmin";
+    const isOwner = currentUser?.role === "owner";
+    const isPropertyManager = currentUser?.role === "property_manager";
 
     const navItems = [
         { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
         { name: "Reviews", path: "/reviews", icon: MessageSquare },
         { name: "Settings", path: "/settings", icon: Settings },
         ...(isSuperadmin ? [{ name: "Admin Panel", path: "/admin", icon: ShieldCheck }] : []),
+        ...(isOwner || isPropertyManager ? [{ name: "Staff", path: "/staff", icon: Users }] : []),
     ];
 
     const isCollapsedDesktop = !mobileOpen && collapsed;
