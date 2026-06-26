@@ -34,6 +34,7 @@ import {
 } from "../api/apiClient";
 import { createTicketFromReview } from "../utils/ticketFactory";
 import { DEPARTMENTS } from "../utils/constants";
+import { getTopicByKey } from "../constants/topics";
 import { SkeletonKPI, SkeletonReviewCard } from "../components/Skeleton";
 import { FileText } from "lucide-react";
 
@@ -113,7 +114,8 @@ const Reviews = () => {
   const clearSelection = () => setSelectedIds([]);
   const [search, setSearch] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("search") || "";
+    const topicDef = getTopicByKey(params.get("topic"));
+    return topicDef ? topicDef.pattern : (params.get("search") || "");
   });
   const [highlightId, setHighlightId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -124,7 +126,8 @@ const Reviews = () => {
   const [openFilter, setOpenFilter] = useState(null);
   const [searchChip, setSearchChip] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("search") || "";
+    const topicDef = getTopicByKey(params.get("topic"));
+    return topicDef ? topicDef.label : (params.get("search") || "");
   });
   const ITEMS_PER_PAGE = 10;
 
@@ -165,13 +168,23 @@ const Reviews = () => {
     } else {
       setTab("ALL");
     }
-    const searchParam = params.get("search");
-    if (searchParam) {
-      setSearch(searchParam);
-      setSearchChip(searchParam);
+    // Topic filter from the dashboard "What Guests Talk About" card. We send the
+    // topic's full synonym regex as the backend search so the result set matches
+    // the count shown on the dashboard, while the chip shows the friendly label.
+    const topicParam = params.get("topic");
+    const topicDef = topicParam ? getTopicByKey(topicParam) : null;
+    if (topicDef) {
+      setSearch(topicDef.pattern);
+      setSearchChip(topicDef.label);
     } else {
-      setSearch("");
-      setSearchChip("");
+      const searchParam = params.get("search");
+      if (searchParam) {
+        setSearch(searchParam);
+        setSearchChip(searchParam);
+      } else {
+        setSearch("");
+        setSearchChip("");
+      }
     }
   }, [location.search]);
 
@@ -828,6 +841,7 @@ const Reviews = () => {
                 // Remove search param from URL without full reload
                 const params = new URLSearchParams(window.location.search);
                 params.delete("search");
+                params.delete("topic");
                 navigate(`/reviews?${params.toString()}`, { replace: true });
               }}
               className="ml-1 hover:text-indigo-900 transition-colors"

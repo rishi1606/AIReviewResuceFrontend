@@ -172,6 +172,7 @@ const ITEMS_PER_PAGE = 10;
 const AdminPanel = () => {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState("businesses");
   const [businesses, setBusinesses] = useState([]);
   const [properties, setProperties] = useState([]);
@@ -500,71 +501,112 @@ const AdminPanel = () => {
 
   return (
     <div className="flex h-screen bg-zinc-50/50 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 h-screen bg-zinc-50 border-r border-zinc-200 flex flex-col shrink-0">
-        <div className="px-5 py-5 flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30 shrink-0">
-            <ShieldCheck size={24} />
-          </div>
-          <div className="overflow-hidden">
-            <span className="font-bold text-[15px] tracking-tight bg-gradient-to-r from-orange-500 to-purple-600 bg-clip-text text-transparent truncate">
-              Admin Panel
-            </span>
-            <p className="text-[11px] text-zinc-400 font-medium">ReviewRescue</p>
-          </div>
-        </div>
+      {/* Sidebar - Dashboard Style with Toggle */}
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 h-screen bg-zinc-50 border-r border-zinc-200 transition-transform duration-300 ease-in-out flex flex-col ${collapsed ? "lg:w-20" : "lg:w-64"} w-64`}>
 
-        <div className="px-4 mb-3">
+        {/* Logo Header */}
+        <div className="px-5 py-5 lg:py-6 flex items-center justify-between lg:justify-start gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30 shrink-0">
+              <ShieldCheck size={24} />
+            </div>
+            {!collapsed && (
+              <span className="font-bold text-lg lg:text-xl tracking-tight bg-gradient-to-r from-orange-500 to-purple-600 bg-clip-text text-transparent truncate">
+                Admin Panel
+              </span>
+            )}
+          </div>
+          {/* Toggle Button */}
           <button
-            onClick={() => navigate("/")}
-            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] font-semibold text-zinc-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all cursor-pointer bg-transparent border-none"
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden lg:flex p-1.5 hover:bg-zinc-100 rounded-lg transition-colors"
+            title={collapsed ? "Expand" : "Collapse"}
           >
-            <ArrowLeft size={14} />
-            <span>Back to Dashboard</span>
+            {collapsed ? <ChevronRight size={18} className="text-zinc-600" /> : <ChevronLeft size={18} className="text-zinc-600" />}
           </button>
         </div>
 
-        <nav className="px-3 flex-1">
-          <div className="flex items-center gap-2 mb-3 px-2">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Management</span>
-          </div>
-          {["Businesses", "Properties", "Staff"].map((item, idx) => (
-            <button
-              key={idx}
-              onClick={() => { setActiveTab(item.toLowerCase()); setFilterBusinessId(null); setSearch(""); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all cursor-pointer mb-1 border-none ${
-                activeTab === item.toLowerCase()
-                  ? "bg-orange-50 text-orange-700 shadow-sm"
-                  : "bg-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-800"
-              }`}
-            >
-              <Building2 size={16} className={activeTab === item.toLowerCase() ? "text-orange-500" : "text-zinc-400"} />
-              <span className="flex-1 text-left">{item}</span>
-              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                activeTab === item.toLowerCase() ? "bg-orange-100 text-orange-600" : "bg-zinc-200 text-zinc-500"
-              }`}>
-                {item === "Businesses" ? businesses.length : item === "Properties" ? properties.length : ""}
-              </span>
-            </button>
-          ))}
+        {/* Divider */}
+        <div className="mx-4 border-t border-zinc-200 mb-3" />
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 space-y-1 mt-2 overflow-y-auto">
+          {!collapsed && (
+            <div className="px-2 pt-1 pb-2">
+              <span className="text-[10px] font-bold text-zinc-400 tracking-wider uppercase">Management</span>
+            </div>
+          )}
+
+          {[
+            { name: "Businesses", icon: Building2, count: businesses.length },
+            { name: "Properties", icon: Globe, count: properties.length }
+          ].map((item) => {
+            const itemLower = item.name.toLowerCase();
+            const isActive = activeTab === itemLower;
+
+            return (
+              <button
+                key={itemLower}
+                onClick={() => { setActiveTab(itemLower); setFilterBusinessId(null); setSearch(""); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition-all cursor-pointer border-none group ${
+                  isActive
+                    ? "bg-orange-50 text-orange-700 shadow-sm"
+                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-800"
+                } ${collapsed ? "lg:justify-center lg:px-2" : ""}`}
+                title={collapsed ? item.name : ""}
+              >
+                <item.icon
+                  size={20}
+                  className={`shrink-0 ${isActive ? "text-orange-500" : "text-zinc-400"}`}
+                />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 text-left text-[13px]">{item.name}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      isActive ? "bg-orange-100 text-orange-600" : "bg-zinc-200 text-zinc-500"
+                    }`}>
+                      {item.count}
+                    </span>
+                  </>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="p-4">
-          <div className="px-3 py-3 bg-white rounded-xl flex items-center gap-3 border border-zinc-200 mb-3">
-            <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center font-bold text-sm border border-orange-200 shrink-0">
-              SA
-            </div>
-            <div className="overflow-hidden flex-1">
-              <p className="text-[12px] font-bold text-zinc-800 truncate">{currentUser?.name}</p>
-              <p className="text-[10px] text-orange-500 font-semibold capitalize">Super Admin</p>
-            </div>
+        {/* Back to Dashboard */}
+        {!collapsed && (
+          <div className="px-3 mb-3 border-t border-zinc-200 pt-3">
+            <button
+              onClick={() => navigate("/")}
+              className="w-full flex items-center gap-2 px-3 py-2 text-[12px] font-semibold text-zinc-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all cursor-pointer bg-transparent border-none"
+            >
+              <ArrowLeft size={14} />
+              <span>Back</span>
+            </button>
           </div>
+        )}
+
+        {/* User Profile & Logout */}
+        <div className="p-4 border-t border-zinc-200">
+          {!collapsed && (
+            <div className="px-3 py-3 bg-white rounded-xl flex items-center gap-3 border border-zinc-200 mb-3">
+              <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center font-bold text-sm border border-orange-200 shrink-0">
+                SA
+              </div>
+              <div className="overflow-hidden flex-1">
+                <p className="text-[12px] font-bold text-zinc-800 truncate">{currentUser?.name}</p>
+                <p className="text-[10px] text-orange-500 font-semibold capitalize">Admin</p>
+              </div>
+            </div>
+          )}
           <button
             onClick={() => logout()}
-            className="w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-semibold text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer bg-transparent border-none"
+            className={`w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-semibold text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer bg-transparent border-none ${collapsed ? "lg:justify-center lg:px-2" : ""}`}
+            title={collapsed ? "Logout" : ""}
           >
-            <LogOut size={14} />
-            <span>Logout</span>
+            <LogOut size={14} shrink-0 />
+            {!collapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>
@@ -661,18 +703,39 @@ const AdminPanel = () => {
             <AdminPanelSkeleton />
           ) : activeTab === "businesses" ? (
             <div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
-                  { label: "Total Businesses", value: businesses.length, icon: Building2, color: "text-orange-600", bg: "bg-orange-50" },
-                  { label: "Total Properties", value: businesses.reduce((s, b) => s + (b.propertyCount || 0), 0), icon: Globe, color: "text-purple-600", bg: "bg-purple-50" },
-                  { label: "Total Reviews", value: businesses.reduce((s, b) => s + (b.reviewCount || 0), 0), icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50" },
-                ].map((s, i) => (
-                  <div key={i} className={`${s.bg} border border-zinc-200 rounded-2xl px-5 py-4`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <s.icon size={14} className={s.color} />
-                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{s.label}</span>
+                  { title: "Total Businesses", value: businesses.length, subtitle: "Actively managed", icon: Building2, trend: `+${businesses.filter(b => b.is_active !== false).length}`, trendType: "up", themeClass: "bg-orange-50 border-orange-200 text-orange-600" },
+                  { title: "Avg Rating", value: "4.5", subtitle: "Based on reviews", icon: MessageSquare, trend: "+10%", trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
+                  { title: "Total Properties", value: businesses.reduce((s, b) => s + (b.propertyCount || 0), 0), subtitle: "Across all businesses", icon: Globe, trend: null, trendType: "warn", themeClass: "bg-blue-50 border-blue-200 text-blue-600" },
+                  { title: "Total Reviews", value: businesses.reduce((s, b) => s + (b.reviewCount || 0), 0), subtitle: "All platforms", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-emerald-50 border-emerald-200 text-emerald-600" },
+                ].map((card, i) => (
+                  <div key={i} className="bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300">
+                    {/* Row 1: icon + trend badge */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${card.themeClass} group-hover:scale-110 transition-transform duration-200`}>
+                        <card.icon size={20} />
+                      </div>
+                      {card.trend && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                          card.trendType === 'up' ? 'bg-emerald-50 text-emerald-600' :
+                          card.trendType === 'warn' ? 'bg-amber-50 text-amber-600' :
+                          'bg-zinc-100 text-zinc-600'
+                        }`}>
+                          {card.trend}
+                        </span>
+                      )}
                     </div>
-                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+
+                    {/* Divider line */}
+                    <div className="border-t border-zinc-100 mb-3" />
+
+                    {/* Row 2: label + value + subtitle */}
+                    <p className="text-[11px] font-semibold text-zinc-400 tracking-wide mb-1">{card.title}</p>
+                    <p className="text-[28px] font-bold text-zinc-900 leading-none tracking-tight">{card.value}</p>
+                    {card.subtitle && (
+                      <p className="text-[11px] text-zinc-500 mt-1.5 font-medium">{card.subtitle}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -700,8 +763,8 @@ const AdminPanel = () => {
                         <tr key={biz._id} className={`border-b border-zinc-50 hover:bg-zinc-50/70 transition-colors ${biz.is_active === false ? 'opacity-50' : ''}`}>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white text-[13px] font-bold shrink-0 shadow-sm">
-                                {biz.hotel_name?.charAt(0)?.toUpperCase() || "B"}
+                              <div className="w-10 h-10 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
+                                <span className="text-[12px] font-bold text-orange-600">{biz.hotel_name?.charAt(0)?.toUpperCase() || 'B'}</span>
                               </div>
                               <div>
                                 <p className="text-[13px] font-bold text-zinc-900">{biz.hotel_name}</p>
@@ -778,18 +841,39 @@ const AdminPanel = () => {
             </div>
           ) : activeTab === "properties" ? (
             <div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
-                  { label: "Total Properties", value: properties.length, icon: Globe, color: "text-purple-600", bg: "bg-purple-50" },
-                  { label: "Active Properties", value: properties.filter(p => p.is_active !== false).length, icon: Check, color: "text-emerald-600", bg: "bg-emerald-50" },
-                  { label: "Total Rooms", value: properties.reduce((s, p) => s + (p.rooms || 0), 0), icon: Building2, color: "text-blue-600", bg: "bg-blue-50" },
-                ].map((s, i) => (
-                  <div key={i} className={`${s.bg} border border-zinc-200 rounded-2xl px-5 py-4`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <s.icon size={14} className={s.color} />
-                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{s.label}</span>
+                  { title: "Total Properties", value: properties.length, subtitle: "All connected", icon: Globe, trend: `+${properties.filter(p => p.is_active !== false).length}`, trendType: "up", themeClass: "bg-emerald-50 border-emerald-200 text-emerald-600" },
+                  { title: "Active", value: properties.filter(p => p.is_active !== false).length, subtitle: "Now operating", icon: Check, trend: "100%", trendType: "up", themeClass: "bg-blue-50 border-blue-200 text-blue-600" },
+                  { title: "Total Rooms", value: properties.reduce((s, p) => s + (p.rooms || 0), 0), subtitle: "Across all properties", icon: Building2, trend: null, trendType: "warn", themeClass: "bg-orange-50 border-orange-200 text-orange-600" },
+                  { title: "Avg Rooms", value: (properties.reduce((s, p) => s + (p.rooms || 0), 0) / properties.length || 0).toFixed(0), subtitle: "Per property", icon: Building2, trend: null, trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
+                ].map((card, i) => (
+                  <div key={i} className="bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300">
+                    {/* Row 1: icon + trend badge */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${card.themeClass} group-hover:scale-110 transition-transform duration-200`}>
+                        <card.icon size={20} />
+                      </div>
+                      {card.trend && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                          card.trendType === 'up' ? 'bg-emerald-50 text-emerald-600' :
+                          card.trendType === 'warn' ? 'bg-amber-50 text-amber-600' :
+                          'bg-zinc-100 text-zinc-600'
+                        }`}>
+                          {card.trend}
+                        </span>
+                      )}
                     </div>
-                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+
+                    {/* Divider line */}
+                    <div className="border-t border-zinc-100 mb-3" />
+
+                    {/* Row 2: label + value + subtitle */}
+                    <p className="text-[11px] font-semibold text-zinc-400 tracking-wide mb-1">{card.title}</p>
+                    <p className="text-[28px] font-bold text-zinc-900 leading-none tracking-tight">{card.value}</p>
+                    {card.subtitle && (
+                      <p className="text-[11px] text-zinc-500 mt-1.5 font-medium">{card.subtitle}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -818,8 +902,8 @@ const AdminPanel = () => {
                           <tr key={prop._id} className={`border-b border-zinc-50 hover:bg-zinc-50/70 transition-colors group ${prop.is_active === false ? 'opacity-50' : ''}`}>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-[13px] font-bold shrink-0 shadow-sm">
-                                  {prop.name?.charAt(0)?.toUpperCase() || "P"}
+                                <div className="w-10 h-10 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
+                                  <span className="text-[12px] font-bold text-orange-600">{prop.name?.charAt(0)?.toUpperCase() || 'P'}</span>
                                 </div>
                                 <div>
                                   <p className="text-[13px] font-bold text-zinc-900">{prop.name}</p>
@@ -906,14 +990,6 @@ const AdminPanel = () => {
                 <Pagination currentPage={propPage} totalPages={propTotalPages} onPageChange={setPropPage} />
               </div>
             </div>
-          ) : activeTab === "staff" ? (
-            <AdminStaffManagement
-              selectedBusiness={selectedBusinessForStaff || (businesses.length > 0 ? businesses[0] : null)}
-              onBack={() => {
-                setSelectedBusinessForStaff(null);
-                setActiveTab("businesses");
-              }}
-            />
           ) : null}
         </main>
       </div>

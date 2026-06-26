@@ -74,7 +74,6 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         { name: "Reviews", path: "/reviews", icon: MessageSquare },
         { name: "Settings", path: "/settings", icon: Settings },
         ...(isSuperadmin ? [{ name: "Admin Panel", path: "/admin", icon: ShieldCheck }] : []),
-        ...(isOwner || isPropertyManager ? [{ name: "Staff", path: "/staff", icon: Users }] : []),
     ];
 
     const isCollapsedDesktop = !mobileOpen && collapsed;

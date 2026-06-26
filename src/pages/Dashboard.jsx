@@ -56,7 +56,7 @@ const StatusBadge = React.memo(({ value }) => {
 });
 StatusBadge.displayName = "StatusBadge";
 
-const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "slate", trend, trendIcon: TrendIcon, trendType = "neutral", pulseClass, cardTooltip, tooltipText, onClick }) => {
+const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "slate", trend, trendIcon: TrendIcon, trendType = "neutral", pulseClass, cardTooltip, tooltipText, onClick, urgent = false }) => {
   const resolvedTooltip = cardTooltip || tooltipText;
   const themeClass = ICON_THEMES[color] ?? ICON_THEMES.slate;
   const tcClass = TREND_CONFIG[trendType] ?? TREND_CONFIG.neutral;
@@ -68,13 +68,18 @@ const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "sl
     </span>
   ) : null;
 
+  // Urgent variant: red left accent + warm tint + ring so the eye lands here first.
+  const cardClass = urgent
+    ? "relative overflow-hidden bg-red-50/60 border border-red-200 border-l-4 border-l-red-500 ring-1 ring-red-100 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-red-100 hover:border-red-300 active:translate-y-0 active:shadow-md select-none"
+    : "bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300 active:translate-y-0 active:shadow-md select-none";
+
   const card = (
     <div
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick?.()}
-      className="bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300 active:translate-y-0 active:shadow-md select-none"
+      className={cardClass}
     >
       {/* Row 1: icon + trend badge */}
       <div className="flex items-start justify-between mb-4">
@@ -85,13 +90,13 @@ const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "sl
       </div>
 
       {/* Divider line */}
-      <div className="border-t border-zinc-100 mb-3" />
+      <div className={`border-t mb-3 ${urgent ? "border-red-200/70" : "border-zinc-100"}`} />
 
       {/* Row 2: label + value + subtitle */}
-      <p className="text-[11px] font-semibold text-zinc-400 tracking-wide mb-1">{title}</p>
-      <p className="text-[28px] font-bold text-zinc-900 leading-none tracking-tight">{value}</p>
+      <p className={`text-[11px] font-semibold tracking-wide mb-1 ${urgent ? "text-red-500" : "text-zinc-400"}`}>{title}</p>
+      <p className={`text-[28px] font-bold leading-none tracking-tight ${urgent ? "text-red-600" : "text-zinc-900"}`}>{value}</p>
       {subtitle && (
-        <p className="text-[11px] text-zinc-500 mt-1.5 font-medium">{subtitle}</p>
+        <p className={`text-[11px] mt-1.5 font-medium ${urgent ? "text-red-500/80" : "text-zinc-500"}`}>{subtitle}</p>
       )}
     </div>
   );
@@ -337,6 +342,7 @@ const Dashboard = () => {
                 trendIcon={filteredStats.escalatedCount > 0 ? TrendingDown : CheckCircle2}
                 trendType={filteredStats.escalatedCount > 0 ? "down" : "up"}
                 pulseClass={filteredStats.escalatedCount > 0 ? "sh-badge-pulse" : ""}
+                urgent={filteredStats.escalatedCount > 0}
                 tooltipText={filteredStats.escalatedCount > 0 ? `${filteredStats.escalatedCount} reviews have been escalated for immediate attention. A review is escalated when the guest rating falls at or below your configured threshold (default: ≤ 2/5 stars, or ≤ 4/10 on Booking.com / Agoda), or when it's flagged as high-urgency by the AI. Click this card to view all escalated reviews and take action.` : "No reviews currently need escalation. Reviews are auto-escalated when the rating falls below your configured threshold or the AI detects high urgency. You can adjust the escalation threshold in Settings → Rules."}
                 onClick={goToEscalated}
               />
@@ -708,11 +714,10 @@ const Dashboard = () => {
                             key={opt.days}
                             onClick={() => setComparisonRange(opt.days)}
                             title={opt.tip}
-                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                              comparisonRange === opt.days
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${comparisonRange === opt.days
                                 ? 'bg-white text-zinc-900 shadow-sm'
                                 : 'text-zinc-400 hover:text-zinc-600'
-                            }`}
+                              }`}
                           >
                             {opt.label}
                           </button>
