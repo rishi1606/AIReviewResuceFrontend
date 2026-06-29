@@ -768,12 +768,16 @@ const AdminPanel = () => {
           ) : activeTab === "businesses" ? (
             <div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                {[
-                  { title: "Total Businesses", value: businesses.length, subtitle: "Actively managed", icon: Building2, trend: null, trendType: "up", themeClass: "bg-orange-50 border-orange-200 text-orange-600" },
-                  { title: "Avg Rating", value: "4.5", subtitle: "Based on reviews", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
-                  { title: "Total Properties", value: businesses.reduce((s, b) => s + (b.propertyCount || 0), 0), subtitle: "Across all businesses", icon: Globe, trend: null, trendType: "warn", themeClass: "bg-blue-50 border-blue-200 text-blue-600" },
-                  { title: "Total Reviews", value: businesses.reduce((s, b) => s + (b.reviewCount || 0), 0), subtitle: "All platforms", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-emerald-50 border-emerald-200 text-emerald-600" },
-                ].map((card, i) => (
+                {(() => {
+                  const totalReviews = businesses.reduce((s, b) => s + (b.reviewCount || 0), 0);
+                  const avgRating = totalReviews > 0 ? (businesses.reduce((s, b) => s + ((b.avgRating || 0) * (b.reviewCount || 0)), 0) / totalReviews).toFixed(1) : "—";
+                  return [
+                    { title: "Total Businesses", value: businesses.length, subtitle: "Actively managed", icon: Building2, trend: null, trendType: "up", themeClass: "bg-orange-50 border-orange-200 text-orange-600" },
+                    { title: "Avg Rating", value: avgRating, subtitle: "Based on reviews", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
+                    { title: "Total Properties", value: businesses.reduce((s, b) => s + (b.propertyCount || 0), 0), subtitle: "Across all businesses", icon: Globe, trend: null, trendType: "warn", themeClass: "bg-blue-50 border-blue-200 text-blue-600" },
+                    { title: "Total Reviews", value: totalReviews, subtitle: "All platforms", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-emerald-50 border-emerald-200 text-emerald-600" },
+                  ];
+                })().map((card, i) => (
                   <div key={i} className="bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300">
                     {/* Row 1: icon + trend badge */}
                     <div className="flex items-start justify-between mb-4">
