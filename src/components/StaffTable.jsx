@@ -11,20 +11,22 @@ const StaffTable = ({ staff, onEdit, onDeactivate, onDelete, loading }) => {
 
   if (!staff || staff.length === 0) {
     return (
-      <div className="p-8 text-center text-zinc-400">
-        <p>No staff members yet</p>
+      <div className="bg-white rounded-2xl border border-zinc-200 p-12 text-center">
+        <div className="mb-3">
+          <p className="text-lg font-semibold text-zinc-900">No staff members yet</p>
+          <p className="text-sm text-zinc-500 mt-1">Create your first team member to get started</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+    <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_100px] gap-4 px-6 py-3 bg-zinc-50 border-b border-zinc-100 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-        <span>Name</span>
+      <div className="grid grid-cols-[2fr_1.2fr_1.5fr_1.2fr_100px] gap-4 px-6 py-4 bg-gradient-to-r from-zinc-50 to-zinc-100 border-b border-zinc-200 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+        <span>Name & Email</span>
         <span>Role</span>
         <span>Department</span>
-        <span>Property</span>
         <span>Status</span>
         <span></span>
       </div>
@@ -35,7 +37,7 @@ const StaffTable = ({ staff, onEdit, onDeactivate, onDelete, loading }) => {
           key={member._id}
           onMouseEnter={() => setHoveredId(member._id)}
           onMouseLeave={() => setHoveredId(null)}
-          className="grid grid-cols-[2fr_1.5fr_1.5fr_1fr_1fr_100px] gap-4 px-6 py-3.5 border-b border-zinc-50 last:border-0 hover:bg-zinc-50 transition-colors group"
+          className="grid grid-cols-[2fr_1.2fr_1.5fr_1.2fr_100px] gap-4 px-6 py-4 border-b border-zinc-100 last:border-0 hover:bg-orange-50/40 transition-colors group"
         >
           {/* Name */}
           <div className="flex items-center gap-3">
@@ -50,7 +52,11 @@ const StaffTable = ({ staff, onEdit, onDeactivate, onDelete, loading }) => {
 
           {/* Role */}
           <div className="flex items-center">
-            <span className="px-2.5 py-1 rounded-full bg-purple-50 text-purple-600 text-[11px] font-semibold">
+            <span className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold ${
+              member.role === 'lead'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-blue-100 text-blue-700'
+            }`}>
               {STAFF_ROLES_LABELS[member.role] || member.role}
             </span>
           </div>
@@ -66,21 +72,14 @@ const StaffTable = ({ staff, onEdit, onDeactivate, onDelete, loading }) => {
             )}
           </div>
 
-          {/* Property */}
-          <div className="flex items-center">
-            <span className="text-[13px] font-medium text-zinc-700">
-              {member.property_id || '—'}
-            </span>
-          </div>
-
           {/* Status */}
           <div className="flex items-center">
             {member.is_active ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-semibold rounded-lg">
                 <Check size={12} /> Active
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-400">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-100 text-zinc-600 text-[11px] font-semibold rounded-lg">
                 <X size={12} /> Inactive
               </span>
             )}

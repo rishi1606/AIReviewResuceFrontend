@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { loginUser, getMe, registerUser } from "../api/apiClient";
+import apiClient from "../api/apiClient";
 
 const AuthContext = createContext();
 
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }) => {
           setCurrentUser(res.data);
           setIsAuthenticated(true);
         } catch (err) {
+          console.error("Auth check failed:", err);
           localStorage.removeItem("rr_token");
           setIsAuthenticated(false);
         }

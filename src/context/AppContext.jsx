@@ -206,16 +206,27 @@ export const AppProvider = ({ children }) => {
         : getProperties().catch(() => ({ data: [] }));
 
       console.log('[AppContext] Calling getReviews()...');
+
+      // For leads, filter reviews by their department
+      const reviewFilters = {};
+      if (currentUser?.role === 'lead' && currentUser?.department) {
+        reviewFilters.department = currentUser.department;
+        console.log('[AppContext] Lead filter - Department:', currentUser.department);
+      }
+
       const [revs, tkts, hotel, props] = await Promise.all([
-        getReviews(),
+        getReviews(reviewFilters),
         getTickets(),
         getHotel(),
         propsPromise
       ]);
 
       const reviews = revs.data.reviews || [];
-      console.log('[AppContext] ✅ REVIEWS LOADED:', { count: reviews.length, first: reviews[0] });
-      console.log('[AppContext] Full response:', { reviews: reviews.length, revs });
+      console.log('[AppContext] ✅ REVIEWS LOADED:', { count: reviews.length });
+      console.log('[AppContext] Hotel data:', {
+        name: hotel.data?.hotel_name,
+        properties: hotel.data?.properties?.length || 0
+      });
 
       dispatch({
         type: actions.LOAD_INITIAL_DATA,
@@ -227,6 +238,8 @@ export const AppProvider = ({ children }) => {
           managedProperties: props.data || []
         }
       });
+
+      console.log('[AppContext] ✅ STATE UPDATED');
 
       // Load notifications from backend
       try {

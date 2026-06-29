@@ -234,76 +234,267 @@ const ReviewDetail = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // APPROVAL WORKFLOW - WITH ERROR HANDLING
+  // ═══════════════════════════════════════════════════════════════════════════
+
   const handleApprove = async () => {
-    if (!proposal) return;
+    // ── VALIDATION ──────────────────────────────────────────────────────────
+    if (!proposal || !proposal.trim()) {
+      sendNotification({
+        type: "error",
+        title: "Missing Response",
+        message: "Please write a response before approving."
+      });
+      return;
+    }
+
+    if (!currentUser) {
+      setError("User not authenticated. Please login again.");
+      navigate("/login");
+      return;
+    }
+
     setApproving(true);
+    setError(null);
+
     try {
+      // ── MAKE API CALL ───────────────────────────────────────────────────────
       const res = await approveResponse(review_id, {
         response_text: proposal,
         response_tone: tone,
         approved_by: currentUser?.name || currentUser?.email,
         is_submission: false
       });
+
+      // ── HANDLE SUCCESS ──────────────────────────────────────────────────────
+      if (!res || !res.data) {
+        throw new Error("Invalid response from server");
+      }
+
       setReview(res.data);
       dispatch({ type: "APPROVE_RESPONSE", payload: res.data });
+
       sendNotification({
         type: "success",
-        title: `Response approved for ${review?.reviewer_name || "guest"}`,
-        message: `"${(review?.review_text || "").slice(0, 80)}${(review?.review_text || "").length > 80 ? "…" : ""}"`,
+        title: `✓ Response Approved`,
+        message: `Guest response posted for ${review?.reviewer_name || "guest"}`,
         link_to: `/reviews/${review_id}`,
         timestamp: Date.now(),
         read: false
       });
+
+      // Clear draft after approval
+      setProposal("");
     } catch (err) {
-      console.error("Approve failed:", err);
+      // ── ERROR HANDLING ──────────────────────────────────────────────────────
+      console.error("Approve response error:", err);
+
+      const errorMsg =
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to approve response. Please try again.";
+
+      setError(errorMsg);
+
+      sendNotification({
+        type: "error",
+        title: "Approval Failed",
+        message: errorMsg
+      });
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  // ── REJECT RESPONSE WITH ERROR HANDLING ──────────────────────────────────
+  const handleReject = async (rejectReason) => {
+    // ── VALIDATION ──────────────────────────────────────────────────────────
+    if (!rejectReason || !rejectReason.trim()) {
+      sendNotification({
+        type: "error",
+        title: "Missing Feedback",
+        message: "Please provide rejection feedback for the staff."
+      });
+      return;
+    }
+
+    if (!currentUser) {
+      setError("User not authenticated. Please login again.");
+      navigate("/login");
+      return;
+    }
+
+    setApproving(true);
+    setError(null);
+
+    try {
+      // ── MAKE API CALL ───────────────────────────────────────────────────────
+      const res = await rejectResponse(review_id, {
+        rejection_reason: rejectReason,
+        rejection_by: currentUser?.name || currentUser?.email
+      });
+
+      // ── HANDLE SUCCESS ──────────────────────────────────────────────────────
+      if (!res || !res.data) {
+        throw new Error("Invalid response from server");
+      }
+
+      setReview(res.data);
+      dispatch({ type: "REJECT_RESPONSE", payload: res.data });
+
+      sendNotification({
+        type: "info",
+        title: `Response Rejected`,
+        message: `Feedback sent to staff for ${review?.reviewer_name || "guest"}`,
+        link_to: `/reviews/${review_id}`,
+        timestamp: Date.now(),
+        read: false
+      });
+
+      // Keep draft so user can edit and resubmit
+    } catch (err) {
+      // ── ERROR HANDLING ──────────────────────────────────────────────────────
+      console.error("Reject response error:", err);
+
+      const errorMsg =
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to reject response. Please try again.";
+
+      setError(errorMsg);
+
+      sendNotification({
+        type: "error",
+        title: "Rejection Failed",
+        message: errorMsg
+      });
     } finally {
       setApproving(false);
     }
   };
 
   const handleSaveNote = async () => {
-    if (!noteText.trim()) return;
+    // ── VALIDATION ──────────────────────────────────────────────────────────
+    if (!noteText || !noteText.trim()) {
+      sendNotification({
+        type: "error",
+        title: "Empty Note",
+        message: "Please write a note before saving."
+      });
+      return;
+    }
+
     setSavingNote(true);
+    setError(null);
+
     try {
+      // ── MAKE API CALL ───────────────────────────────────────────────────────
       const res = await addReviewNote(review_id, {
-        text: noteText,
+        text: noteText.trim(),
         author: currentUser?.name || currentUser?.email
       });
+
+      if (!res || !res.data) {
+        throw new Error("Invalid response from server");
+      }
+
       setReview(res.data);
       setNoteText("");
+
+      sendNotification({
+        type: "success",
+        title: "Note Added",
+        message: "Your note has been saved successfully."
+      });
     } catch (err) {
-      console.error("Note failed:", err);
+      // ── ERROR HANDLING ──────────────────────────────────────────────────────
+      console.error("Add note error:", err);
+
+      const errorMsg =
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to save note. Please try again.";
+
+      setError(errorMsg);
+
+      sendNotification({
+        type: "error",
+        title: "Note Failed",
+        message: errorMsg
+      });
     } finally {
       setSavingNote(false);
     }
   };
 
   const handleFlag = async () => {
-    if (!flagReason.trim()) return;
+    // ── VALIDATION ──────────────────────────────────────────────────────────
+    if (!flagReason || !flagReason.trim()) {
+      sendNotification({
+        type: "error",
+        title: "Missing Reason",
+        message: "Please provide a reason for flagging this review."
+      });
+      return;
+    }
+
+    if (!flagCategory) {
+      sendNotification({
+        type: "error",
+        title: "Missing Category",
+        message: "Please select a flag category."
+      });
+      return;
+    }
+
     setFlagging(true);
+    setError(null);
+
     try {
       const staff = state.staff || [];
       const assignee = staff.find(s => s._id === flagAssignTo);
+
+      // ── MAKE API CALL ───────────────────────────────────────────────────────
       const res = await flagReviewEnhanced(review_id, {
-        suspicious_reason: flagReason,
-        flag_reason_category: flagCategory || "Other",
+        suspicious_reason: flagReason.trim(),
+        flag_reason_category: flagCategory,
         flag_assigned_to: flagAssignTo || null,
         flag_assigned_to_name: assignee?.name || null
       });
+
+      if (!res || !res.data) {
+        throw new Error("Invalid response from server");
+      }
+
       setReview(res.data);
+
       sendNotification({
         type: "warning",
-        title: `Review flagged — ${review?.reviewer_name || "guest"}`,
-        message: `${flagCategory || "Suspicious"}: "${(review?.review_text || "").slice(0, 60)}${(review?.review_text || "").length > 60 ? "…" : ""}"`,
-        link_to: `/reviews/${review_id}`,
-        timestamp: Date.now(),
-        read: false
+        title: `✓ Review Flagged`,
+        message: `${flagCategory}: ${review?.reviewer_name || "guest"}'s review`
       });
+
       setShowFlagPanel(false);
       setFlagReason("");
       setFlagCategory("");
+      setFlagAssignTo("");
     } catch (err) {
-      console.error("Flag failed:", err);
+      // ── ERROR HANDLING ──────────────────────────────────────────────────────
+      console.error("Flag review error:", err);
+
+      const errorMsg =
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to flag review. Please try again.";
+
+      setError(errorMsg);
+
+      sendNotification({
+        type: "error",
+        title: "Flag Failed",
+        message: errorMsg
+      });
     } finally {
       setFlagging(false);
     }

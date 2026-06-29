@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { STAFF_ROLES, DEPARTMENTS, STAFF_ROLES_LABELS } from '../constants/staffConstants';
 
-const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, businesses = [], properties = [] }) => {
+const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, businesses = [], properties = [], existingStaff = [] }) => {
   const [formData, setFormData] = useState(staff || {
     name: '',
     email: '',
@@ -16,10 +16,14 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Filter properties by selected business
-  const filteredProperties = formData.business_id
-    ? properties.filter(p => p.business_id === formData.business_id)
-    : [];
+  // Check if a Lead already exists for the selected department
+  const getDepartmentLeadCount = (dept) => {
+    if (!dept) return 0;
+    return existingStaff.filter(s => (s.role === 'lead' || s.role === STAFF_ROLES.LEAD) && s.department === dept).length;
+  };
+
+  const departmentLeadCount = getDepartmentLeadCount(formData.department);
+  const departmentHasLead = departmentLeadCount > 0;
 
   const validate = () => {
     const newErrors = {};
@@ -27,16 +31,18 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
     if (!formData.email) newErrors.email = 'Email required';
     if (!staff && !formData.password) newErrors.password = 'Password required';
     if (!formData.role) newErrors.role = 'Role required';
+    if (!formData.property_id) newErrors.property_id = 'Property required';
 
-    // Business and property requirements
-    if (formData.role === STAFF_ROLES.OWNER || formData.role === STAFF_ROLES.PROPERTY_MANAGER || formData.role === STAFF_ROLES.STAFF) {
-      if (!formData.business_id) newErrors.business_id = 'Business required';
-      if (!formData.property_id) newErrors.property_id = 'Property required';
+    // For Staff role, check if department has a Lead
+    if (formData.role === STAFF_ROLES.STAFF && formData.department && !departmentHasLead) {
+      newErrors.department = `⚠️ First add a Lead to "${formData.department}" department`;
     }
 
-    if (formData.role === STAFF_ROLES.STAFF && !formData.department) {
-      newErrors.department = 'Department required for staff';
+    // Check if trying to add another Lead to same department
+    if (formData.role === 'lead' && departmentLeadCount > 0 && !staff) {
+      newErrors.department = `Only 1 Lead allowed per department. "${formData.department}" already has a Lead.`;
     }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -159,64 +165,16 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
               }`}
             >
               <option value="">Select role</option>
-              {availableRoles.map((role) => (
-                <option key={role} value={role}>
-                  {STAFF_ROLES_LABELS[role]}
-                </option>
-              ))}
+              <option value={STAFF_ROLES.STAFF}>{STAFF_ROLES_LABELS[STAFF_ROLES.STAFF]}</option>
+              <option value={STAFF_ROLES.LEAD} disabled={departmentLeadCount > 0 && !staff && formData.department}>
+                {STAFF_ROLES_LABELS[STAFF_ROLES.LEAD]} {departmentLeadCount > 0 && !staff && formData.department ? '(Limit reached)' : ''}
+              </option>
             </select>
             {errors.role && <p className="text-red-600 text-xs mt-1">{errors.role}</p>}
           </div>
 
-          {/* Business (for Business Owner, Property Manager, Staff) */}
-          {(formData.role === STAFF_ROLES.OWNER || formData.role === STAFF_ROLES.PROPERTY_MANAGER || formData.role === STAFF_ROLES.STAFF) && (
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Business
-              </label>
-              <select
-                value={formData.business_id || ''}
-                onChange={(e) => setFormData({ ...formData, business_id: e.target.value, property_id: '' })}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-orange-400 transition-colors"
-              >
-                <option value="">Select business</option>
-                {businesses.map((biz) => (
-                  <option key={biz._id} value={biz._id}>
-                    {biz.hotel_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Property (for Business Owner, Property Manager and Staff) */}
-          {(formData.role === STAFF_ROLES.OWNER || formData.role === STAFF_ROLES.PROPERTY_MANAGER || formData.role === STAFF_ROLES.STAFF) && formData.business_id && (
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Property {formData.role === STAFF_ROLES.OWNER && '(Required for Owner)'}
-              </label>
-              <select
-                value={formData.property_id || ''}
-                onChange={(e) => setFormData({ ...formData, property_id: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-orange-400 transition-colors"
-              >
-                <option value="">Select property</option>
-                {filteredProperties.map((prop) => (
-                  <option key={prop._id} value={prop.name}>
-                    {prop.name}
-                  </option>
-                ))}
-              </select>
-              {filteredProperties.length === 0 && (
-                <p className="text-[11px] text-amber-600 mt-1">
-                  No properties available for this business
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Department (only for staff) */}
-          {formData.role === STAFF_ROLES.STAFF && (
+          {/* Department */}
+          {(formData.role === STAFF_ROLES.STAFF || formData.role === STAFF_ROLES.LEAD) && (
             <div>
               <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
                 Department
@@ -241,6 +199,33 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
             </div>
           )}
 
+          {/* Property */}
+          <div>
+            <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
+              Property <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.property_id || ''}
+              onChange={(e) => setFormData({ ...formData, property_id: e.target.value })}
+              className={`w-full px-3 py-2 rounded-lg border transition-colors ${
+                errors.property_id
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-zinc-200 focus:border-orange-400'
+              }`}
+            >
+              <option value="">Select property</option>
+              {properties && properties.length > 0 ? (
+                properties.map((prop) => (
+                  <option key={prop._id || prop.id} value={prop._id || prop.id}>
+                    {prop.name || prop.hotel_name}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No properties available</option>
+              )}
+            </select>
+            {errors.property_id && <p className="text-red-600 text-xs mt-1">{errors.property_id}</p>}
+          </div>
 
           {/* Submit Button */}
           <button

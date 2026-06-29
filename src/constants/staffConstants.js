@@ -2,15 +2,15 @@
 export const STAFF_ROLES = {
   SUPERADMIN: 'superadmin',
   OWNER: 'owner',
-  PROPERTY_MANAGER: 'property_manager',
+  LEAD: 'lead',
   STAFF: 'staff'
 };
 
 export const STAFF_ROLES_LABELS = {
   superadmin: 'Super Admin',
   owner: 'Business Owner',
-  property_manager: 'Property Manager',
-  staff: 'Staff'
+  lead: 'Department Lead',
+  staff: 'Staff Member'
 };
 
 // Departments

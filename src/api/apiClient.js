@@ -43,11 +43,11 @@ export const getHotel = () => apiClient.get("/hotel");
 export const updateHotel = (fields) => apiClient.put("/hotel", fields);
 
 // Staff Management
-export const createStaff = (body) => apiClient.post("/staff", body);
-export const getStaffByBusiness = (business_id) => apiClient.get(`/staff/business/${business_id}`);
+export const createStaff = (body) => apiClient.post("/staff/create", body);
+export const getStaffByBusiness = (business_id) => apiClient.get(`/staff/list`, { params: { business_id } });
 export const getStaffByProperty = (business_id, property_id) => apiClient.get(`/staff/business/${business_id}/property/${property_id}`);
 export const updateStaff = (id, fields) => apiClient.put(`/staff/${id}`, fields);
-export const deactivateStaff = (id) => apiClient.patch(`/staff/${id}/deactivate`);
+export const deactivateStaff = (id) => apiClient.delete(`/staff/${id}`);
 export const removeStaff = (id) => apiClient.delete(`/staff/${id}`);
 
 // Legacy

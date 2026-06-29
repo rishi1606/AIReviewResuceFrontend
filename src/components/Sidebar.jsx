@@ -35,7 +35,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
     // Derive unique platforms & properties
     const platforms = ["ALL", ...new Set((state.reviews || []).map(r => r.platform).filter(Boolean))];
-    const properties = [
+
+    // For leads, show only their assigned property; for others, show all properties
+    let propertyList = [
         "ALL",
         ...new Set((state?.hotelConfig?.properties || [])
             .filter(p => p.is_active !== false)
@@ -45,11 +47,20 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
             .map(p => p.name).filter(Boolean)),
         ...new Set((state.reviews || []).map(r => r.hotel_name).filter(Boolean))
     ];
-    const uniqueProperties = [...new Set(properties)];
+
+    // For now, show all properties
+    // TODO: Filter to only lead's property when hotel_name is available
+
+    const uniqueProperties = [...new Set(propertyList)];
     const propertyCount = uniqueProperties.length - 1; // exclude "ALL"
 
     const selectedPlatform = state.activeFilters?.platform || "ALL";
-    const selectedProperty = state.activeFilters?.property || "ALL";
+
+    // For leads, auto-select their property
+    let selectedProperty = state.activeFilters?.property || "ALL";
+    if (isStaff && currentUser?.role === "lead" && currentUser?.hotel_name && selectedProperty === "ALL") {
+      selectedProperty = currentUser.hotel_name;
+    }
 
     const handleFilterChange = useCallback((type, value) => {
         setSwitching(true);
@@ -63,7 +74,14 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
     // Get user initials
     const userInitials = currentUser?.avatar_initials || (currentUser?.name ? currentUser.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "U");
-    const userRole = currentUser?.role?.replace("_", " ") || "User";
+
+    // Get role display with department
+    let userRole = currentUser?.role?.replace("_", " ") || "User";
+    if (currentUser?.role === "lead" && currentUser?.department) {
+      userRole = `${currentUser.department} Lead`;
+    } else if (currentUser?.role === "staff" && currentUser?.department) {
+      userRole = `${currentUser.department} Staff`;
+    }
 
     const isSuperadmin = currentUser?.role === "superadmin";
     const isOwner = currentUser?.role === "owner";
@@ -72,6 +90,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     const navItems = [
         { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
         { name: "Reviews", path: "/reviews", icon: MessageSquare },
+        ...(isOwner ? [{ name: "Staff", path: "/staff", icon: Users }] : []),
         { name: "Settings", path: "/settings", icon: Settings },
         ...(isSuperadmin ? [{ name: "Admin Panel", path: "/admin", icon: ShieldCheck }] : []),
     ];
@@ -101,56 +120,79 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                 </button>
             </div>
 
-            {/* ─── Filters ─── */}
+            {/* ─── Property Info (for Lead) or Filters (for Owner/Admin) ─── */}
             {(!collapsed || mobileOpen) && (
                 <div className="px-4 mb-4">
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                        <Building2 size={13} className="text-zinc-400" />
-                        <span className="text-[11px] font-semibold text-zinc-400 tracking-wide">Filters</span>
-                    </div>
-                    <div className="space-y-2">
-                        {/* Property dropdown */}
-                        <div className="relative">
-                            <select
-                                value={selectedProperty}
-                                onChange={(e) => handleFilterChange("property", e.target.value)}
-                                className={`w-full h-10 pl-3 pr-8 text-[12px] rounded-xl border-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition-all font-medium ${selectedProperty !== "ALL"
-                                    ? "border-orange-300 bg-orange-50 text-orange-700 font-bold"
-                                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                                    }`}
-                            >
-                                {uniqueProperties.map(p => (
-                                    <option key={p} value={p}>{p === "ALL" ? `All Properties (${propertyCount})` : p}</option>
-                                ))}
-                            </select>
-                            {switching ? (
-                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-orange-500 pointer-events-none animate-spin" />
-                            ) : (
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-                            )}
+                    {currentUser?.role === 'lead' ? (
+                        // Show property info for Lead
+                        <div>
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                                <Building2 size={13} className="text-zinc-400" />
+                                <span className="text-[11px] font-semibold text-zinc-400 tracking-wide">Property</span>
+                            </div>
+                            <div className="px-3 py-2.5 bg-orange-50 border border-orange-200 rounded-xl">
+                                <p className="text-[13px] font-semibold text-orange-700">
+                                    {state?.hotelConfig?.hotel_name || 'Loading...'}
+                                </p>
+                                {state?.hotelConfig?.properties && state.hotelConfig.properties.length > 0 && (
+                                    <p className="text-[11px] text-orange-600 mt-1">
+                                        {state.hotelConfig.properties[0]?.name}
+                                    </p>
+                                )}
+                            </div>
                         </div>
+                    ) : (
+                        // Show filters for Owner/Admin
+                        <div>
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                                <Building2 size={13} className="text-zinc-400" />
+                                <span className="text-[11px] font-semibold text-zinc-400 tracking-wide">Filters</span>
+                            </div>
+                            <div className="space-y-2">
+                                {/* Property dropdown */}
+                                <div className="relative">
+                                    <select
+                                        value={selectedProperty}
+                                        onChange={(e) => handleFilterChange("property", e.target.value)}
+                                        className={`w-full h-10 pl-3 pr-8 text-[12px] rounded-xl border-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition-all font-medium ${selectedProperty !== "ALL"
+                                            ? "border-orange-300 bg-orange-50 text-orange-700 font-bold"
+                                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                                            }`}
+                                    >
+                                        {uniqueProperties.map(p => (
+                                            <option key={p} value={p}>{p === "ALL" ? `All Properties (${propertyCount})` : p}</option>
+                                        ))}
+                                    </select>
+                                    {switching ? (
+                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-orange-500 pointer-events-none animate-spin" />
+                                    ) : (
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                                    )}
+                                </div>
 
-                        {/* Platform dropdown */}
-                        <div className="relative">
-                            <select
-                                value={selectedPlatform}
-                                onChange={(e) => handleFilterChange("platform", e.target.value)}
-                                className={`w-full h-10 pl-3 pr-8 text-[12px] rounded-xl border-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition-all font-medium ${selectedPlatform !== "ALL"
-                                    ? "border-orange-300 bg-orange-50 text-orange-700 font-bold"
-                                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                                    }`}
-                            >
-                                {platforms.map(p => (
-                                    <option key={p} value={p}>{p === "ALL" ? "All Platforms" : p}</option>
-                                ))}
-                            </select>
-                            {switching ? (
-                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-orange-500 pointer-events-none animate-spin" />
-                            ) : (
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-                            )}
+                                {/* Platform dropdown */}
+                                <div className="relative">
+                                    <select
+                                        value={selectedPlatform}
+                                        onChange={(e) => handleFilterChange("platform", e.target.value)}
+                                        className={`w-full h-10 pl-3 pr-8 text-[12px] rounded-xl border-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition-all font-medium ${selectedPlatform !== "ALL"
+                                            ? "border-orange-300 bg-orange-50 text-orange-700 font-bold"
+                                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                                            }`}
+                                    >
+                                        {platforms.map(p => (
+                                            <option key={p} value={p}>{p === "ALL" ? "All Platforms" : p}</option>
+                                        ))}
+                                    </select>
+                                    {switching ? (
+                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-orange-500 pointer-events-none animate-spin" />
+                                    ) : (
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
