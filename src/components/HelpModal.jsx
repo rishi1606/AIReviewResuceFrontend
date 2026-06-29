@@ -5,7 +5,7 @@ import {
   BarChart3, MessageSquare, Settings, Star, Flag, Shield,
   RefreshCw, CheckCircle2, AlertTriangle, Clock, Search,
   Bell, Sparkles, TrendingUp, Filter, Download, Eye,
-  Users, BookOpen
+  Users, BookOpen, Building2, Globe
 } from "lucide-react";
 
 // ─── Help content per page ──────────────────────────────────────────────────
@@ -237,6 +237,62 @@ const HELP_CONTENT = {
           "**Templates** — Available immediately in the Review Detail page.",
           "**To re-evaluate old reviews** — Open the review and click 'Re-analyse'. This will re-check it using your current settings.",
           "**Why this matters** — We don't automatically re-check hundreds of old reviews when you change a setting, because that could change statuses and approvals your team has already acted on. You stay in control of what gets updated."
+        ]
+      }
+    ]
+  },
+
+  admin: {
+    title: "Admin Panel — How It Works",
+    intro: "ReviewRescue admins manage businesses, properties, and platform integrations across the entire account. This is the nerve center for multi-property and multi-account management.",
+    sections: [
+      {
+        icon: Building2,
+        heading: "Managing Businesses",
+        items: [
+          "**What is a Business?** — A business represents a hotel group or company that manages one or more properties. Each business has its own admin credentials and property list.",
+          "**Create a Business** — Click 'Add Business' and fill in hotel name, location, number of rooms, and set up an admin account with email and password. Maximum **2 businesses** per ReviewRescue account.",
+          "**View Business Stats** — See total businesses, average rating, total properties, and total reviews across all businesses at a glance.",
+          "**Edit a Business** — Click the edit icon to update business details like name, location, or room count.",
+          "**Delete a Business** — Remove a business from the system. Warning: this also removes all associated properties and data. Use with caution.",
+          "**Activate/Deactivate** — Toggle a business on or off without permanently deleting it. Deactivated businesses don't appear in the system.",
+          "**Why this matters** — Businesses are the top-level container. Before you can manage properties and platforms, you need at least one business set up."
+        ]
+      },
+      {
+        icon: Globe,
+        heading: "Managing Properties",
+        items: [
+          "**What is a Property?** — A property is a specific hotel that belongs to a business. Each property can be connected to multiple review platforms (Google, Booking.com, Agoda, Airbnb).",
+          "**Create a Property** — Click 'Add Property' and select a business. Fill in property name, city, number of rooms, timezone, and description. Each business can have up to **3 properties**.",
+          "**Connect Platforms** — After creating a property, connect it to review platforms. Click the platform icons to authenticate and enable review scraping.",
+          "**Supported Platforms** — Google Hotels, Booking.com, Agoda, and Airbnb. Some platforms require API keys or OAuth authentication.",
+          "**Edit a Property** — Update property details, image, room count, or timezone anytime.",
+          "**Delete a Property** — Permanently remove a property and all its review history.",
+          "**Activate/Deactivate** — Deactivate a property to pause review syncing without deleting it. Useful for temporarily closed properties.",
+          "**Why this matters** — Properties are where reviews live. Each property needs platform connections to scrape reviews. The more properties you manage, the more central insights you can gather."
+        ]
+      },
+      {
+        icon: Shield,
+        heading: "Platform Integration",
+        items: [
+          "**What Platforms Can We Connect?** — Google Hotels, Booking.com, Agoda, and Airbnb are currently supported. More platforms may be added in the future.",
+          "**How to Connect** — Go to a property's settings, click the platform icon, and follow the authentication flow. Some platforms use OAuth (you log in), others require API keys.",
+          "**Verify Connection** — Once connected, the platform icon turns green with a checkmark. A red icon means the connection is broken and needs attention.",
+          "**Review Sync** — Reviews from connected platforms are automatically scraped at regular intervals. You control how many reviews to fetch per sync.",
+          "**Why this matters** — Platform integrations are what feed reviews into ReviewRescue. Without them, you have no data to analyze. A broken connection means you're missing new guest feedback."
+        ]
+      },
+      {
+        icon: RefreshCw,
+        heading: "Sync & Monitoring",
+        items: [
+          "**Auto Sync Schedule** — Reviews are pulled automatically from connected platforms on a regular schedule (typically daily or hourly depending on your plan).",
+          "**Manual Refresh** — In the Dashboard, click the refresh button to force an immediate sync and check for new reviews.",
+          "**Sync Status** — Watch for indicators showing when the last sync ran. If it's stale, check your platform connections.",
+          "**Failed Syncs** — If a platform connection breaks (e.g., authentication token expired), the sync will fail and you'll be alerted.",
+          "**Why this matters** — Timely review data means timely responses. Regular syncs ensure your team is always working with fresh guest feedback, not reviews from days ago."
         ]
       }
     ]

@@ -722,9 +722,10 @@ const Settings = () => {
                       <Label>Max Reviews per Sync <span className="font-normal normal-case text-zinc-400">(per platform)</span></Label>
                       <Select value={prop.max_reviews_per_sync || 10}
                         onChange={e => updateProp({ max_reviews_per_sync: parseInt(e.target.value) })}>
-                        <option value={5}>5 reviews</option>
-                        <option value={10}>10 reviews</option>
-                        <option value={20}>20 reviews</option>
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={15}>15</option>
+                        <option value={20}>20</option>
                       </Select>
                     </div>
                     {/* Sync status */}

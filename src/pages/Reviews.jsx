@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
+import { TOPIC_DEFS, deriveTopics } from "../constants/topics";
 import ReviewCard from "../components/ReviewCard";
 import {
   Search,
@@ -337,6 +338,9 @@ const Reviews = () => {
   }, [state.reviews]);
 
   const paginatedReviews = serverReviews;
+
+  // Calculate topics for filter chips
+  const topicsData = useMemo(() => deriveTopics(serverReviews), [serverReviews]);
 
   const setPresetRange = (label) => {
     const today = new Date();
@@ -813,8 +817,93 @@ const Reviews = () => {
             ))}
           </FilterDropdown>
 
-          {/* Divider */}
-          <div className="h-6 w-[1px] bg-zinc-200 hidden md:block mx-1"></div>
+          {/* ── Topics Filter with Search ── */}
+          <FilterDropdown
+          align="left"
+          trigger={
+            <button
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-semibold border-2 transition-all cursor-pointer ${!searchChip
+                ? "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                : "border-orange-200 bg-orange-50 text-orange-700"
+                }`}
+            >
+              <Filter size={14} className={!searchChip ? "text-zinc-400" : "text-orange-500"} />
+              {searchChip || "All Topics"}
+              <ChevronDown size={14} className="ml-1 opacity-50" />
+            </button>
+          }
+        >
+          <div className="w-64 p-3">
+            {/* Search box */}
+            <input
+              type="text"
+              placeholder="Search topics..."
+              className="w-full px-3 py-2 text-[11px] border border-zinc-200 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              onChange={(e) => {
+                const searchVal = e.target.value.toLowerCase();
+                const filtered = TOPIC_DEFS.filter(t =>
+                  t.label.toLowerCase().includes(searchVal) ||
+                  t.key.toLowerCase().includes(searchVal)
+                );
+              }}
+              autoFocus
+            />
+
+            {/* All option */}
+            <button
+              onClick={() => {
+                setSearch("");
+                setSearchChip("");
+                const params = new URLSearchParams(window.location.search);
+                params.delete("search");
+                params.delete("topic");
+                navigate(`/reviews?${params.toString()}`, { replace: true });
+              }}
+              className={`w-full text-left px-3 py-2.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer mb-2 ${!searchChip
+                ? "bg-orange-50 text-orange-600"
+                : "text-zinc-600 hover:bg-zinc-50"
+              }`}
+            >
+              All Topics
+            </button>
+
+            {/* Topics list */}
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {TOPIC_DEFS.map(topicDef => {
+                const Icon = topicDef.icon;
+                const topicData = topicsData.find(t => t.key === topicDef.key);
+                const count = topicData?.total || 0;
+                const isSelected = searchChip === topicDef.label;
+
+                return (
+                  <button
+                    key={topicDef.key}
+                    onClick={() => {
+                      const params = new URLSearchParams(window.location.search);
+                      setSearch(topicDef.pattern);
+                      setSearchChip(topicDef.label);
+                      params.set("topic", topicDef.key);
+                      params.delete("search");
+                      navigate(`/reviews?${params.toString()}`, { replace: true });
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${isSelected
+                      ? "bg-orange-50 text-orange-600"
+                      : "text-zinc-600 hover:bg-zinc-50"
+                    }`}
+                  >
+                    {Icon && (
+                      <div className="w-5 h-5 flex items-center justify-center rounded-lg" style={{ backgroundColor: `${topicDef.color}15`, color: topicDef.color }}>
+                        <Icon size={12} />
+                      </div>
+                    )}
+                    <span className="flex-1">{topicDef.label}</span>
+                    <span className="text-[10px] text-zinc-400">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </FilterDropdown>
 
           {/* ── Hide Low Confidence Toggle ── */}
           <div className="flex items-center gap-2.5 px-4 py-2 bg-zinc-50 rounded-xl border border-zinc-200/60 shadow-sm" title={`Hides reviews with AI confidence below ${confidenceThreshold}%`}>
@@ -828,6 +917,7 @@ const Reviews = () => {
           </div>
         </div>
       </div>
+
       {searchChip && (
         <div className="flex items-center gap-2 pt-1">
           <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Search:</span>

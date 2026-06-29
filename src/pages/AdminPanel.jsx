@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Building2, Plus, Trash2, Edit2, Search, X, Loader2,
@@ -14,6 +14,7 @@ import {
 import { AdminPanelSkeleton } from "../components/Skeleton";
 import InfoTooltip from "../components/InfoTooltip";
 import { Tooltip as SharedTooltip } from "../components/ui/Tooltip";
+import HelpModal from "../components/HelpModal";
 import AdminStaffManagement from "./AdminStaffManagement";
 
 /* ─── Input ──────────────────────────────────────────────────────────── */
@@ -228,13 +229,24 @@ const AdminPanel = () => {
     }
   };
 
+  const location = useLocation();
+
   useEffect(() => { loadData(); }, []);
+
+  // Refetch data when returning to Admin Panel
+  useEffect(() => { loadData(); }, [location]);
 
   // Reset pages when filters change
   useEffect(() => { setBizPage(1); }, [search, bizStatusFilter]);
   useEffect(() => { setPropPage(1); }, [search, propStatusFilter, filterBusinessId]);
 
-  if (currentUser?.role !== "superadmin") {
+  // Show skeleton loader while user data is being fetched
+  if (!currentUser) {
+    return <AdminPanelSkeleton />;
+  }
+
+  // Show access denied only if user is not superadmin
+  if (currentUser.role !== "superadmin") {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-center bg-zinc-50">
         <Shield size={48} className="text-red-400 mb-4" />
@@ -250,6 +262,11 @@ const AdminPanel = () => {
   const handleAddBusiness = async () => {
     setBizError("");
     setBizSuccess("");
+    if (businesses.length >= 2) {
+      setBizError("❌ Only maximum 2 businesses can be added");
+      setTimeout(() => setBizError(""), 3000);
+      return;
+    }
     if (!bizForm.hotel_name.trim()) { setBizError("Business name is required"); return; }
     if (!bizForm.number_of_rooms || isNaN(bizForm.number_of_rooms)) { setBizError("Number of rooms is required"); return; }
     if (!bizForm.admin_email.trim()) { setBizError("Admin email is required"); return; }
@@ -335,6 +352,14 @@ const AdminPanel = () => {
     if (!propForm.rooms) e.rooms = "Number of rooms is required";
     else if (isNaN(propForm.rooms) || parseInt(propForm.rooms) <= 0) e.rooms = "Enter a valid number";
 
+    // Check max 3 properties per business
+    if (propForm.business_id) {
+      const businessProps = properties.filter(p => p.business_id === propForm.business_id);
+      if (businessProps.length >= 3) {
+        e.business_id = "❌ Only maximum 3 properties can be added per business";
+      }
+    }
+
     const hasUrl = Object.values(propForm.platforms || {}).some(u => u && u.startsWith("http"));
     if (!hasUrl) e.platforms = "At least one platform URL is required";
 
@@ -351,7 +376,10 @@ const AdminPanel = () => {
   };
 
   const handleAddProperty = async () => {
-    if (!validateProperty()) return;
+    if (!validateProperty()) {
+      setTimeout(() => setPropErrors({}), 3000);
+      return;
+    }
     setPropSuccess("");
     setPropSaving(true);
     try {
@@ -616,9 +644,12 @@ const AdminPanel = () => {
         {/* Header */}
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 lg:px-8 py-3 bg-white/95 backdrop-blur-sm border-b border-zinc-200/80">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-zinc-900 leading-tight">
-              {activeTab === "businesses" ? "Businesses" : "Properties"}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-zinc-900 leading-tight">
+                {activeTab === "businesses" ? "Businesses" : "Properties"}
+              </h1>
+              <HelpModal page="admin" />
+            </div>
             {filterBusinessId && activeTab === "properties" && (
               <button
                 onClick={() => setFilterBusinessId(null)}
@@ -647,26 +678,59 @@ const AdminPanel = () => {
             </div>
 
             {activeTab === "businesses" && (
-              <button
-                onClick={() => setShowAddBiz(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-semibold rounded-xl transition-colors cursor-pointer border-none shadow-sm"
-              >
-                <Plus size={13} /> Add Business
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setShowAddBiz(true)}
+                  disabled={businesses.length >= 2}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl transition-colors border-none shadow-sm ${
+                    businesses.length >= 2
+                      ? "bg-zinc-200 text-zinc-400 cursor-not-allowed opacity-50"
+                      : "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                  }`}
+                >
+                  <Plus size={13} /> Add Business
+                </button>
+                {businesses.length >= 2 && (
+                  <div title="Maximum 2 businesses already added. Delete one to add more." className="inline-flex cursor-help">
+                    <Info size={16} className="text-orange-500" />
+                  </div>
+                )}
+              </div>
             )}
             {activeTab === "properties" && (
-              <button
-                onClick={() => {
-                  if (filterBusinessId) {
-                    handleAddPropertyForBusiness(filterBusinessId);
-                  } else {
-                    setShowAddProp(true);
-                  }
-                }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-semibold rounded-xl transition-colors cursor-pointer border-none shadow-sm"
-              >
-                <Plus size={13} /> Add Property
-              </button>
+              <div className="flex items-center gap-1.5">
+                {(() => {
+                  const selectedBiz = businesses.find(b => b.business_id === filterBusinessId);
+                  const propCount = properties.filter(p => p.business_id === filterBusinessId).length;
+                  const isDisabled = filterBusinessId && propCount >= 3;
+                  return (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (filterBusinessId) {
+                            handleAddPropertyForBusiness(filterBusinessId);
+                          } else {
+                            setShowAddProp(true);
+                          }
+                        }}
+                        disabled={isDisabled}
+                        className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl transition-colors border-none shadow-sm ${
+                          isDisabled
+                            ? "bg-zinc-200 text-zinc-400 cursor-not-allowed opacity-50"
+                            : "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                        }`}
+                      >
+                        <Plus size={13} /> Add Property
+                      </button>
+                      {isDisabled && (
+                        <div title={`Maximum 3 properties already added for ${selectedBiz?.hotel_name}. Delete one to add more.`} className="inline-flex cursor-help">
+                          <Info size={16} className="text-orange-500" />
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             )}
           </div>
         </header>
@@ -705,8 +769,8 @@ const AdminPanel = () => {
             <div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
-                  { title: "Total Businesses", value: businesses.length, subtitle: "Actively managed", icon: Building2, trend: `+${businesses.filter(b => b.is_active !== false).length}`, trendType: "up", themeClass: "bg-orange-50 border-orange-200 text-orange-600" },
-                  { title: "Avg Rating", value: "4.5", subtitle: "Based on reviews", icon: MessageSquare, trend: "+10%", trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
+                  { title: "Total Businesses", value: businesses.length, subtitle: "Actively managed", icon: Building2, trend: null, trendType: "up", themeClass: "bg-orange-50 border-orange-200 text-orange-600" },
+                  { title: "Avg Rating", value: "4.5", subtitle: "Based on reviews", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
                   { title: "Total Properties", value: businesses.reduce((s, b) => s + (b.propertyCount || 0), 0), subtitle: "Across all businesses", icon: Globe, trend: null, trendType: "warn", themeClass: "bg-blue-50 border-blue-200 text-blue-600" },
                   { title: "Total Reviews", value: businesses.reduce((s, b) => s + (b.reviewCount || 0), 0), subtitle: "All platforms", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-emerald-50 border-emerald-200 text-emerald-600" },
                 ].map((card, i) => (
@@ -751,14 +815,14 @@ const AdminPanel = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                        {["Business", "Owner", "Properties", "Reviews", "Created", "Status", "Actions"].map(h => (
+                        {["Business", "Email", "Properties", "Reviews", "Created", "Status", "Actions"].map(h => (
                           <th key={h} className="text-left px-5 py-3.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedBiz.length === 0 ? (
-                        <tr><td colSpan={7} className="text-center py-16 text-zinc-400 text-sm">No businesses found</td></tr>
+                        <tr><td colSpan={6} className="text-center py-16 text-zinc-400 text-sm">No businesses found</td></tr>
                       ) : paginatedBiz.map(biz => (
                         <tr key={biz._id} className={`border-b border-zinc-50 hover:bg-zinc-50/70 transition-colors ${biz.is_active === false ? 'opacity-50' : ''}`}>
                           <td className="px-5 py-4">
@@ -773,12 +837,7 @@ const AdminPanel = () => {
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            {biz.owner ? (
-                              <div>
-                                <p className="text-[12px] font-semibold text-zinc-700">{biz.owner.name}</p>
-                                <p className="text-[10px] text-zinc-400">{biz.owner.email}</p>
-                              </div>
-                            ) : <span className="text-[11px] text-zinc-300">—</span>}
+                            <span className="text-[12px] text-zinc-600">{biz.owner?.email || "—"}</span>
                           </td>
                           <td className="px-5 py-4">
                             <button
@@ -843,10 +902,10 @@ const AdminPanel = () => {
             <div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
-                  { title: "Total Properties", value: properties.length, subtitle: "All connected", icon: Globe, trend: `+${properties.filter(p => p.is_active !== false).length}`, trendType: "up", themeClass: "bg-emerald-50 border-emerald-200 text-emerald-600" },
-                  { title: "Active", value: properties.filter(p => p.is_active !== false).length, subtitle: "Now operating", icon: Check, trend: "100%", trendType: "up", themeClass: "bg-blue-50 border-blue-200 text-blue-600" },
+                  { title: "Total Properties", value: properties.length, subtitle: "All connected", icon: Globe, trend: null, trendType: "up", themeClass: "bg-emerald-50 border-emerald-200 text-emerald-600" },
+                  { title: "Active", value: properties.filter(p => p.is_active !== false).length, subtitle: "Now operating", icon: Check, trend: null, trendType: "up", themeClass: "bg-blue-50 border-blue-200 text-blue-600" },
                   { title: "Total Rooms", value: properties.reduce((s, p) => s + (p.rooms || 0), 0), subtitle: "Across all properties", icon: Building2, trend: null, trendType: "warn", themeClass: "bg-orange-50 border-orange-200 text-orange-600" },
-                  { title: "Avg Rooms", value: (properties.reduce((s, p) => s + (p.rooms || 0), 0) / properties.length || 0).toFixed(0), subtitle: "Per property", icon: Building2, trend: null, trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
+                  { title: "Total Reviews", value: properties.reduce((s, p) => s + (p.reviewCount || 0), 0), subtitle: "All platforms", icon: MessageSquare, trend: null, trendType: "up", themeClass: "bg-purple-50 border-purple-200 text-purple-600" },
                 ].map((card, i) => (
                   <div key={i} className="bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300">
                     {/* Row 1: icon + trend badge */}
@@ -1260,9 +1319,10 @@ const AdminPanel = () => {
                   <Label>Max Reviews per Sync <span className="font-normal normal-case text-zinc-400">(per platform)</span></Label>
                   <Select value={propForm.max_reviews_per_sync}
                     onChange={e => setPropForm({ ...propForm, max_reviews_per_sync: parseInt(e.target.value) })}>
-                    <option value={5}>5 reviews</option>
-                    <option value={10}>10 reviews</option>
-                    <option value={20}>20 reviews</option>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                    <option value={20}>20</option>
                   </Select>
                 </div>
               </div>
@@ -1578,10 +1638,10 @@ const AdminPanel = () => {
               <div className="border-t border-zinc-100 pt-4">
                 <Label>Max Reviews Per Sync</Label>
                 <Select value={editingProp.max_reviews_per_sync || 10} onChange={e => setEditingProp({ ...editingProp, max_reviews_per_sync: parseInt(e.target.value) })}>
+                  <option value={5}>5</option>
                   <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
+                  <option value={15}>15</option>
+                  <option value={20}>20</option>
                 </Select>
               </div>
             </div>

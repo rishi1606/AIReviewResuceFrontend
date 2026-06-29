@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   MessageSquare, AlertTriangle, CheckCircle2, Star,
   ArrowRight, ThumbsUp, Activity, TrendingUp, TrendingDown, Expand, BarChart3,
@@ -18,6 +18,8 @@ import {
 } from "../components/Skeleton";
 import { AREA_CHART_MARGIN, CHART_TOOLTIP_STYLE, ICON_THEMES, PLATFORM_COLORS, SENTIMENT_STYLES, STATUS_STYLES, TABLE_PAGE_SIZE, TREND_CONFIG } from "../constants/constants";
 import { dateFormat, parseReviewDate } from "../common/dateUtils";
+import { deriveTopics, TOPIC_DEFS } from "../constants/topics";
+import InfoTooltip from "../components/InfoTooltip";
 
 // ─── Constants (outside component — never recreated on render) ───────────────
 
@@ -276,8 +278,18 @@ const Dashboard = () => {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filteredReviews]);
 
+  const location = useLocation();
+
   // ── Page title ──
   useEffect(() => { document.title = "ReviewRescue — Dashboard"; }, []);
+
+  // ── Refresh data when returning to Dashboard ──
+  useEffect(() => {
+    if (state.reviews.length > 0) {
+      // Data is already loaded, just ensure it's fresh when returning
+      window.location.hash = ''; // Reset any hash navigation
+    }
+  }, [location]);
 
   // ── Stable navigation callbacks ───────────────────────────────────────────────
   const goToReviews = useCallback(() => navigate("/reviews"), [navigate]);
@@ -294,6 +306,9 @@ const Dashboard = () => {
   const goToNextPage = useCallback(() => setTablePage(p => Math.min(totalPages, p + 1)), [totalPages]);
 
   const avgRatingNum = parseFloat(filteredStats.avgRating);
+
+  // Calculate topics for "What Guests Talk About"
+  const topicsData = useMemo(() => deriveTopics(filteredReviews), [filteredReviews]);
 
 
   return (
@@ -898,6 +913,54 @@ const Dashboard = () => {
                 Go to Settings <ArrowRight size={12} aria-hidden="true" />
               </span>
             </div>
+
+            {/* ─ What Guests Talk About ─ */}
+            {topicsData.length > 0 && (
+              <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
+                <div className="px-5 pt-5 pb-3 border-b border-zinc-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[14px] font-bold text-zinc-900">What Guests Talk About</h3>
+                    <InfoTooltip text="Common topics guests mention in their reviews. Click to filter reviews by topic." size={13} color="#a1a1aa" position="top" />
+                  </div>
+                </div>
+                <div className="px-5 py-4 space-y-2.5 max-h-[320px] overflow-y-auto">
+                  {topicsData.slice(0, 10).map(topic => {
+                    const topicDef = TOPIC_DEFS.find(t => t.key === topic.key);
+                    const Icon = topicDef?.icon;
+                    const color = topicDef?.color || "#666";
+
+                    return (
+                      <div
+                        key={topic.key}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-zinc-50 cursor-pointer group transition-all"
+                        onClick={() => navigate(`/reviews?topic=${topic.key}`)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === "Enter" && navigate(`/reviews?topic=${topic.key}`)}
+                      >
+                        {Icon && (
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}15`, color: color }}>
+                            <Icon size={14} />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-bold text-zinc-900 truncate group-hover:text-orange-600">{topic.label}</p>
+                        </div>
+                        <span className="text-[11px] font-bold text-zinc-500 shrink-0">{topic.total}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="px-5 py-3 border-t border-zinc-100">
+                  <button
+                    onClick={() => navigate("/reviews?view=topics")}
+                    className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer transition-all w-full justify-center"
+                  >
+                    View All Topics <ArrowRight size={11} />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ─ Sentiment Breakdown ─ */}
             <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">

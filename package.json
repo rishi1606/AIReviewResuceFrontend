@@ -13,6 +13,9 @@
     "test:ui": "npx playwright test --ui"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^9.1.2",
     "@tailwindcss/vite": "^4.3.0",
     "axios": "^1.16.0",
     "groq-sdk": "^1.2.0",
