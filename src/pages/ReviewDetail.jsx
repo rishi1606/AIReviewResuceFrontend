@@ -4,11 +4,11 @@ import {
   ArrowLeft, Star, RefreshCcw, Copy, Check, Pencil, Flag, CheckCircle2,
   MessageSquare, AlertCircle, AlertTriangle, ChevronDown, User, Clock,
   FileText, Users, TrendingUp, Send, Save, RotateCcw, Info, Loader2,
-  History, Eye, X, Sparkles, Shield, Zap, BookOpen
+  History, Eye, X, Sparkles, Shield, Zap, BookOpen, XCircle
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
-import {
+import apiClient, {
   getReviewDetail, saveDraft, getReviewerProfile, getSimilarReviews,
   approveResponse, rejectResponse, reanalyseReview, updateClassification,
   addReviewNote, flagReviewEnhanced, reopenReview, removeFlag
@@ -23,6 +23,11 @@ const ReviewDetail = () => {
   const navigate = useNavigate();
   const { state, dispatch, sendNotification } = useAppContext();
   const { currentUser } = useAuth();
+  
+  const isStaff = currentUser?.role === "staff";
+  const isLead = currentUser?.role === "lead" || currentUser?.role === "dept_head";
+  const isOwner = currentUser?.role === "owner" || currentUser?.role === "property_manager" || currentUser?.role === "gm";
+  const isSuperAdmin = currentUser?.role === "superadmin";
 
   const [review, setReview] = useState(null);
   const [ticket, setTicket] = useState(null);
@@ -68,12 +73,18 @@ const ReviewDetail = () => {
   const [approving, setApproving] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopening, setReopening] = useState(false);
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const handleReopen = async () => {
     setReopening(true);
     try {
       const res = await reopenReview(review.review_id);
       setReview(res.data);
+      // Update global context so the Workflow Board reflects the change immediately
+      dispatch({ type: "UPDATE_REVIEW", payload: res.data });
+      
       sendNotification({
         type: "info",
         title: `Review reopened — ${review?.reviewer_name || "guest"}`,
@@ -260,20 +271,28 @@ const ReviewDetail = () => {
 
     try {
       // ── MAKE API CALL ───────────────────────────────────────────────────────
+      // If Staff is submitting, is_submission = true.
+      // If Lead is approving, we assume the backend handles it or we pass a specific flag.
       const res = await approveResponse(review_id, {
         response_text: proposal,
         response_tone: tone,
         approved_by: currentUser?.name || currentUser?.email,
-        is_submission: false
+        is_submission: isStaff
       });
 
       // ── HANDLE SUCCESS ──────────────────────────────────────────────────────
-      if (!res || !res.data) {
-        throw new Error("Invalid response from server");
+      if (!res || !res.success) {
+        throw new Error(res?.error || "Invalid response from server");
       }
 
-      setReview(res.data);
-      dispatch({ type: "APPROVE_RESPONSE", payload: res.data });
+      // Refetch the review to get fully updated data
+      const detail = await apiClient.get(`/reviews/${review_id}/detail`);
+      const updatedReview = detail?.data?.review || detail?.review;
+      
+      if (updatedReview) {
+        setReview(updatedReview);
+        dispatch({ type: "APPROVE_RESPONSE", payload: updatedReview });
+      }
 
       sendNotification({
         type: "success",
@@ -336,12 +355,18 @@ const ReviewDetail = () => {
       });
 
       // ── HANDLE SUCCESS ──────────────────────────────────────────────────────
-      if (!res || !res.data) {
-        throw new Error("Invalid response from server");
+      if (!res || !res.success) {
+        throw new Error(res?.error || "Invalid response from server");
       }
 
-      setReview(res.data);
-      dispatch({ type: "REJECT_RESPONSE", payload: res.data });
+      // Refetch the review to get fully updated data
+      const detail = await apiClient.get(`/reviews/${review_id}/detail`);
+      const updatedReview = detail?.data?.review || detail?.review;
+      
+      if (updatedReview) {
+        setReview(updatedReview);
+        dispatch({ type: "REJECT_RESPONSE", payload: updatedReview });
+      }
 
       sendNotification({
         type: "info",
@@ -351,6 +376,10 @@ const ReviewDetail = () => {
         timestamp: Date.now(),
         read: false
       });
+
+      // Hide the reject input form and clear the text
+      setShowRejectInput(false);
+      setRejectionReason("");
 
       // Keep draft so user can edit and resubmit
     } catch (err) {
@@ -954,114 +983,131 @@ const ReviewDetail = () => {
           <div className="rd-panel">
             <div className="rd-panel-title"><Sparkles size={14} className="text-violet-500" /> Smart Response Draft</div>
 
-            {/* Tone selector */}
-            <div className="mb-4">
-              <label className="text-[12px] font-semibold text-zinc-500 mb-2 block">Response Tone</label>
-              <div className="flex flex-wrap gap-2">
-                {TONES.map(t => (
-                  <button key={t.value} onClick={() => setTone(t.value)}
-                    title={t.desc}
-                    className={`rd-version-pill ${tone === t.value ? "active" : ""}`}
-                    style={tone === t.value ? {} : {}}
-                  >
-                    {t.value}
-                  </button>
-                ))}
+            {!review.assigned_to_staff_id ? (
+              <div className="py-8 flex flex-col items-center justify-center text-center bg-zinc-50 rounded-xl border border-dashed border-zinc-200 mt-2 mb-2">
+                <div className="w-12 h-12 bg-white text-zinc-400 rounded-full flex items-center justify-center mb-3 shadow-sm border border-zinc-100">
+                  <User size={20} />
+                </div>
+                <h3 className="text-[14px] font-bold text-zinc-700 m-0 mb-1">Not Assigned Yet</h3>
+                <p className="text-[12px] text-zinc-500 m-0 max-w-sm leading-relaxed">
+                  This review has not been assigned to a staff member. It will be assigned by the department lead shortly.
+                </p>
               </div>
-              <p className="text-[12px] text-zinc-400 mt-1.5 italic">
-                {TONES.find(t => t.value === tone)?.desc}
-              </p>
-            </div>
-
-            {/* Generate / Regenerate */}
-            <div className="flex items-center gap-2 mb-4 flex-wrap">
-              <button onClick={handleGenerate} disabled={isGenerating || review.status === "RESPONDED"} className="rd-btn rd-btn-primary" style={review.status === "RESPONDED" ? { opacity: 0.4, cursor: "not-allowed" } : {}} title={review.status === "RESPONDED" ? "Reopen the review to generate a new draft" : ""}>
-                {isGenerating ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : proposal ? <><RotateCcw size={13} /> Regenerate</> : <><Sparkles size={13} /> Generate Draft</>}
-              </button>
-              {proposal && review.status !== "RESPONDED" && (
-                <>
-                  <button onClick={handleCopy} className="rd-btn rd-btn-outline">
-                    {copied ? <><Check size={12} strokeWidth={3} /> Copied!</> : <><Copy size={12} /> Copy</>}
-                  </button>
-                  <button onClick={() => { setIsEditing(true); setEditText(proposal); }} className="rd-btn rd-btn-outline">
-                    <Pencil size={12} /> Edit
-                  </button>
-                </>
-              )}
-              {/* Template Selector */}
-              {(() => {
-                const templates = state.hotelConfig?.responseTemplates || [];
-                if (templates.length === 0) return null;
-
-                // Map sentiment to template category for smart suggestions
-                const sentimentCategoryMap = {
-                  Positive: "Positive", Praise: "Positive",
-                  Negative: "Negative", Complaint: "Complaint",
-                  Mixed: "General", Neutral: "General"
-                };
-                const suggestedCategory = sentimentCategoryMap[review?.sentiment] || "General";
-                const suggested = templates.filter(t => t.category === suggestedCategory);
-                const others = templates.filter(t => t.category !== suggestedCategory);
-                const sorted = [...suggested, ...others];
-
-                return (
-                  <div className="relative" ref={templateRef} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <button onClick={() => setShowTemplates(!showTemplates)} className="rd-btn rd-btn-outline" style={{ gap: 4 }}>
-                      <BookOpen size={12} /> Templates <ChevronDown size={11} />
-                    </button>
-                    <InfoTooltip text="Pre-built response templates from Settings → Rules. Templates matching the review's sentiment are suggested first. Click a template to auto-fill the response draft." size={13} position="top" />
-                    {showTemplates && (
-                      <div style={{
-                        position: "absolute", top: "100%", left: 0, zIndex: 50, marginTop: 4,
-                        background: "white", border: "1px solid #e4e4e7", borderRadius: 12,
-                        boxShadow: "0 8px 30px rgba(0,0,0,0.12)", width: 340, maxHeight: 320, overflow: "auto"
-                      }}>
-                        <div style={{ padding: "10px 14px 6px", borderBottom: "1px solid #f4f4f5" }}>
-                          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#71717a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {suggested.length > 0 ? `Suggested for ${review?.sentiment || "this"} review` : "All Templates"}
-                          </p>
-                        </div>
-                        {sorted.map((tpl, i) => {
-                          const isSuggested = suggested.includes(tpl);
-                          return (
-                            <button key={i}
-                              onClick={() => {
-                                const guestName = review?.reviewer_name || review?.guest_name || "Guest";
-                                const filled = tpl.content.replace(/\{guest_name\}/g, guestName);
-                                setProposal(filled);
-                                setShowTemplates(false);
-                              }}
-                              style={{
-                                display: "block", width: "100%", padding: "10px 14px", textAlign: "left",
-                                background: isSuggested ? "#fff7ed" : "transparent", border: "none",
-                                borderBottom: "1px solid #f4f4f5", cursor: "pointer", transition: "background 0.15s"
-                              }}
-                              onMouseEnter={e => e.target.style.background = isSuggested ? "#ffedd5" : "#f4f4f5"}
-                              onMouseLeave={e => e.target.style.background = isSuggested ? "#fff7ed" : "transparent"}
-                            >
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: "#18181b" }}>{tpl.name}</span>
-                                <span style={{
-                                  fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-                                  background: isSuggested ? "#f97316" : "#e4e4e7",
-                                  color: isSuggested ? "white" : "#71717a", textTransform: "uppercase"
-                                }}>{isSuggested ? "★ Suggested" : tpl.category}</span>
-                              </div>
-                              <p style={{ margin: 0, fontSize: 11, color: "#71717a", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {tpl.content.substring(0, 80)}…
-                              </p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+            ) : (
+              <>
+                {/* Generation Tools (Staff Only) */}
+                {isStaff && (
+              <>
+                {/* Tone selector */}
+                <div className="mb-4">
+                  <label className="text-[12px] font-semibold text-zinc-500 mb-2 block">Response Tone</label>
+                  <div className="flex flex-wrap gap-2">
+                    {TONES.map(t => (
+                      <button key={t.value} onClick={() => setTone(t.value)}
+                        title={t.desc}
+                        className={`rd-version-pill ${tone === t.value ? "active" : ""}`}
+                        style={tone === t.value ? {} : {}}
+                      >
+                        {t.value}
+                      </button>
+                    ))}
                   </div>
-                );
-              })()}
-            </div>
+                  <p className="text-[12px] text-zinc-400 mt-1.5 italic">
+                    {TONES.find(t => t.value === tone)?.desc}
+                  </p>
+                </div>
+
+                {/* Generate / Regenerate */}
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <button onClick={handleGenerate} disabled={isGenerating || review.status === "RESPONDED"} className="rd-btn rd-btn-primary" style={review.status === "RESPONDED" ? { opacity: 0.4, cursor: "not-allowed" } : {}} title={review.status === "RESPONDED" ? "Reopen the review to generate a new draft" : ""}>
+                    {isGenerating ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : proposal ? <><RotateCcw size={13} /> Regenerate</> : <><Sparkles size={13} /> Generate Draft</>}
+                  </button>
+                  {proposal && review.status !== "RESPONDED" && (
+                    <>
+                      <button onClick={handleCopy} className="rd-btn rd-btn-outline">
+                        {copied ? <><Check size={12} strokeWidth={3} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                      </button>
+                      <button onClick={() => { setIsEditing(true); setEditText(proposal); }} className="rd-btn rd-btn-outline">
+                        <Pencil size={12} /> Edit
+                      </button>
+                    </>
+                  )}
+                  {/* Template Selector */}
+                  {(() => {
+                    const templates = state.hotelConfig?.responseTemplates || [];
+                    if (templates.length === 0) return null;
+
+                    // Map sentiment to template category for smart suggestions
+                    const sentimentCategoryMap = {
+                      Positive: "Positive", Praise: "Positive",
+                      Negative: "Negative", Complaint: "Complaint",
+                      Mixed: "General", Neutral: "General"
+                    };
+                    const suggestedCategory = sentimentCategoryMap[review?.sentiment] || "General";
+                    const suggested = templates.filter(t => t.category === suggestedCategory);
+                    const others = templates.filter(t => t.category !== suggestedCategory);
+                    const sorted = [...suggested, ...others];
+
+                    return (
+                      <div className="relative" ref={templateRef} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <button onClick={() => setShowTemplates(!showTemplates)} className="rd-btn rd-btn-outline" style={{ gap: 4 }}>
+                          <BookOpen size={12} /> Templates <ChevronDown size={11} />
+                        </button>
+                        <InfoTooltip text="Pre-built response templates from Settings → Rules. Templates matching the review's sentiment are suggested first. Click a template to auto-fill the response draft." size={13} position="top" />
+                        {showTemplates && (
+                          <div style={{
+                            position: "absolute", top: "100%", left: 0, zIndex: 50, marginTop: 4,
+                            background: "white", border: "1px solid #e4e4e7", borderRadius: 12,
+                            boxShadow: "0 8px 30px rgba(0,0,0,0.12)", width: 340, maxHeight: 320, overflow: "auto"
+                          }}>
+                            <div style={{ padding: "10px 14px 6px", borderBottom: "1px solid #f4f4f5" }}>
+                              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#71717a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                {suggested.length > 0 ? `Suggested for ${review?.sentiment || "this"} review` : "All Templates"}
+                              </p>
+                            </div>
+                            {sorted.map((tpl, i) => {
+                              const isSuggested = suggested.includes(tpl);
+                              return (
+                                <button key={i}
+                                  onClick={() => {
+                                    const guestName = review?.reviewer_name || review?.guest_name || "Guest";
+                                    const filled = tpl.content.replace(/\{guest_name\}/g, guestName);
+                                    setProposal(filled);
+                                    setShowTemplates(false);
+                                  }}
+                                  style={{
+                                    display: "block", width: "100%", padding: "10px 14px", textAlign: "left",
+                                    background: isSuggested ? "#fff7ed" : "transparent", border: "none",
+                                    borderBottom: "1px solid #f4f4f5", cursor: "pointer", transition: "background 0.15s"
+                                  }}
+                                  onMouseEnter={e => e.target.style.background = isSuggested ? "#ffedd5" : "#f4f4f5"}
+                                  onMouseLeave={e => e.target.style.background = isSuggested ? "#fff7ed" : "transparent"}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: "#18181b" }}>{tpl.name}</span>
+                                    <span style={{
+                                      fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                                      background: isSuggested ? "#f97316" : "#e4e4e7",
+                                      color: isSuggested ? "white" : "#71717a", textTransform: "uppercase"
+                                    }}>{isSuggested ? "★ Suggested" : tpl.category}</span>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: 11, color: "#71717a", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {tpl.content.substring(0, 80)}…
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </>
+            )}
 
             {/* Draft textarea */}
-            {isEditing ? (
+            {isEditing && isStaff ? (
               <div className="mb-3">
                 <textarea className="rd-draft-area" value={editText} onChange={e => setEditText(e.target.value)} />
                 <div className="flex items-center justify-between mt-2">
@@ -1085,6 +1131,12 @@ const ReviewDetail = () => {
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-[12px] text-zinc-400">{proposal.length} / 4096 characters</span>
+                  {/* Lead/Owner can copy draft but not edit */}
+                  {!isStaff && (
+                    <button onClick={handleCopy} className="rd-btn rd-btn-outline" style={{ padding: "4px 8px", fontSize: "11px" }}>
+                      {copied ? <><Check size={12} strokeWidth={3} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1092,7 +1144,7 @@ const ReviewDetail = () => {
                 background: "#fafafa", borderRadius: 10, padding: 20,
                 textAlign: "center", color: "#a1a1aa", fontSize: 12
               }}>
-                No draft generated yet. Select a tone and click "Generate Draft".
+                {isStaff ? "No draft generated yet. Select a tone and click 'Generate Draft'." : "No draft has been generated yet."}
               </div>
             )}
 
@@ -1109,11 +1161,13 @@ const ReviewDetail = () => {
                       onClick={() => { setProposal(d.text); setActiveDraftVersion(d.version); setTone(d.tone); }}
                       className={`rd-version-pill ${activeDraftVersion === d.version ? "active" : ""}`}
                     >
-                      v{d.version} · {d.tone} · {d.generated_by === "ai" ? "Auto" : "Manual"}
+                      v{d.version}
                     </button>
                   ))}
                 </div>
               </div>
+            )}
+              </>
             )}
           </div>
 
@@ -1124,7 +1178,11 @@ const ReviewDetail = () => {
               <InfoTooltip text="Approve your response draft here. Once approved, copy the text and paste it on the review platform (Google, Booking.com, etc.). There is no auto-publishing — responses must be posted manually." size={13} />
             </div>
 
-            {review.status === "RESPONDED" ? (
+            {!review.assigned_to_staff_id ? (
+              <div className="py-5 flex flex-col items-center justify-center text-center bg-zinc-50 rounded-xl border border-dashed border-zinc-200 mb-4">
+                <p className="text-[12px] text-zinc-400 m-0 italic">Approval workflow is disabled until the review is assigned.</p>
+              </div>
+            ) : review.status === "RESPONDED" ? (
               <div>
                 <div style={{ background: "#dcfce7", borderRadius: 10, padding: 14 }}>
                   <div className="flex items-center gap-2 mb-2">
@@ -1167,18 +1225,192 @@ const ReviewDetail = () => {
                     <p className="text-[11px] text-red-600 mt-0.5 m-0">You can still approve a response — the flag is for your team's awareness.</p>
                   </div>
                 )}
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={handleApprove} disabled={!proposal || approving} className="rd-btn rd-btn-success">
-                    {approving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-                    Approve
-                  </button>
-                  <button onClick={handleSaveDraftOnly} disabled={!proposal} className="rd-btn rd-btn-outline">
-                    <Save size={12} /> Save draft only
-                  </button>
-                  {!proposal && (
-                    <p className="text-[12px] text-zinc-400 italic self-center ml-2">Generate a draft first to enable approval</p>
-                  )}
-                </div>
+                
+                {isSuperAdmin ? (
+                  <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-xl flex items-center gap-2 text-sm font-semibold">
+                    <AlertCircle size={16} />
+                    View Only Mode
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {/* Role-based actions */}
+                    {showRejectInput ? (
+                      <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200">
+                        <label className="block text-[11px] font-bold text-zinc-600 mb-1.5 uppercase tracking-wider">
+                          Rejection Feedback
+                        </label>
+                        <textarea
+                          value={rejectionReason}
+                          onChange={(e) => setRejectionReason(e.target.value)}
+                          placeholder="Explain what needs to be changed..."
+                          className="w-full text-sm p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all resize-none h-20 mb-3"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => setShowRejectInput(false)} className="rd-btn rd-btn-outline flex-1 justify-center">Cancel</button>
+                          <button onClick={() => handleReject(rejectionReason)} disabled={!rejectionReason.trim() || approving} className="rd-btn rd-btn-danger flex-1 justify-center">
+                            {approving ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                            Confirm Reject
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {isStaff && (
+                          review.approval_status === "submitted" ? (
+                            <div className="w-full">
+                              <div style={{ background: "#f0fdf4", borderRadius: 10, padding: 14, border: "1px solid #bbf7d0" }}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CheckCircle2 size={14} className="text-green-600" />
+                                  <span className="text-sm font-bold text-green-800">Submitted for Approval</span>
+                                </div>
+                                <p className="text-[12px] text-green-600 m-0">Your response has been sent to your Lead for review. You'll be notified when it's approved or if changes are requested.</p>
+                              </div>
+                            </div>
+                          ) : review.approval_status === "lead_approved" ? (
+                            <div className="w-full">
+                              <div style={{ background: "#f0fdf4", borderRadius: 10, padding: 14, border: "1px solid #bbf7d0" }}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CheckCircle2 size={14} className="text-green-600" />
+                                  <span className="text-sm font-bold text-green-800">Approved by Lead</span>
+                                </div>
+                                <p className="text-[12px] text-green-600 m-0">Your response has been approved by your Lead and is awaiting final publishing by the Business Owner.</p>
+                              </div>
+                            </div>
+                          ) : review.approval_status === "rejected" || review.approval_status === "reopened" ? (
+                            <div className="w-full space-y-3">
+                              <div style={{ background: review.approval_status === "reopened" ? "#fffbeb" : "#fef2f2", borderRadius: 10, padding: 14, border: `1px solid ${review.approval_status === "reopened" ? "#fde68a" : "#fecaca"}` }}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  {review.approval_status === "reopened" ? <RotateCcw size={14} className="text-amber-600" /> : <XCircle size={14} className="text-red-600" />}
+                                  <span className={`text-sm font-bold ${review.approval_status === "reopened" ? "text-amber-800" : "text-red-800"}`}>
+                                    {review.approval_status === "reopened" ? "Review Reopened" : "Changes Requested"}
+                                  </span>
+                                </div>
+                                <p className={`text-[12px] ${review.approval_status === "reopened" ? "text-amber-600" : "text-red-600"} m-0 mb-2`}>
+                                  {review.approval_status === "reopened" 
+                                    ? "This review was reopened. Please revise your response and submit again." 
+                                    : "Your Lead has requested changes to your response draft."}
+                                </p>
+                                {review.rejection_reason && (
+                                  <div style={{ background: "#fff", borderRadius: 8, padding: 10, border: `1px solid ${review.approval_status === "reopened" ? "#fde68a" : "#fecaca"}` }}>
+                                    <p className={`text-[11px] font-bold ${review.approval_status === "reopened" ? "text-amber-700" : "text-red-700"} m-0 mb-1`}>Feedback:</p>
+                                    <p className="text-[12px] text-zinc-700 m-0 italic">"{review.rejection_reason}"</p>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={handleApprove} disabled={!proposal || approving} className="rd-btn rd-btn-success">
+                                  {approving ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                  Resubmit for Approval
+                                </button>
+                                <button onClick={handleSaveDraftOnly} disabled={!proposal} className="rd-btn rd-btn-outline">
+                                  <Save size={12} /> Save draft only
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button onClick={handleApprove} disabled={!proposal || approving} className="rd-btn rd-btn-success">
+                                {approving ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                Submit for Approval
+                              </button>
+                              <button onClick={handleSaveDraftOnly} disabled={!proposal} className="rd-btn rd-btn-outline">
+                                <Save size={12} /> Save draft only
+                              </button>
+                            </>
+                          )
+                        )}
+                        
+                        {isLead && (
+                          review.approval_status === "rejected" || review.approval_status === "reopened" ? (
+                            <div className="w-full">
+                              <div style={{ background: review.approval_status === "reopened" ? "#fffbeb" : "#fef2f2", borderRadius: 10, padding: 14, border: `1px solid ${review.approval_status === "reopened" ? "#fde68a" : "#fecaca"}` }}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  {review.approval_status === "reopened" ? <RotateCcw size={14} className="text-amber-600" /> : <XCircle size={14} className="text-red-600" />}
+                                  <span className={`text-sm font-bold ${review.approval_status === "reopened" ? "text-amber-800" : "text-red-800"}`}>
+                                    {review.approval_status === "reopened" ? "Reopened — Sent to Staff" : "Rejected — Sent Back to Staff"}
+                                  </span>
+                                </div>
+                                <p className={`text-[12px] ${review.approval_status === "reopened" ? "text-amber-600" : "text-red-600"} m-0 mb-2`}>Waiting for staff to revise and resubmit their response.</p>
+                                {review.rejection_reason && (
+                                  <div style={{ background: "#fff", borderRadius: 8, padding: 10, border: `1px solid ${review.approval_status === "reopened" ? "#fde68a" : "#fecaca"}` }}>
+                                    <p className={`text-[11px] font-bold ${review.approval_status === "reopened" ? "text-amber-700" : "text-red-700"} m-0 mb-1`}>Your feedback:</p>
+                                    <p className="text-[12px] text-zinc-700 m-0 italic">"{review.rejection_reason}"</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : review.approval_status === "lead_approved" ? (
+                            <div className="w-full">
+                              <div style={{ background: "#f0fdf4", borderRadius: 10, padding: 14, border: "1px solid #bbf7d0" }}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CheckCircle2 size={14} className="text-green-600" />
+                                  <span className="text-sm font-bold text-green-800">Approved by Lead — Awaiting Final Approval</span>
+                                </div>
+                                <p className="text-[12px] text-green-600 m-0">You have approved this response. It is now in the Business Owner's queue for final publishing.</p>
+                              </div>
+                            </div>
+                          ) : review.approval_status !== "submitted" ? (
+                            <div className="w-full">
+                              <div className="py-5 flex flex-col items-center justify-center text-center bg-zinc-50 rounded-xl border border-dashed border-zinc-200">
+                                <Clock size={20} className="text-zinc-400 mb-2" />
+                                <p className="text-[13px] font-semibold text-zinc-600 m-0 mb-1">Waiting for Staff</p>
+                                <p className="text-[12px] text-zinc-500 m-0">The assigned staff member has not submitted a response for approval yet.</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button onClick={handleApprove} disabled={!proposal || approving} className="rd-btn rd-btn-success">
+                                {approving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                Approve Response
+                              </button>
+                              <button onClick={() => setShowRejectInput(true)} disabled={!proposal} className="rd-btn rd-btn-danger">
+                                <XCircle size={12} /> Request Changes
+                              </button>
+                            </>
+                          )
+                        )}
+
+                        {isOwner && (
+                          review.approval_status === "rejected" || review.approval_status === "reopened" ? (
+                            <div className="w-full">
+                              <div style={{ background: review.approval_status === "reopened" ? "#fffbeb" : "#fef2f2", borderRadius: 10, padding: 14, border: `1px solid ${review.approval_status === "reopened" ? "#fde68a" : "#fecaca"}` }}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  {review.approval_status === "reopened" ? <RotateCcw size={14} className="text-amber-600" /> : <XCircle size={14} className="text-red-600" />}
+                                  <span className={`text-sm font-bold ${review.approval_status === "reopened" ? "text-amber-800" : "text-red-800"}`}>
+                                    {review.approval_status === "reopened" ? "Reopened — Sent to Staff" : "Rejected — Sent Back to Staff"}
+                                  </span>
+                                </div>
+                                <p className={`text-[12px] ${review.approval_status === "reopened" ? "text-amber-600" : "text-red-600"} m-0 mb-2`}>Waiting for staff to revise and resubmit their response.</p>
+                              </div>
+                            </div>
+                          ) : review.approval_status !== "submitted" && review.approval_status !== "lead_approved" ? (
+                            <div className="w-full">
+                              <div className="py-5 flex flex-col items-center justify-center text-center bg-zinc-50 rounded-xl border border-dashed border-zinc-200">
+                                <Clock size={20} className="text-zinc-400 mb-2" />
+                                <p className="text-[13px] font-semibold text-zinc-600 m-0 mb-1">Waiting for Staff or Lead</p>
+                                <p className="text-[12px] text-zinc-500 m-0">The assigned staff member or lead has not submitted a response for final approval yet.</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button onClick={handleApprove} disabled={!proposal || approving} className="rd-btn rd-btn-success">
+                                {approving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                Publish Approve
+                              </button>
+                              <button onClick={() => setShowRejectInput(true)} disabled={!proposal} className="rd-btn rd-btn-danger">
+                                <XCircle size={12} /> Reject to Lead
+                              </button>
+                            </>
+                          )
+                        )}
+
+                        {!proposal && (
+                          <p className="text-[12px] text-zinc-400 italic self-center ml-2">Generate a draft first to enable approval</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1221,47 +1453,67 @@ const ReviewDetail = () => {
                   {review.suspicious_reason}
                   {review.flagged_by && ` · Flagged by ${review.flagged_by}`}
                 </p>
-                <button
-                  onClick={handleRemoveFlag}
-                  disabled={deflagging}
-                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-zinc-200 text-zinc-600 bg-white hover:bg-zinc-50 hover:border-zinc-300 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {deflagging ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
-                  {deflagging ? "Removing…" : "Remove Flag"}
-                </button>
+                {/* Role-based actions on flagged review */}
+                {!isSuperAdmin && !isStaff && (
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={handleRemoveFlag}
+                      disabled={deflagging}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {deflagging ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                      Reject Flag
+                    </button>
+                    <button
+                      onClick={() => alert('Flag approved (Demo)')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-red-700 text-white bg-red-600 hover:bg-red-700 transition-all cursor-pointer"
+                    >
+                      <Check size={12} />
+                      Approve Flag
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <>
-                {!showFlagPanel ? (
-                  <button onClick={() => setShowFlagPanel(true)} className="rd-btn rd-btn-danger">
-                    <Flag size={12} /> Flag this review
-                  </button>
-                ) : (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-[12px] font-semibold text-zinc-500 mb-1.5 block">Category</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {FLAG_CATEGORIES.map(c => (
-                          <button key={c} onClick={() => setFlagCategory(c)}
-                            className={`rd-version-pill ${flagCategory === c ? "active" : ""}`}
-                            style={flagCategory === c ? { background: "#dc2626", borderColor: "#dc2626" } : {}}
-                          >{c}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[12px] font-semibold text-zinc-500 mb-1.5 block">Reason</label>
-                      <textarea className="rd-draft-area" style={{ minHeight: 60 }} placeholder="Describe why this review should be flagged..."
-                        value={flagReason} onChange={e => setFlagReason(e.target.value)} />
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={handleFlag} disabled={flagging || !flagReason.trim()} className="rd-btn rd-btn-danger">
-                        {flagging ? <Loader2 size={12} className="animate-spin" /> : <Flag size={12} />}
-                        Submit Flag
-                      </button>
-                      <button onClick={() => setShowFlagPanel(false)} className="rd-btn rd-btn-outline">Cancel</button>
-                    </div>
+                {isSuperAdmin || isLead || isOwner ? (
+                  <div className="text-sm text-zinc-500 italic p-2 bg-zinc-50 rounded-lg border border-zinc-100">
+                    This review is not flagged.
                   </div>
+                ) : (
+                  <>
+                    {!showFlagPanel ? (
+                      <button onClick={() => setShowFlagPanel(true)} className="rd-btn rd-btn-danger">
+                        <Flag size={12} /> Flag this review
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[12px] font-semibold text-zinc-500 mb-1.5 block">Category</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {FLAG_CATEGORIES.map(c => (
+                              <button key={c} onClick={() => setFlagCategory(c)}
+                                className={`rd-version-pill ${flagCategory === c ? "active" : ""}`}
+                                style={flagCategory === c ? { background: "#dc2626", borderColor: "#dc2626" } : {}}
+                              >{c}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[12px] font-semibold text-zinc-500 mb-1.5 block">Reason</label>
+                          <textarea className="rd-draft-area" style={{ minHeight: 60 }} placeholder="Describe why this review should be flagged..."
+                            value={flagReason} onChange={e => setFlagReason(e.target.value)} />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={handleFlag} disabled={flagging || !flagReason.trim()} className="rd-btn rd-btn-danger">
+                            {flagging ? <Loader2 size={12} className="animate-spin" /> : <Flag size={12} />}
+                            Submit Flag
+                          </button>
+                          <button onClick={() => setShowFlagPanel(false)} className="rd-btn rd-btn-outline">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}

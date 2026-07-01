@@ -52,8 +52,9 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
   const editRef = useRef(null);
 
   const filteredStaff = state.staff?.filter(s =>
-    s.status === "active" &&
-    (s.department === review.primary_department || review.primary_department === "Management")
+    s.is_active !== false &&
+    s.role === "staff" &&
+    s.department === review.primary_department
   ) || [];
 
   const handleAssign = async (staffId) => {
@@ -93,6 +94,7 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
   };
 
   const isApprover = currentUser?.role === "gm" || currentUser?.role === "dept_head" || currentUser?.role === "manager" || currentUser?.role === "superadmin";
+  const isSuperAdmin = currentUser?.role === "superadmin";
 
   const handleApprove = async () => {
     const isSubmission = !isApprover || (currentUser?.role === "staff" && isMediumConfidence);
@@ -526,6 +528,31 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
                 <span className="rc-insight-value" style={{ color: "#a1a1aa" }}>Pending</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Assignment Section (Lead / Owner only) */}
+        {!isSuperAdmin && (currentUser?.role === "lead" || currentUser?.role === "owner" || currentUser?.role === "dept_head" || currentUser?.role === "gm") && 
+         (review.approval_status !== "submitted" && review.approval_status !== "approved" && review.approval_status !== "rejected") && (
+          <div className="mt-3 pt-3 border-t border-zinc-100 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+            {review.assigned_to_staff_name && (
+              <div className="flex items-center gap-2 text-xs text-zinc-600 mb-1">
+                <Users size={12} className="text-zinc-400" />
+                <span>Assigned to: <strong className="text-zinc-800">{review.assigned_to_staff_name}</strong></span>
+              </div>
+            )}
+            <div className="flex gap-2 items-center">
+              <select
+                className="flex-1 text-xs p-2 border border-zinc-200 rounded-lg outline-none bg-zinc-50 hover:bg-zinc-100 transition-colors cursor-pointer"
+                onChange={(e) => handleAssign(e.target.value)}
+                value={review.assigned_to_staff_id || ""}
+              >
+                <option value="" disabled>Assign to...</option>
+                {filteredStaff.map(s => (
+                  <option key={s._id} value={s._id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
 

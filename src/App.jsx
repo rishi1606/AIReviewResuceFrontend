@@ -9,6 +9,10 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Reviews from "./pages/Reviews";
+import ReviewBoard from "./pages/ReviewBoard";
+import MyReviews from "./pages/MyReviews";
+import ReviewApprovals from "./pages/ReviewApprovals";
+import FinalApprovals from "./pages/FinalApprovals";
 import ReviewDetail from "./pages/ReviewDetail";
 import Tickets from "./pages/Tickets";
 import Import from "./pages/Import";
@@ -34,6 +38,10 @@ function App() {
             <Route path="/" element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="reviews" element={<Reviews />} />
+              <Route path="reviews/board" element={<ReviewBoard />} />
+              <Route path="reviews/my-reviews" element={<MyReviews />} />
+              <Route path="reviews/approvals" element={<ReviewApprovals />} />
+              <Route path="reviews/final-approval" element={<FinalApprovals />} />
               <Route path="reviews/:review_id" element={<ReviewDetail />} />
               <Route path="tickets" element={<Tickets />} />
               <Route path="import" element={<Import />} />

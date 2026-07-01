@@ -37,16 +37,21 @@ const ToastManager = () => {
           key={i}
           className="pointer-events-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl p-4 flex gap-4 w-80 animate-in slide-in-from-right duration-300"
         >
-          <div className={`p-2 rounded-xl flex-shrink-0 ${t.urgency === "High" ? "bg-red-100 text-red-600" : "bg-indigo-100 text-indigo-600"}`}>
+          <div className={`p-2 rounded-xl flex-shrink-0 ${
+            t.type === "success" || t.type === "escalation_success" ? "bg-emerald-100 text-emerald-600" :
+            t.type === "error" || t.urgency === "High" ? "bg-red-100 text-red-600" :
+            "bg-indigo-100 text-indigo-600"
+          }`}>
             {t.type === "new_ticket" && <Zap size={18} />}
-            {t.type === "escalation_success" && <CheckCircle2 size={18} />}
+            {(t.type === "escalation_success" || t.type === "success") && <CheckCircle2 size={18} />}
             {t.type === "sla_breach" && <AlarmClock size={18} />}
-            {t.type === "suspicious" && <AlertTriangle size={18} />}
-            {!t.type && <Info size={18} />}
+            {(t.type === "suspicious" || t.type === "error") && <AlertTriangle size={18} />}
+            {(t.type === "info" || !t.type || !["new_ticket", "escalation_success", "success", "sla_breach", "suspicious", "error"].includes(t.type)) && <Info size={18} />}
           </div>
           <div className="flex-1">
+            {t.title && <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{t.title}</p>}
             <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{t.message}</p>
-            <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">{t.urgency || "Info"}</p>
+            <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">{t.urgency || t.type || "Info"}</p>
           </div>
           <button onClick={() => removeToast(t.originalIndex)} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={16} />

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { initialState } from "./initialState";
 import * as actions from "./actions";
-import { getReviews, getTickets, getHotel, getProperties, getAdminProperties, getNotifications as fetchNotifications, createNotification as postNotification, markNotificationRead, markAllNotificationsRead as apiMarkAllRead } from "../api/apiClient";
+import { getReviews, getTickets, getHotel, getProperties, getAdminProperties, getStaffByBusiness, getNotifications as fetchNotifications, createNotification as postNotification, markNotificationRead, markAllNotificationsRead as apiMarkAllRead } from "../api/apiClient";
 import { useAuth } from "./AuthContext";
 
 const AppContext = createContext();
@@ -214,11 +214,12 @@ export const AppProvider = ({ children }) => {
         console.log('[AppContext] Lead filter - Department:', currentUser.department);
       }
 
-      const [revs, tkts, hotel, props] = await Promise.all([
+      const [revs, tkts, hotel, props, staffReq] = await Promise.all([
         getReviews(reviewFilters),
         getTickets(),
         getHotel(),
-        propsPromise
+        propsPromise,
+        getStaffByBusiness(currentUser?.business_id || currentUser?.hotelId).catch(() => ({ data: [] }))
       ]);
 
       const reviews = revs.data.reviews || [];
@@ -232,8 +233,8 @@ export const AppProvider = ({ children }) => {
         type: actions.LOAD_INITIAL_DATA,
         payload: {
           reviews,
-          tickets: tkts.data.tickets,
-          staff: [],
+          tickets: tkts.data.tickets || [],
+          staff: staffReq.data.staff || staffReq.data || [],
           hotelConfig: hotel.data,
           managedProperties: props.data || []
         }

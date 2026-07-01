@@ -44,8 +44,15 @@ export const updateHotel = (fields) => apiClient.put("/hotel", fields);
 
 // Staff Management
 export const createStaff = (body) => apiClient.post("/staff/create", body);
-export const getStaffByBusiness = (business_id) => apiClient.get(`/staff/list`, { params: { business_id } });
-export const getStaffByProperty = (business_id, property_id) => apiClient.get(`/staff/business/${business_id}/property/${property_id}`);
+export const getStaffByBusiness = (business_id) => {
+  const idStr = typeof business_id === 'object' && business_id !== null ? (business_id._id || business_id.id || '') : business_id;
+  return apiClient.get(`/staff/list`, { params: { business_id: idStr } });
+};
+export const getStaffByProperty = (business_id, property_id) => {
+  const bId = typeof business_id === 'object' && business_id !== null ? (business_id._id || business_id.id || '') : business_id;
+  const pId = typeof property_id === 'object' && property_id !== null ? (property_id._id || property_id.id || '') : property_id;
+  return apiClient.get(`/staff/business/${bId}/property/${pId}`);
+};
 export const updateStaff = (id, fields) => apiClient.put(`/staff/${id}`, fields);
 export const deactivateStaff = (id) => apiClient.delete(`/staff/${id}`);
 export const removeStaff = (id) => apiClient.delete(`/staff/${id}`);
@@ -58,8 +65,8 @@ export const addStaff = (body) => apiClient.post("/staff", body);
 export const getReviews = (filters) => apiClient.get("/reviews", { params: filters });
 export const importReviews = (reviews) => apiClient.post("/reviews/import", { reviews });
 export const updateClassification = (review_id, data) => apiClient.put(`/reviews/${review_id}/classification`, data);
-export const approveResponse = (review_id, data) => apiClient.put(`/reviews/${review_id}/approve-response`, data);
-export const rejectResponse = (review_id) => apiClient.put(`/reviews/${review_id}/reject-response`);
+export const approveResponse = (review_id, data) => apiClient.post(`/reviews/${review_id}/approve-response`, data);
+export const rejectResponse = (review_id, data) => apiClient.post(`/reviews/${review_id}/reject-response`, data);
 export const flagSuspicious = (review_id, reason) => apiClient.put(`/reviews/${review_id}/flag-suspicious`, { suspicious_reason: reason });
 export const addReviewNote = (review_id, data) => apiClient.post(`/reviews/${review_id}/notes`, data);
 export const reanalyseReview = (review_id) => apiClient.put(`/reviews/${review_id}/reanalyse`);

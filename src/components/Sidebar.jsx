@@ -4,7 +4,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard, MessageSquare, Settings,
     LogOut, ChevronLeft, ChevronRight, ShieldCheck, X, Loader2,
-    Building2, Globe, ChevronDown, Rocket, Plus, Users
+    Building2, Globe, ChevronDown, Rocket, Plus, Users, CheckCircle2, Columns
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
@@ -86,10 +86,25 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     const isSuperadmin = currentUser?.role === "superadmin";
     const isOwner = currentUser?.role === "owner";
     const isPropertyManager = currentUser?.role === "property_manager";
+    const isLead = currentUser?.role === "lead" || currentUser?.role === "dept_head";
+
+    const reviewNavItems = [
+        { name: "Reviews", path: "/reviews", icon: MessageSquare }
+    ];
+    
+    if (isSuperadmin) {
+        reviewNavItems.push({ name: "Review Workflow", path: "/reviews/board", icon: Columns });
+    } else if (isLead) {
+        reviewNavItems.push({ name: "Review Workflow", path: "/reviews/board", icon: Columns });
+    } else if (isOwner || isPropertyManager) {
+        reviewNavItems.push({ name: "Final Approvals", path: "/reviews/final-approval", icon: CheckCircle2 });
+    } else {
+        reviewNavItems.push({ name: "My Reviews", path: "/reviews/my-reviews", icon: MessageSquare });
+    }
 
     const navItems = [
         { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-        { name: "Reviews", path: "/reviews", icon: MessageSquare },
+        ...reviewNavItems,
         ...(isOwner ? [{ name: "Staff", path: "/staff", icon: Users }] : []),
         { name: "Settings", path: "/settings", icon: Settings },
         ...(isSuperadmin ? [{ name: "Admin Panel", path: "/admin", icon: ShieldCheck }] : []),
@@ -206,6 +221,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                         <NavLink
                             key={item.path}
                             to={item.path}
+                            end={item.path === "/reviews"}
                             className={({ isActive }) =>
                                 `sidebar-link ${isActive ? "sidebar-link-active" : ""} ${isCollapsedDesktop ? "lg:justify-center lg:px-0" : ""}`
                             }
