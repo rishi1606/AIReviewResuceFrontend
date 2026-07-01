@@ -1453,34 +1453,10 @@ const ReviewDetail = () => {
                   {review.suspicious_reason}
                   {review.flagged_by && ` · Flagged by ${review.flagged_by}`}
                 </p>
-                {/* Role-based actions on flagged review */}
-                {!isSuperAdmin && !isStaff && (
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={handleRemoveFlag}
-                      disabled={deflagging}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      {deflagging ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
-                      Reject Flag
-                    </button>
-                    <button
-                      onClick={() => alert('Flag approved (Demo)')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-red-700 text-white bg-red-600 hover:bg-red-700 transition-all cursor-pointer"
-                    >
-                      <Check size={12} />
-                      Approve Flag
-                    </button>
-                  </div>
-                )}
               </div>
             ) : (
               <>
-                {isSuperAdmin || isLead || isOwner ? (
-                  <div className="text-sm text-zinc-500 italic p-2 bg-zinc-50 rounded-lg border border-zinc-100">
-                    This review is not flagged.
-                  </div>
-                ) : (
+                {isOwner || isSuperAdmin ? (
                   <>
                     {!showFlagPanel ? (
                       <button onClick={() => setShowFlagPanel(true)} className="rd-btn rd-btn-danger">
@@ -1514,6 +1490,10 @@ const ReviewDetail = () => {
                       </div>
                     )}
                   </>
+                ) : (
+                  <div className="text-sm text-zinc-500 italic p-2 bg-zinc-50 rounded-lg border border-zinc-100">
+                    This review is not flagged.
+                  </div>
                 )}
               </>
             )}
