@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, AlertTriangle, Loader2, CheckCircle2, X, Trash2, Edit2, Info } from 'lucide-react';
+import { Plus, AlertTriangle, Loader2, CheckCircle2, X, Trash2, Edit2 } from 'lucide-react';
+import InfoTooltip from '../components/InfoTooltip';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getStaffByBusiness, createStaff, updateStaff, deactivateStaff, removeStaff } from '../api/apiClient';
@@ -79,7 +80,7 @@ const StaffManagement = () => {
       let businessName = currentUser?.hotel_name || currentUser?.business_name;
 
       // If not found in currentUser, try to fetch from /hotel endpoint
-      if (!businessId) {
+      if (!businessId || !businessName) {
         try {
           const response = await apiClient.get('/hotel');
           if (response?.data?._id) {
@@ -438,8 +439,9 @@ const StaffManagement = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-900">
+          <h2 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
             Staff Management
+            <InfoTooltip text="Manage your hotel team here. Add staff members, assign them to departments, and set their roles (Lead or Staff). Leads can approve AI-generated responses, while Staff members handle day-to-day review management within their assigned department." size={15} />
           </h2>
           <p className="text-sm text-zinc-500">
             {selectedBusiness.hotel_name} • Create and manage your team
@@ -451,55 +453,24 @@ const StaffManagement = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-3 relative">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               setEditingStaff(null);
               setShowForm(true);
             }}
             disabled={properties.length === 0}
-            className={`flex items-center gap-2 px-4 py-2.5 font-semibold rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
               properties.length === 0
                 ? 'bg-gray-300 text-gray-600 cursor-not-allowed opacity-60'
                 : 'bg-orange-500 hover:bg-orange-600 text-white cursor-pointer'
             }`}
             title={properties.length === 0 ? 'Create a property first to add staff' : 'Create a new staff member'}
           >
-            <Plus size={16} />
+            <Plus size={14} />
             Create Staff
           </button>
-
-          {/* Info Icon */}
-          <div className="relative">
-            <button
-              onClick={() => setShowInfo(!showInfo)}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="View staff creation restrictions"
-            >
-              <Info size={20} />
-            </button>
-
-            {/* Tooltip */}
-            {showInfo && (
-              <div className="absolute right-0 top-full mt-2 bg-white border border-blue-200 rounded-lg shadow-lg p-4 w-64 z-50">
-                <div className="text-sm text-zinc-900">
-                  <p className="font-semibold mb-2 text-blue-700">📋 Staff Creation Rules</p>
-                  <ul className="space-y-2 text-xs text-zinc-700">
-                    <li>• <strong>Only 1 Lead allowed</strong> per business</li>
-                    <li>• <strong>Unlimited Staff</strong> members can be added</li>
-                    <li>• Each staff member needs a department assigned</li>
-                    <li>• Lead manages responses from staff</li>
-                  </ul>
-                </div>
-                <button
-                  onClick={() => setShowInfo(false)}
-                  className="text-xs text-blue-600 hover:text-blue-800 mt-3"
-                >
-                  Close
-                </button>
-              </div>
-            )}
-          </div>
+          <InfoTooltip text={<><strong>Staff Creation Rules:</strong><br/>• Only 1 Lead allowed per business<br/>• Unlimited Staff members can be added<br/>• Each staff member needs a department assigned<br/>• Lead manages responses from staff</>} size={16} maxWidth={280} />
         </div>
       </div>
 

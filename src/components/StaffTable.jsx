@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Trash2, Edit2, Check, X } from 'lucide-react';
+import { Trash2, Edit2, Check } from 'lucide-react';
 import { STAFF_ROLES_LABELS, DEPARTMENT_ICONS } from '../constants/staffConstants';
 
-const StaffTable = ({ staff, onEdit, onDeactivate, onDelete, loading }) => {
-  const [hoveredId, setHoveredId] = useState(null);
+const StaffTable = ({ staff, onEdit, onDelete, loading }) => {
 
   if (loading) {
     return <div className="p-8 text-center text-zinc-400">Loading staff...</div>;
@@ -35,8 +34,6 @@ const StaffTable = ({ staff, onEdit, onDeactivate, onDelete, loading }) => {
       {staff.map((member) => (
         <div
           key={member._id}
-          onMouseEnter={() => setHoveredId(member._id)}
-          onMouseLeave={() => setHoveredId(null)}
           className="grid grid-cols-[2fr_1.2fr_1.5fr_1.2fr_100px] gap-4 px-6 py-4 border-b border-zinc-100 last:border-0 hover:bg-orange-50/40 transition-colors group"
         >
           {/* Name */}
@@ -87,35 +84,20 @@ const StaffTable = ({ staff, onEdit, onDeactivate, onDelete, loading }) => {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-1">
-            {hoveredId === member._id && (
-              <div className="flex gap-1">
-                <button
-                  onClick={() => onEdit(member)}
-                  className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors"
-                  title="Edit"
-                >
-                  <Edit2 size={14} className="text-zinc-600" />
-                </button>
-                <button
-                  onClick={() => onDeactivate(member._id)}
-                  className="p-1.5 hover:bg-amber-100 rounded-lg transition-colors"
-                  title={member.is_active ? 'Deactivate' : 'Activate'}
-                >
-                  {member.is_active ? (
-                    <X size={14} className="text-amber-600" />
-                  ) : (
-                    <Check size={14} className="text-emerald-600" />
-                  )}
-                </button>
-                <button
-                  onClick={() => onDelete(member._id)}
-                  className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={14} className="text-red-600" />
-                </button>
-              </div>
-            )}
+            <button
+              onClick={() => onEdit(member)}
+              className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors"
+              title="Edit"
+            >
+              <Edit2 size={14} className="text-zinc-500" />
+            </button>
+            <button
+              onClick={() => onDelete(member._id)}
+              className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
+              title="Delete"
+            >
+              <Trash2 size={14} className="text-red-400" />
+            </button>
           </div>
         </div>
       ))}

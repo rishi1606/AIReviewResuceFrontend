@@ -4,7 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { getReviews } from "../api/apiClient";
 import apiClient from "../api/apiClient";
 import StatusBadge, { getUIStatus } from "../components/StatusBadge";
-import { CheckCircle2, XCircle, ShieldCheck, Loader2, Star, MessageSquare, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, ShieldCheck, Loader2, Star, MessageSquare, AlertCircle, Inbox, FileCheck } from "lucide-react";
+import InfoTooltip from "../components/InfoTooltip";
 
 const FinalApprovals = () => {
   const { currentUser } = useAuth();
@@ -112,7 +113,10 @@ const FinalApprovals = () => {
             <ShieldCheck size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-zinc-900">Final Approvals</h2>
+            <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
+              Final Approvals
+              <InfoTooltip text="This is where Business Owners give final approval before responses go live. Reviews appear here after a Department Lead has approved the AI-drafted response. You can approve to publish or reject back to the lead for revisions." size={14} />
+            </h2>
             <p className="text-xs text-zinc-500 font-medium">
               {isSuperAdmin ? "Read-only Monitor View" : "Final review before publishing to platform"}
             </p>
@@ -139,8 +143,14 @@ const FinalApprovals = () => {
                 <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
               </div>
             ) : reviews.length === 0 ? (
-              <div className="text-center p-8 text-zinc-400 text-sm font-medium">
-                No reviews waiting for final approval.
+              <div className="flex flex-col items-center justify-center p-10 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center mb-3">
+                  <Inbox size={22} className="text-zinc-400" />
+                </div>
+                <p className="text-sm font-bold text-zinc-800 mb-1">No Reviews Pending</p>
+                <p className="text-xs text-zinc-500 font-medium leading-relaxed max-w-[200px]">
+                  All lead-approved reviews have been processed. New reviews will appear here once a lead approves them.
+                </p>
               </div>
             ) : (
               reviews.map(review => (
@@ -256,9 +266,14 @@ const FinalApprovals = () => {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-zinc-400">
-              <ShieldCheck size={48} className="mb-4 text-zinc-300" />
-              <p className="text-sm font-medium">Select a review from the queue to approve</p>
+            <div className="flex flex-col items-center justify-center h-full">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center mb-4">
+                <FileCheck size={26} className="text-zinc-400" />
+              </div>
+              <p className="text-sm font-bold text-zinc-800 mb-1">No Reviews Found</p>
+              <p className="text-xs text-zinc-500 font-medium max-w-[260px] text-center leading-relaxed">
+                There are no lead-approved reviews waiting for your final approval right now.
+              </p>
             </div>
           )}
         </div>

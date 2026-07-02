@@ -11,6 +11,7 @@ import {
   TrendingUp, TrendingDown, ThumbsUp, AlertTriangle
 } from "lucide-react";
 import { ICON_THEMES, TREND_CONFIG } from "../constants/constants";
+import InfoTooltip from "../components/InfoTooltip";
 
 // ─── Click-outside hook for dropdowns ──────────────────────────────────────
 function useClickOutside(ref, handler) {
@@ -50,7 +51,7 @@ function FilterDropdown({ trigger, children, align = "left" }) {
 }
 
 // ─── KPI Card matching Dashboard page exactly ────────────────────────────────
-const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "slate", trend, trendIcon: TrendIcon, trendType = "neutral", urgent = false }) => {
+const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "slate", trend, trendIcon: TrendIcon, trendType = "neutral", urgent = false, onClick }) => {
   const themeClass = ICON_THEMES[color] ?? ICON_THEMES.slate;
   const tcClass = TREND_CONFIG[trendType] ?? TREND_CONFIG.neutral;
 
@@ -66,7 +67,7 @@ const KPICardNew = React.memo(({ title, value, subtitle, icon: Icon, color = "sl
     : "bg-white border border-zinc-200 rounded-2xl p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-zinc-300 active:translate-y-0 active:shadow-md select-none";
 
   return (
-    <div className={cardClass}>
+    <div className={cardClass} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? (e) => { if (e.key === "Enter") onClick(); } : undefined}>
       {/* Row 1: icon + trend badge */}
       <div className="flex items-start justify-between mb-4">
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${themeClass} group-hover:scale-110 transition-transform duration-200`}>
@@ -99,6 +100,7 @@ const PublishedReviews = () => {
   const [selectedPlatform, setSelectedPlatform] = useState("ALL");
   const [selectedRating, setSelectedRating] = useState("ALL");
   const [selectedDepartment, setSelectedDepartment] = useState("ALL");
+  const [selectedSentiment, setSelectedSentiment] = useState("ALL");
 
   useEffect(() => {
     document.title = "ReviewRescue — Published Reviews";
@@ -158,9 +160,12 @@ const PublishedReviews = () => {
         if (selectedRating === "3" && Number(r.rating) !== 3) return false;
         if (selectedRating === "low" && Number(r.rating) > 2) return false;
       }
+      if (selectedSentiment !== "ALL" && (r.sentiment || "Neutral") !== selectedSentiment) {
+        return false;
+      }
       return true;
     });
-  }, [reviews, searchQuery, selectedPlatform, selectedDepartment, selectedRating]);
+  }, [reviews, searchQuery, selectedPlatform, selectedDepartment, selectedRating, selectedSentiment]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -172,7 +177,9 @@ const PublishedReviews = () => {
     const fiveStarPercentage = total > 0 ? Math.round((fiveStarCount / total) * 100) : 0;
     const positiveCount = reviews.filter(r => r.sentiment === "Positive" || Number(r.rating) >= 4).length;
     const positivePercentage = total > 0 ? Math.round((positiveCount / total) * 100) : 0;
-    return { total, avgRating, fiveStarCount, fiveStarPercentage, positiveCount, positivePercentage };
+    const negativeCount = reviews.filter(r => r.sentiment === "Negative" || Number(r.rating) <= 2).length;
+    const negativePercentage = total > 0 ? Math.round((negativeCount / total) * 100) : 0;
+    return { total, avgRating, fiveStarCount, fiveStarPercentage, positiveCount, positivePercentage, negativeCount, negativePercentage };
   }, [reviews]);
 
   const getPlatformColor = (platform) => {
@@ -196,8 +203,9 @@ const PublishedReviews = () => {
             <Globe className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-zinc-900">
+            <h1 className="text-2xl font-black tracking-tight text-zinc-900 flex items-center gap-2">
               Published Reviews
+              <InfoTooltip text="This is your published archive — all guest reviews that have been approved and had their responses finalized. These responses are ready to be copied and posted on the original review platform (Google, Booking.com, etc.). Use the filters to find specific responses by platform, department, or rating." size={15} />
             </h1>
             <p className="text-sm text-zinc-500 font-medium">
               Comprehensive archive of all guest reviews with finalized responses published to platforms
@@ -207,55 +215,11 @@ const PublishedReviews = () => {
 
         <button
           onClick={fetchPublishedReviews}
-          className="self-start md:self-auto px-4 py-2.5 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+          className="cursor-pointer self-start md:self-auto px-4 py-2.5 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
         >
           <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${loading ? "animate-spin" : ""}`} />
-          <span>Refresh Archive</span>
-        </button>
-      </div>
 
-      {/* ── KPI Cards matching Dashboard exactly (4 in a row) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICardNew
-          title="Total Published"
-          value={stats.total}
-          subtitle="Across all connected platforms"
-          icon={MessageSquare}
-          color="orange"
-          trend={stats.total > 0 ? `+${stats.total}` : "—"}
-          trendIcon={stats.total > 0 ? TrendingUp : null}
-          trendType={stats.total > 0 ? "up" : "neutral"}
-        />
-        <KPICardNew
-          title="Avg Rating"
-          value={stats.avgRating}
-          subtitle={`Based on ${stats.total} published reviews`}
-          icon={Star}
-          color="purple"
-          trend={Number(stats.avgRating) >= 4 ? `↑ ${stats.avgRating}` : `→ ${stats.avgRating}`}
-          trendIcon={Number(stats.avgRating) >= 4 ? TrendingUp : Star}
-          trendType={Number(stats.avgRating) >= 4 ? "up" : "neutral"}
-        />
-        <KPICardNew
-          title="5-Star Responses"
-          value={stats.fiveStarCount}
-          subtitle={`${stats.fiveStarPercentage}% of total published`}
-          icon={Award}
-          color="green"
-          trend={`${stats.fiveStarPercentage}% Share`}
-          trendIcon={TrendingUp}
-          trendType="up"
-        />
-        <KPICardNew
-          title="Positive Sentiment"
-          value={stats.positiveCount}
-          subtitle={`${stats.positivePercentage}% positive feedback`}
-          icon={ThumbsUp}
-          color="blue"
-          trend={stats.positiveCount > 0 ? "High Praise" : "—"}
-          trendIcon={ThumbsUp}
-          trendType="up"
-        />
+        </button>
       </div>
 
       {/* ── Search Bar & Filters Section (Exact Reviews Page UI & Brand Colors) ── */}
@@ -396,7 +360,7 @@ const PublishedReviews = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 pb-8">
           {filteredReviews.map((r) => {
             const s = (r.sentiment || "").toLowerCase();
             const numRating = Number(r.rating) || 0;
