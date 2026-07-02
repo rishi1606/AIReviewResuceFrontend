@@ -35,7 +35,7 @@ import { classifyReview } from "../utils/aiClassifier";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 
-const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelected, onSelect, confidenceThreshold = 75 }) => {
+const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelected, onSelect, confidenceThreshold = 75, isBoardView = false }) => {
   const { state, dispatch, sendNotification } = useAppContext();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -273,6 +273,142 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
   const displayScale = review.raw_rating_scale || (review.platform === "Booking.com" || review.platform === "Agoda" ? 10 : 5);
   const starCount = displayScale === 10 ? 10 : 5;
   const filledCount = displayScale === 10 ? Math.round(displayRaw) : Math.round(displayRaw);
+
+  if (isBoardView) {
+    const isEscalated = review.status === "ESCALATED" || review.escalation;
+    const isUnassigned = !review.assigned_to_staff_id && !review.assigned_to_staff_name;
+    const canAssign = !isSuperAdmin && (currentUser?.role === "lead" || currentUser?.role === "owner" || currentUser?.role === "dept_head" || currentUser?.role === "gm") && 
+                      (review.approval_status !== "submitted" && review.approval_status !== "approved" && review.approval_status !== "rejected");
+
+    return (
+      <div 
+        onClick={(e) => {
+          if (e.target.closest("button, select, input, a")) return;
+          navigate(`/reviews/${review.review_id}`);
+        }}
+        style={{
+          background: "#ffffff",
+          border: "1px solid var(--border)",
+          borderRadius: "16px",
+          padding: "14px",
+          maxHeight: "180px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+          cursor: "pointer",
+          overflow: "hidden"
+        }}
+        className="hover:-translate-y-0.5 hover:shadow-lg hover:border-[#f97316] transition-all duration-200 relative group"
+      >
+        {/* Row 1: Avatar + name + badge on ONE line */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                width: "24px", height: "24px", borderRadius: "50%", background: avatarColor,
+                color: "#fff", fontSize: "11px", fontWeight: "700", display: "flex",
+                alignItems: "center", justifyContent: "center", flexShrink: 0
+              }}
+            >
+              {getInitials(review.reviewer_name)}
+            </div>
+            <span style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {review.reviewer_name || "Anonymous"}
+            </span>
+          </div>
+          {isEscalated && (
+            <span style={{
+              background: "var(--bg-warning)", color: "var(--text-warning)", border: "0.5px solid var(--border-warning)",
+              fontSize: "11px", fontWeight: "500", padding: "2px 8px", borderRadius: "var(--radius)", flexShrink: 0, display: "flex", alignItems: "center", gap: "3px"
+            }}>
+              ⚠️ ESCALATED
+            </span>
+          )}
+        </div>
+
+        {/* Row 2: Property · platform · date · ★★★☆☆ 3/10 */}
+        <div style={{ fontSize: "11px", fontWeight: "400", color: "var(--text-secondary)", display: "flex", alignItems: "center", justify: "space-between", gap: "6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {review.hotel_name || "Property"} &middot; {review.platform} &middot; {review.review_date ? new Date(review.review_date).toLocaleDateString() : "Recent"}
+          </span>
+          <span style={{ color: "#f59e0b", fontWeight: "600", flexShrink: 0 }}>
+            ★ {displayScale === 10 ? displayRaw : `${displayRaw}/5`}
+          </span>
+        </div>
+
+        {/* Row 3: Snippet max 1 line truncated with ellipsis */}
+        {review.review_text && (
+          <div style={{
+            fontSize: "12px", fontWeight: "400", color: "var(--text-primary)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            padding: "4px 0", borderTop: "0.5px solid var(--border)", borderBottom: "0.5px solid var(--border)"
+          }}>
+            "{review.review_text}"
+          </div>
+        )}
+
+        {/* Row 4: Sentiment / Dept / Urgency on ONE line */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11px", fontWeight: "500", overflow: "hidden", whiteSpace: "nowrap" }}>
+          {review.sentiment && (
+            <span style={{ color: review.sentiment === "Positive" ? "var(--text-success)" : review.sentiment === "Negative" ? "var(--text-danger)" : "var(--text-warning)", display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
+              ● {review.sentiment}
+            </span>
+          )}
+          {review.primary_department && (
+            <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {review.primary_department}
+            </span>
+          )}
+          {review.urgency && review.urgency !== "None" && (
+            <span style={{ color: review.urgency === "High" ? "var(--text-danger)" : review.urgency === "Low" ? "var(--text-success)" : "var(--text-warning)", display: "flex", alignItems: "center", gap: "4px", marginLeft: "auto", flexShrink: 0 }}>
+              ● {review.urgency}
+            </span>
+          )}
+        </div>
+
+        {/* Row 5: Buttons: [Assign to... ▼] [View Review →] */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "auto", paddingTop: "4px" }} onClick={e => e.stopPropagation()}>
+          {canAssign && (
+            review.assigned_to_staff_name ? (
+              <div style={{ flex: 1, fontSize: "12px", color: "#3f3f46", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                Assigned: {review.assigned_to_staff_name}
+              </div>
+            ) : (
+              <select
+                style={{
+                  flex: 1, background: "var(--surface-2)", border: "0.5px solid var(--border-strong)",
+                  borderRadius: "var(--radius)", color: "var(--text-primary)", fontSize: "12px", padding: "5px 8px", outline: "none", cursor: "pointer"
+                }}
+                onChange={(e) => handleAssign(e.target.value)}
+                value=""
+              >
+                <option value="" disabled style={{ color: "var(--text-muted)" }}>Assign to...</option>
+                {filteredStaff.map(s => (
+                  <option key={s._id} value={s._id}>{s.name}</option>
+                ))}
+              </select>
+            )
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/reviews/${review.review_id}`); }}
+            style={{
+              flex: canAssign && isUnassigned ? "1" : "auto",
+              width: canAssign ? "auto" : "100%",
+              background: "transparent", border: "0.5px solid #d4d4d8",
+              borderRadius: "var(--radius)", color: "#18181b",
+              fontSize: "12px", fontWeight: "600", padding: "5px 10px", textAlign: "center",
+              cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap"
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#f4f4f5"; e.currentTarget.style.borderColor = "#a1a1aa"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#d4d4d8"; }}
+          >
+            View Review &rarr;
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

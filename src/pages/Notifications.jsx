@@ -3,17 +3,36 @@ import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import {
   Bell, CheckCircle2, AlertTriangle, Info, RotateCcw, Download,
-  ChevronLeft, ChevronRight, Search, Check, ShieldOff
+  ChevronLeft, ChevronRight, Search, Check, ShieldOff,
+  FileText, Mail, XCircle, PartyPopper, BarChart2
 } from "lucide-react";
 
 // Only show these user-facing action types
-const ALLOWED_TYPES = ["success", "warning", "info", "import"];
+const ALLOWED_TYPES = [
+  "ticket_assigned", "assign", "response_pending_approval", "submitted",
+  "response_approved", "response_rejected", "review_rejected", "bo_rejected",
+  "published", "superadmin_published", "escalation_alert", "escalated",
+  "ticket_closed", "success", "warning", "info", "import", "new_review"
+];
 
 const TYPE_CONFIG = {
+  ticket_assigned: { icon: FileText, bg: "bg-indigo-50", color: "text-indigo-600", dot: "bg-indigo-500", label: "Assigned" },
+  assign: { icon: FileText, bg: "bg-indigo-50", color: "text-indigo-600", dot: "bg-indigo-500", label: "Assigned" },
+  submitted: { icon: Mail, bg: "bg-purple-50", color: "text-purple-600", dot: "bg-purple-500", label: "Submitted" },
+  response_pending_approval: { icon: Mail, bg: "bg-purple-50", color: "text-purple-600", dot: "bg-purple-500", label: "Submitted" },
+  response_approved: { icon: CheckCircle2, bg: "bg-emerald-50", color: "text-emerald-600", dot: "bg-emerald-500", label: "Approved" },
+  response_rejected: { icon: RotateCcw, bg: "bg-amber-50", color: "text-amber-600", dot: "bg-amber-500", label: "Changes" },
+  review_rejected: { icon: XCircle, bg: "bg-red-50", color: "text-red-600", dot: "bg-red-500", label: "Rejected" },
+  bo_rejected: { icon: RotateCcw, bg: "bg-orange-50", color: "text-orange-600", dot: "bg-orange-500", label: "BO Rejected" },
+  published: { icon: PartyPopper, bg: "bg-emerald-50", color: "text-emerald-600", dot: "bg-emerald-500", label: "Published" },
+  superadmin_published: { icon: BarChart2, bg: "bg-blue-50", color: "text-blue-600", dot: "bg-blue-500", label: "Published" },
+  escalated: { icon: AlertTriangle, bg: "bg-red-50", color: "text-red-600", dot: "bg-red-500", label: "Escalated" },
+  escalation_alert: { icon: AlertTriangle, bg: "bg-red-50", color: "text-red-600", dot: "bg-red-500", label: "Escalated" },
   success:    { icon: CheckCircle2, bg: "bg-emerald-50", color: "text-emerald-600", dot: "bg-emerald-500", label: "Approved" },
   warning:    { icon: AlertTriangle, bg: "bg-amber-50", color: "text-amber-600", dot: "bg-amber-500", label: "Flagged" },
   info:       { icon: Info,          bg: "bg-blue-50",    color: "text-blue-500",    dot: "bg-blue-500",    label: "Update" },
   import:     { icon: Download,      bg: "bg-sky-50",     color: "text-sky-600",     dot: "bg-sky-500",     label: "New Reviews" },
+  new_review: { icon: Download,      bg: "bg-sky-50",     color: "text-sky-600",     dot: "bg-sky-500",     label: "New Reviews" },
 };
 
 const ITEMS_PER_PAGE = 15;
@@ -30,6 +49,37 @@ const formatDate = (ts) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
+const resolveNotificationUrl = (notif) => {
+  if (!notif) return null;
+  const revId = typeof notif.relatedReviewId === "object" && notif.relatedReviewId
+    ? (notif.relatedReviewId.review_id || notif.relatedReviewId._id)
+    : (notif.relatedReviewId || notif.review_id);
+
+  if (revId && (
+    notif.link_to === "/approvals" ||
+    notif.link_to === "/reviews/approvals" ||
+    notif.link_to === "/my-reviews" ||
+    notif.type === "bo_rejected" ||
+    notif.type === "submitted" ||
+    notif.type === "assign" ||
+    notif.type === "ticket_assigned" ||
+    notif.type === "response_approved" ||
+    notif.type === "response_rejected" ||
+    notif.type === "review_rejected" ||
+    notif.type === "published"
+  )) {
+    return `/reviews/${revId}`;
+  }
+
+  if (notif.link_to && notif.link_to !== "/approvals" && notif.link_to !== "/reviews/approvals" && notif.link_to !== "/my-reviews") {
+    return notif.link_to;
+  }
+
+  if (revId) return `/reviews/${revId}`;
+  if (notif.link_to === "/approvals" || notif.link_to === "/reviews/approvals") return "/reviews";
+  return notif.link_to || "/reviews";
+};
+
 const Notifications = () => {
   const navigate = useNavigate();
   const { state, handleMarkNotificationRead, handleMarkAllRead } = useAppContext();
@@ -37,7 +87,7 @@ const Notifications = () => {
 
   // Filter only allowed types
   const notifications = useMemo(
-    () => allNotifications.filter(n => ALLOWED_TYPES.includes(n.type)),
+    () => allNotifications.filter(n => !n.isLocalToast && ALLOWED_TYPES.includes(n.type)),
     [allNotifications]
   );
 
@@ -173,7 +223,8 @@ const Notifications = () => {
                 key={notif._id || `${notif.timestamp}-${i}`}
                 onClick={() => {
                   if (globalIdx >= 0) handleMarkNotificationRead(globalIdx);
-                  if (notif.link_to) navigate(notif.link_to);
+                  const targetUrl = resolveNotificationUrl(notif);
+                  if (targetUrl) navigate(targetUrl);
                 }}
                 className={`grid grid-cols-[40px_1fr_120px_100px_100px_60px] gap-3 px-5 py-3.5 border-b border-zinc-50 last:border-0 cursor-pointer transition-all duration-150 hover:bg-zinc-50/80 group ${
                   !notif.read ? "bg-orange-50/25" : ""

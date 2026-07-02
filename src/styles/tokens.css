@@ -198,4 +198,32 @@
   --transition-timing-in: cubic-bezier(0.4, 0, 1, 1);
   --transition-timing-out: cubic-bezier(0, 0, 0.2, 1);
   --transition-timing-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Semantic Surface & UI Tokens */
+  --surface-0: #f9f9fb;
+  --surface-1: #ffffff;
+  --surface-2: #f4f4f5;
+
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --text-accent: #f97316;
+  --text-danger: #dc2626;
+  --text-success: #059669;
+  --text-warning: #d97706;
+  --text-pro: #7e22ce;
+
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --border-accent: #f97316;
+  --border-warning: #fde68a;
+
+  --bg-neutral: #f4f4f5;
+  --bg-accent: #fff7ed;
+  --bg-warning: #fffbeb;
+  --bg-danger: #fef2f2;
+  --bg-success: #ecfdf5;
+  --bg-pro: #faf5ff;
+
+  --radius: 0.5rem;
 }

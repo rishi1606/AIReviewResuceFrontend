@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAppContext } from "../context/AppContext";
 import GlobalSearch from "./GlobalSearch";
-import { Menu, User, Settings, LogOut, Loader2, RefreshCw, BrainCircuit, CheckCircle2, X, Bell, Star, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Clock, RotateCw, ChevronRight, Search, ShieldCheck, Building2 } from "lucide-react";
+import { Menu, User, Settings, LogOut, Loader2, RefreshCw, BrainCircuit, CheckCircle2, X, Bell, Star, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Clock, RotateCw, ChevronRight, Search, ShieldCheck, Building2, FileText, Mail, RotateCcw, XCircle, PartyPopper, BarChart2, Download, Info } from "lucide-react";
 import { Tooltip } from "./ui/Tooltip";
 import HelpModal from "./HelpModal";
 import { getPendingStatus } from "../api/apiClient";
@@ -277,14 +277,26 @@ UserAvatarDropdown.displayName = "UserAvatarDropdown";
 // ─── Notification Bell ─────────────────────────────────────────────────────────
 
 const NOTIF_ICONS = {
-  import: { icon: Sparkles, color: 'text-blue-500', bg: 'bg-blue-50' },
-  classified: { icon: BrainCircuit, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  import: { icon: Download, color: 'text-blue-500', bg: 'bg-blue-50' },
+  new_review: { icon: Download, color: 'text-blue-500', bg: 'bg-blue-50' },
+  assign: { icon: FileText, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  ticket_assigned: { icon: FileText, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  submitted: { icon: Mail, color: 'text-purple-500', bg: 'bg-purple-50' },
+  response_pending_approval: { icon: Mail, color: 'text-purple-500', bg: 'bg-purple-50' },
+  response_approved: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  response_rejected: { icon: RotateCcw, color: 'text-amber-500', bg: 'bg-amber-50' },
+  review_rejected: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
+  bo_rejected: { icon: RotateCcw, color: 'text-orange-500', bg: 'bg-orange-50' },
+  published: { icon: PartyPopper, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  superadmin_published: { icon: BarChart2, color: 'text-blue-500', bg: 'bg-blue-50' },
   escalated: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+  escalation_alert: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+  classified: { icon: BrainCircuit, color: 'text-emerald-500', bg: 'bg-emerald-50' },
   suspicious: { icon: ShieldAlert, color: 'text-amber-500', bg: 'bg-amber-50' },
   response: { icon: MessageSquare, color: 'text-purple-500', bg: 'bg-purple-50' },
   success: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50' },
   warning: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' },
-  info: { icon: RefreshCw, color: 'text-blue-500', bg: 'bg-blue-50' },
+  info: { icon: Info, color: 'text-blue-500', bg: 'bg-blue-50' },
   default: { icon: Bell, color: 'text-zinc-500', bg: 'bg-zinc-50' }
 };
 
@@ -297,10 +309,42 @@ const timeAgo = (ts) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
+const resolveNotificationUrl = (notif) => {
+  if (!notif) return null;
+  const revId = typeof notif.relatedReviewId === "object" && notif.relatedReviewId
+    ? (notif.relatedReviewId.review_id || notif.relatedReviewId._id)
+    : (notif.relatedReviewId || notif.review_id);
+
+  if (revId && (
+    notif.link_to === "/approvals" ||
+    notif.link_to === "/reviews/approvals" ||
+    notif.link_to === "/my-reviews" ||
+    notif.type === "bo_rejected" ||
+    notif.type === "submitted" ||
+    notif.type === "assign" ||
+    notif.type === "ticket_assigned" ||
+    notif.type === "response_approved" ||
+    notif.type === "response_rejected" ||
+    notif.type === "review_rejected" ||
+    notif.type === "published"
+  )) {
+    return `/reviews/${revId}`;
+  }
+
+  if (notif.link_to && notif.link_to !== "/approvals" && notif.link_to !== "/reviews/approvals" && notif.link_to !== "/my-reviews") {
+    return notif.link_to;
+  }
+
+  if (revId) return `/reviews/${revId}`;
+  if (notif.link_to === "/approvals" || notif.link_to === "/reviews/approvals") return "/reviews";
+  return notif.link_to || "/reviews";
+};
+
 const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead, navigate }) => {
   const [open, setOpen] = useState(false);
   const bellRef = useRef(null);
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const displayNotifs = useMemo(() => notifications.filter(n => !n.isLocalToast), [notifications]);
+  const unreadCount = displayNotifs.filter(n => !n.read).length;
 
   useEffect(() => {
     if (!open) return;
@@ -313,8 +357,9 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
 
   const handleClick = (notif, idx) => {
     onMarkRead(idx);
-    if (notif.link_to) {
-      navigate(notif.link_to);
+    const targetUrl = resolveNotificationUrl(notif);
+    if (targetUrl) {
+      navigate(targetUrl);
       setOpen(false);
     }
   };
@@ -360,14 +405,14 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
 
           {/* List */}
           <div className="flex-1 overflow-y-auto rounded-b-2xl">
-            {notifications.length === 0 ? (
+            {displayNotifs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
                 <Bell size={28} className="mb-2 opacity-30" />
                 <p className="text-[12px] font-medium">No notifications yet</p>
                 <p className="text-[11px] mt-0.5">Activity will appear here</p>
               </div>
             ) : (
-              notifications.slice(0, 20).map((notif, i) => {
+              displayNotifs.slice(0, 20).map((notif, i) => {
                 const cfg = NOTIF_ICONS[notif.type] || NOTIF_ICONS.default;
                 const Icon = cfg.icon;
                 return (
@@ -401,7 +446,7 @@ const NotificationBell = React.memo(({ notifications, onMarkRead, onMarkAllRead,
           </div>
 
           {/* View All */}
-          {notifications.length > 0 && (
+          {displayNotifs.length > 0 && (
             <div className="border-t border-zinc-100 px-4 py-2.5">
               <button
                 onClick={() => { navigate('/notifications'); setOpen(false); }}

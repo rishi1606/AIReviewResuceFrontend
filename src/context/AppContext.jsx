@@ -124,7 +124,7 @@ const reducer = (state, action) => {
         tickets: state.tickets.map(t => t.ticket_id === action.payload.ticket_id ? { ...t, ...action.payload } : t)
       };
     case actions.ADD_NOTIFICATION:
-      return { ...state, notifications: [{ ...action.payload, read: false, created_at: action.payload.created_at || new Date().toISOString() }, ...state.notifications] };
+      return { ...state, notifications: [{ ...action.payload, isLocalToast: action.payload.persist !== true, read: false, created_at: action.payload.created_at || new Date().toISOString() }, ...state.notifications] };
     case actions.LOAD_NOTIFICATIONS:
       return {
         ...state,
@@ -261,13 +261,14 @@ export const AppProvider = ({ children }) => {
     }
   }, [isAuthenticated, currentUser?.role]);
 
-  // Notification helpers — API + state in one call, no side effects in reducer
   const sendNotification = async (payload) => {
     dispatch({ type: actions.ADD_NOTIFICATION, payload });
-    try {
-      await postNotification(payload);
-    } catch (e) {
-      console.warn('[Notification] Save failed:', e.message);
+    if (payload.persist === true) {
+      try {
+        await postNotification(payload);
+      } catch (e) {
+        console.warn('[Notification] Save failed:', e.message);
+      }
     }
   };
 
