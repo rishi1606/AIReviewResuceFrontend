@@ -13,6 +13,7 @@ import ReviewBoard from "./pages/ReviewBoard";
 import MyReviews from "./pages/MyReviews";
 import ReviewApprovals from "./pages/ReviewApprovals";
 import FinalApprovals from "./pages/FinalApprovals";
+import PublishedReviews from "./pages/PublishedReviews";
 import ReviewDetail from "./pages/ReviewDetail";
 import Tickets from "./pages/Tickets";
 import Import from "./pages/Import";
@@ -42,6 +43,7 @@ function App() {
               <Route path="reviews/my-reviews" element={<MyReviews />} />
               <Route path="reviews/approvals" element={<ReviewApprovals />} />
               <Route path="reviews/final-approval" element={<FinalApprovals />} />
+              <Route path="reviews/published" element={<PublishedReviews />} />
               <Route path="reviews/:review_id" element={<ReviewDetail />} />
               <Route path="tickets" element={<Tickets />} />
               <Route path="import" element={<Import />} />

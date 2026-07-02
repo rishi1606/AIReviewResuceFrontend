@@ -94,10 +94,12 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     
     if (isSuperadmin) {
         reviewNavItems.push({ name: "Review Workflow", path: "/reviews/board", icon: Columns });
+        reviewNavItems.push({ name: "Published Reviews", path: "/reviews/published", icon: Globe });
     } else if (isLead) {
         reviewNavItems.push({ name: "Review Workflow", path: "/reviews/board", icon: Columns });
     } else if (isOwner || isPropertyManager) {
         reviewNavItems.push({ name: "Final Approvals", path: "/reviews/final-approval", icon: CheckCircle2 });
+        reviewNavItems.push({ name: "Published Reviews", path: "/reviews/published", icon: Globe });
     } else {
         reviewNavItems.push({ name: "My Reviews", path: "/reviews/my-reviews", icon: MessageSquare });
     }
