@@ -15,19 +15,24 @@ export const STAFF_ROLES_LABELS = {
 
 // Departments
 export const DEPARTMENTS = [
-  'Front Desk',
+  'Front Office',
   'Housekeeping',
   'Food & Beverage',
   'Maintenance',
-  'Management'
+  'Spa',
+  'Management',
+  'Facilities'
 ];
 
 export const DEPARTMENT_ICONS = {
+  'Front Office': '🏨',
   'Front Desk': '🏨',
   'Housekeeping': '🧹',
   'Food & Beverage': '🍽️',
   'Maintenance': '🔧',
-  'Management': '📋'
+  'Spa': '💆',
+  'Management': '📋',
+  'Facilities': '🏢'
 };
 
 // Staff states
