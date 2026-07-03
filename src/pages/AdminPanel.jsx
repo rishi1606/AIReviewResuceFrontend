@@ -1004,13 +1004,13 @@ const AdminPanel = () => {
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-1">
-                                {/* <button
+                                <button
                                   onClick={() => { setEditingProp(prop); setShowEditProp(true); setPropError(""); }}
                                   className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                   title="Edit"
                                 >
                                   <Edit2 size={14} />
-                                </button> */}
+                                </button>
                                 <button
                                   onClick={() => setTogglingProp(prop)}
                                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer border-none bg-transparent ${prop.is_active !== false
@@ -1493,8 +1493,8 @@ const AdminPanel = () => {
 
               <div>
                 <Label required>Property Name</Label>
-                <Input value={editingProp.name} onChange={e => setEditingProp({ ...editingProp, name: e.target.value })}
-                  placeholder="e.g. Grand Tower" />
+                <Input disabled={true} value={editingProp.name} onChange={e => setEditingProp({ ...editingProp, name: e.target.value })}
+                  placeholder="e.g. Grand Tower" title="Property name cannot be edited after creation." />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -1584,7 +1584,7 @@ const AdminPanel = () => {
                 <div className="flex items-center gap-2 mb-4">
                   <LinkIcon size={14} className="text-purple-500" />
                   <h4 className="text-[13px] font-bold text-zinc-900">Platform Connections</h4>
-                  <InfoTooltip text="Must be the public listing URL for scraping to work" size={12} color="#a1a1aa" />
+                  <InfoTooltip text="Must be the public listing URL for scraping to work. Note: Not able to edit because of reviews." size={12} color="#a1a1aa" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {Object.entries(PLATFORM_META).map(([platform, meta]) => {
@@ -1606,17 +1606,12 @@ const AdminPanel = () => {
                           </div>
                         </div>
                         <div className="relative">
-                          <input type="url" value={url}
+                          <input type="url" value={url} disabled={true}
                             onChange={e => setEditingProp({ ...editingProp, platforms: { ...(editingProp.platforms || {}), [platform]: e.target.value } })}
                             placeholder={`Paste ${platform} URL...`}
-                            className={`w-full pl-3 pr-8 py-2 text-[12px] font-medium rounded-lg border outline-none transition-colors ${isConnected ? "bg-white border-emerald-200 text-zinc-800 focus:border-emerald-400" : "bg-white border-zinc-200 text-zinc-800 focus:border-zinc-400"}`}
+                            className="w-full px-3 py-2 text-[12px] font-medium rounded-lg border border-zinc-200 outline-none transition-colors bg-zinc-100 text-zinc-500 cursor-not-allowed opacity-75"
+                            title="Not able to edit because of reviews."
                           />
-                          {url && (
-                            <X size={12}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-red-500 cursor-pointer transition-colors"
-                              onClick={() => setEditingProp({ ...editingProp, platforms: { ...(editingProp.platforms || {}), [platform]: "" } })}
-                            />
-                          )}
                         </div>
                       </div>
                     );
