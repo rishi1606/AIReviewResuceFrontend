@@ -91,11 +91,10 @@ const StatusFilterPills = ({ value, onChange }) => (
       <button
         key={f.key}
         onClick={() => onChange(f.key)}
-        className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer border-none ${
-          value === f.key
-            ? "bg-white text-zinc-900 shadow-sm"
-            : "bg-transparent text-zinc-500 hover:text-zinc-700"
-        }`}
+        className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer border-none ${value === f.key
+          ? "bg-white text-zinc-900 shadow-sm"
+          : "bg-transparent text-zinc-500 hover:text-zinc-700"
+          }`}
       >
         {f.label}
       </button>
@@ -128,11 +127,10 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
               )}
               <button
                 onClick={() => onPageChange(p)}
-                className={`w-8 h-8 rounded-lg text-[12px] font-semibold transition-colors cursor-pointer border-none ${
-                  p === currentPage
-                    ? "bg-orange-500 text-white shadow-sm"
-                    : "bg-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
-                }`}
+                className={`w-8 h-8 rounded-lg text-[12px] font-semibold transition-colors cursor-pointer border-none ${p === currentPage
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "bg-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                  }`}
               >
                 {p}
               </button>
@@ -154,11 +152,10 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 const PlatformBadge = ({ platform, meta, connected }) => (
   <SharedTooltip content={`${meta.label}: ${connected ? "Connected" : "Not connected"}`}>
     <div
-      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
-        connected
-          ? "border-emerald-200 bg-emerald-50"
-          : "border-zinc-200 bg-zinc-50 opacity-40"
-      }`}
+      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all ${connected
+        ? "border-emerald-200 bg-emerald-50"
+        : "border-zinc-200 bg-zinc-50 opacity-40"
+        }`}
       style={connected ? { borderColor: meta.border } : {}}
     >
       <img src={meta.logo} alt={platform} className="w-4 h-4" onError={e => { e.target.style.display = 'none'; }} />
@@ -310,7 +307,7 @@ const AdminPanel = () => {
     try {
       const res = await toggleBusinessActive(biz._id);
       setBizSuccess(res.message || `✓ Business status toggled`);
-      
+
       const newStatus = !biz.is_active;
       // Visually update the business state
       setBusinesses(businesses.map(b => b._id === biz._id ? { ...b, is_active: newStatus } : b));
@@ -332,10 +329,10 @@ const AdminPanel = () => {
     try {
       const res = await togglePropertyActive(prop._id);
       setPropSuccess(res.message || `✓ Property status toggled`);
-      
+
       const newStatus = !prop.is_active;
       setProperties(properties.map(p => p._id === prop._id ? { ...p, is_active: newStatus } : p));
-      
+
       setTogglingProp(null);
       setTimeout(() => setPropSuccess(""), 3000);
     } catch (err) {
@@ -477,7 +474,7 @@ const AdminPanel = () => {
       b.owner?.name?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = bizStatusFilter === "all" ? true :
       bizStatusFilter === "active" ? b.is_active !== false :
-      b.is_active === false;
+        b.is_active === false;
     return matchesSearch && matchesStatus;
   });
 
@@ -490,7 +487,7 @@ const AdminPanel = () => {
       p.city?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = propStatusFilter === "all" ? true :
       propStatusFilter === "active" ? p.is_active !== false :
-      p.is_active === false;
+        p.is_active === false;
     const matchesBusiness = filterBusinessId ? p.business_id === filterBusinessId : true;
     return matchesSearch && matchesStatus && matchesBusiness;
   });
@@ -576,11 +573,10 @@ const AdminPanel = () => {
               <button
                 key={itemLower}
                 onClick={() => { setActiveTab(itemLower); setFilterBusinessId(null); setSearch(""); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition-all cursor-pointer border-none group ${
-                  isActive
-                    ? "bg-orange-50 text-orange-700 shadow-sm"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-800"
-                } ${collapsed ? "lg:justify-center lg:px-2" : ""}`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold transition-all cursor-pointer border-none group ${isActive
+                  ? "bg-orange-50 text-orange-700 shadow-sm"
+                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-800"
+                  } ${collapsed ? "lg:justify-center lg:px-2" : ""}`}
                 title={collapsed ? item.name : ""}
               >
                 <item.icon
@@ -590,9 +586,8 @@ const AdminPanel = () => {
                 {!collapsed && (
                   <>
                     <span className="flex-1 text-left text-[13px]">{item.name}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      isActive ? "bg-orange-100 text-orange-600" : "bg-zinc-200 text-zinc-500"
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? "bg-orange-100 text-orange-600" : "bg-zinc-200 text-zinc-500"
+                      }`}>
                       {item.count}
                     </span>
                   </>
@@ -682,11 +677,10 @@ const AdminPanel = () => {
                 <button
                   onClick={() => setShowAddBiz(true)}
                   disabled={businesses.length >= 2}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl transition-colors border-none shadow-sm ${
-                    businesses.length >= 2
-                      ? "bg-zinc-200 text-zinc-400 cursor-not-allowed opacity-50"
-                      : "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl transition-colors border-none shadow-sm ${businesses.length >= 2
+                    ? "bg-zinc-200 text-zinc-400 cursor-not-allowed opacity-50"
+                    : "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                    }`}
                 >
                   <Plus size={13} /> Add Business
                 </button>
@@ -714,11 +708,10 @@ const AdminPanel = () => {
                           }
                         }}
                         disabled={isDisabled}
-                        className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl transition-colors border-none shadow-sm ${
-                          isDisabled
-                            ? "bg-zinc-200 text-zinc-400 cursor-not-allowed opacity-50"
-                            : "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                        }`}
+                        className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl transition-colors border-none shadow-sm ${isDisabled
+                          ? "bg-zinc-200 text-zinc-400 cursor-not-allowed opacity-50"
+                          : "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                          }`}
                       >
                         <Plus size={13} /> Add Property
                       </button>
@@ -785,11 +778,10 @@ const AdminPanel = () => {
                         <card.icon size={20} />
                       </div>
                       {card.trend && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
-                          card.trendType === 'up' ? 'bg-emerald-50 text-emerald-600' :
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${card.trendType === 'up' ? 'bg-emerald-50 text-emerald-600' :
                           card.trendType === 'warn' ? 'bg-amber-50 text-amber-600' :
-                          'bg-zinc-100 text-zinc-600'
-                        }`}>
+                            'bg-zinc-100 text-zinc-600'
+                          }`}>
                           {card.trend}
                         </span>
                       )}
@@ -859,28 +851,26 @@ const AdminPanel = () => {
                             <span className="text-[11px] text-zinc-500">{new Date(biz.createdAt).toLocaleDateString()}</span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                              biz.is_active !== false ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
-                            }`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${biz.is_active !== false ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
+                              }`}>
                               {biz.is_active !== false ? "Active" : "Inactive"}
                             </span>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-1">
-                              <button
+                              {/* <button
                                 onClick={() => { setEditingBiz(biz); setShowEditBiz(true); setBizError(""); }}
                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                 title="Edit"
                               >
                                 <Edit2 size={14} />
-                              </button>
+                              </button> */}
                               <button
                                 onClick={() => setTogglingBiz(biz)}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer border-none bg-transparent ${
-                                  biz.is_active !== false
-                                    ? "text-zinc-400 hover:text-amber-600 hover:bg-amber-50"
-                                    : "text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                }`}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer border-none bg-transparent ${biz.is_active !== false
+                                  ? "text-zinc-400 hover:text-amber-600 hover:bg-amber-50"
+                                  : "text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                  }`}
                                 title={biz.is_active !== false ? "Deactivate" : "Activate"}
                               >
                                 <Power size={14} />
@@ -918,11 +908,10 @@ const AdminPanel = () => {
                         <card.icon size={20} />
                       </div>
                       {card.trend && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
-                          card.trendType === 'up' ? 'bg-emerald-50 text-emerald-600' :
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${card.trendType === 'up' ? 'bg-emerald-50 text-emerald-600' :
                           card.trendType === 'warn' ? 'bg-amber-50 text-amber-600' :
-                          'bg-zinc-100 text-zinc-600'
-                        }`}>
+                            'bg-zinc-100 text-zinc-600'
+                          }`}>
                           {card.trend}
                         </span>
                       )}
@@ -1001,36 +990,33 @@ const AdminPanel = () => {
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-1.5">
-                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                  prop.last_sync_status === 'success' ? 'bg-emerald-500' :
+                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${prop.last_sync_status === 'success' ? 'bg-emerald-500' :
                                   prop.last_sync_status === 'failed' ? 'bg-red-500' : 'bg-zinc-300'
-                                }`} />
+                                  }`} />
                                 <span className="text-[11px] text-zinc-500 font-medium">{timeAgo(prop.last_sync_time)}</span>
                               </div>
                             </td>
                             <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                                prop.is_active !== false ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
-                              }`}>
+                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${prop.is_active !== false ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
+                                }`}>
                                 {prop.is_active !== false ? "Active" : "Inactive"}
                               </span>
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-1">
-                                <button
+                                {/* <button
                                   onClick={() => { setEditingProp(prop); setShowEditProp(true); setPropError(""); }}
                                   className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                   title="Edit"
                                 >
                                   <Edit2 size={14} />
-                                </button>
+                                </button> */}
                                 <button
                                   onClick={() => setTogglingProp(prop)}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer border-none bg-transparent ${
-                                    prop.is_active !== false
-                                      ? "text-zinc-400 hover:text-amber-600 hover:bg-amber-50"
-                                      : "text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                  }`}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer border-none bg-transparent ${prop.is_active !== false
+                                    ? "text-zinc-400 hover:text-amber-600 hover:bg-amber-50"
+                                    : "text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                    }`}
                                   title={prop.is_active !== false ? "Deactivate" : "Activate"}
                                 >
                                   <Power size={14} />
@@ -1091,7 +1077,7 @@ const AdminPanel = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>City</Label>
+                  <Label required>City</Label>
                   <Input value={bizForm.city} onChange={e => setBizForm({ ...bizForm, city: e.target.value })}
                     placeholder="Mumbai" />
                 </div>
@@ -1106,7 +1092,7 @@ const AdminPanel = () => {
                 <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Admin Account</p>
                 <div className="space-y-3">
                   <div>
-                    <Label>Admin Name</Label>
+                    <Label required>Admin Name</Label>
                     <Input value={bizForm.admin_name} onChange={e => setBizForm({ ...bizForm, admin_name: e.target.value })}
                       placeholder="John Smith" />
                   </div>
@@ -1160,10 +1146,10 @@ const AdminPanel = () => {
               <BannerError msg={propError} />
 
               <div>
-                <Label required tooltip="Business is the brand; Property is a physical location">Business</Label>
+                <Label required tooltip="Please add a Business first. Note: Only active businesses can be selected to create properties.">Business</Label>
                 <Select value={propForm.business_id} onChange={e => setPropForm({ ...propForm, business_id: e.target.value })}>
                   <option value="">Select a business...</option>
-                  {businesses.map(b => (
+                  {businesses.filter(b => b.is_active !== false).map(b => (
                     <option key={b._id} value={b._id}>{b.hotel_name}</option>
                   ))}
                 </Select>
@@ -1419,9 +1405,8 @@ const AdminPanel = () => {
               <button onClick={() => setTogglingBiz(null)}
                 className="flex-1 py-2.5 text-[13px] font-semibold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors cursor-pointer border-none">Cancel</button>
               <button onClick={() => handleToggleBusiness(togglingBiz)}
-                className={`flex-1 py-2.5 text-[13px] font-semibold text-white rounded-xl transition-colors cursor-pointer border-none ${
-                  togglingBiz.is_active !== false ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
-                }`}>
+                className={`flex-1 py-2.5 text-[13px] font-semibold text-white rounded-xl transition-colors cursor-pointer border-none ${togglingBiz.is_active !== false ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}>
                 {togglingBiz.is_active !== false ? "Deactivate" : "Activate"}
               </button>
             </div>
@@ -1458,7 +1443,7 @@ const AdminPanel = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>City</Label>
+                  <Label required>City</Label>
                   <Input icon={MapPin}
                     value={editingBiz.city || ""}
                     onChange={e => setEditingBiz({ ...editingBiz, city: e.target.value })}
@@ -1737,9 +1722,8 @@ const AdminPanel = () => {
               <button onClick={() => setTogglingProp(null)}
                 className="flex-1 py-2.5 text-[13px] font-semibold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors cursor-pointer border-none">Cancel</button>
               <button onClick={() => handleToggleProperty(togglingProp)}
-                className={`flex-1 py-2.5 text-[13px] font-semibold text-white rounded-xl transition-colors cursor-pointer border-none ${
-                  togglingProp.is_active !== false ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
-                }`}>
+                className={`flex-1 py-2.5 text-[13px] font-semibold text-white rounded-xl transition-colors cursor-pointer border-none ${togglingProp.is_active !== false ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}>
                 {togglingProp.is_active !== false ? "Deactivate" : "Activate"}
               </button>
             </div>
