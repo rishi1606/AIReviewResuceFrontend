@@ -38,7 +38,7 @@ Return ONLY this JSON:
   "sentiment": "Positive|Negative|Mixed|Neutral",
   "sentiment_reason": "Brief explanation of why this sentiment was assigned",
   "confidence": number 0-100,
-  "primary_department": "Pick the most relevant from: [Front Office, Housekeeping, Maintenance, Food & Beverage, Spa, Gym, Management, Security, IT Support]",
+  "primary_department": "Pick the most relevant from: [Front Office, Housekeeping, Maintenance, Food & Beverage, Spa, Management, Facilities]",
   "urgency": "High|Medium|Low",
   "urgency_reason": "Brief explanation of why this urgency level",
   "guest_emotion": "Angry|Frustrated|Disappointed|Neutral|Satisfied|Delighted|Concerned|Anxious",
