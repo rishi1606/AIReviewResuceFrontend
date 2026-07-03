@@ -212,9 +212,11 @@ const ReviewDetail = () => {
           text, tone, generated_by: "ai",
           editor: currentUser?.name || currentUser?.email
         });
-        setReview(res.data);
-        setDraftHistory(res.data.draft_history || []);
-        setActiveDraftVersion(res.data.draft_history?.length || 1);
+        if (res?.data) {
+          setReview(res.data);
+          setDraftHistory(res.data.draft_history || []);
+          setActiveDraftVersion(res.data.draft_history?.length || 1);
+        }
       }
     } catch (err) {
       console.error("Generation failed:", err);
@@ -536,8 +538,11 @@ const ReviewDetail = () => {
         text: proposal, tone, generated_by: "manual",
         editor: currentUser?.name || currentUser?.email
       });
-      setReview(res.data);
-      setDraftHistory(res.data.draft_history || []);
+      if (res?.data) {
+        setReview(res.data);
+        setDraftHistory(res.data.draft_history || []);
+        setActiveDraftVersion(res.data.draft_history?.length || 1);
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -545,10 +550,15 @@ const ReviewDetail = () => {
     setProposal(editText);
     setIsEditing(false);
     try {
-      await saveDraft(review_id, {
+      const res = await saveDraft(review_id, {
         text: editText, tone, generated_by: "manual",
         editor: currentUser?.name || currentUser?.email
       });
+      if (res?.data) {
+        setReview(res.data);
+        setDraftHistory(res.data.draft_history || []);
+        setActiveDraftVersion(res.data.draft_history?.length || 1);
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -1178,7 +1188,7 @@ const ReviewDetail = () => {
                       onClick={() => { setProposal(d.text); setActiveDraftVersion(d.version); setTone(d.tone); }}
                       className={`rd-version-pill ${activeDraftVersion === d.version ? "active" : ""}`}
                     >
-                      v{d.version}
+                      v{d.version} {d.tone ? `· ${d.tone}` : ""}
                     </button>
                   ))}
                 </div>

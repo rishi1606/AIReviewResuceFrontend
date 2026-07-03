@@ -535,7 +535,7 @@ const StaffManagement = () => {
       ) : (
         <>
           {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-zinc-200 p-4">
           <p className="text-xs text-zinc-500 mb-1">Total</p>
           <p className="text-2xl font-bold text-zinc-900">{displayedStaff.length}</p>
@@ -544,12 +544,6 @@ const StaffManagement = () => {
           <p className="text-xs text-zinc-500 mb-1">Active</p>
           <p className="text-2xl font-bold text-emerald-600">
             {displayedStaff.filter(s => s.is_active).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-zinc-200 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Inactive</p>
-          <p className="text-2xl font-bold text-zinc-400">
-            {displayedStaff.filter(s => !s.is_active).length}
           </p>
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-4">

@@ -141,55 +141,55 @@ const ReviewResult = React.memo(({ review: r, onSelect }) => {
 });
 ReviewResult.displayName = "ReviewResult";
 
-// const TicketResult = React.memo(({ ticket: t, onSelect }) => {
-//     const handleClick = useCallback(() => {
-//         onSelect(`/tickets?search=${encodeURIComponent(t.ticket_id)}&highlight=${t.ticket_id}`);
-//     }, [onSelect, t.ticket_id]);
+const TicketResult = React.memo(({ ticket: t, onSelect }) => {
+    const handleClick = useCallback(() => {
+        onSelect(`/tickets?search=${encodeURIComponent(t.ticket_id)}&highlight=${t.ticket_id}`);
+    }, [onSelect, t.ticket_id]);
 
-//     const date = useMemo(() => formatDate(t.created_at), [t.created_at]);
+    const date = useMemo(() => formatDate(t.created_at), [t.created_at]);
 
-//     return (
-//         <button
-//             type="button"
-//             onClick={handleClick}
-//             className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors focus-visible:bg-slate-50 focus-visible:outline-none"
-//             aria-label={`Ticket ${t.ticket_id} for ${t.guest_name ?? "Unknown guest"}`}
-//         >
-//             <UrgencyDot urgency={t.urgency} />
-//             <div className="flex-1 min-w-0">
-//                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
-//                     <span className="text-sm font-semibold text-slate-900">{t.ticket_id}</span>
-//                     <span className="text-xs text-slate-400" aria-hidden="true">·</span>
-//                     <span className="text-xs text-slate-500">{t.guest_name}</span>
-//                     {t.department && (
-//                         <>
-//                             <span className="text-xs text-slate-400" aria-hidden="true">·</span>
-//                             <span className="text-xs text-orange-500 font-medium">{t.department}</span>
-//                         </>
-//                     )}
-//                 </div>
-//                 <p className="text-xs text-slate-500 truncate mb-2">{t.review_text}</p>
-//                 <div className="flex items-center gap-1.5 flex-wrap">
-//                     {t.status && (
-//                         <Badge className="bg-blue-50 text-blue-600 border border-blue-100">{t.status}</Badge>
-//                     )}
-//                     {t.urgency && (
-//                         <Badge className={getUrgencyClass(t.urgency)}>{t.urgency} urgency</Badge>
-//                     )}
-//                     {t.assignee_name && t.assignee_name !== "Unassigned" && (
-//                         <Badge className="bg-slate-100 text-slate-600 border border-slate-200">
-//                             {t.assignee_name}
-//                         </Badge>
-//                     )}
-//                     {date && (
-//                         <span className="text-[10px] text-slate-400 ml-auto">{date}</span>
-//                     )}
-//                 </div>
-//             </div>
-//         </button>
-//     );
-// });
-// TicketResult.displayName = "TicketResult";
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            className="w-full flex items-start gap-3 px-5 py-3 hover:bg-slate-50 border-t border-slate-100 text-left transition-colors focus-visible:bg-slate-50 focus-visible:outline-none"
+            aria-label={`Ticket ${t.ticket_id} for ${t.guest_name ?? "Unknown guest"}`}
+        >
+            <UrgencyDot urgency={t.urgency} />
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="text-sm font-semibold text-slate-900">{t.ticket_id}</span>
+                    <span className="text-xs text-slate-400" aria-hidden="true">·</span>
+                    <span className="text-xs text-slate-500">{t.guest_name}</span>
+                    {t.department && (
+                        <>
+                            <span className="text-xs text-slate-400" aria-hidden="true">·</span>
+                            <span className="text-xs text-orange-500 font-medium">{t.department}</span>
+                        </>
+                    )}
+                </div>
+                <p className="text-xs text-slate-500 truncate mb-2">{t.review_text}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {t.status && (
+                        <Badge className="bg-blue-50 text-blue-600 border border-blue-100">{t.status}</Badge>
+                    )}
+                    {t.urgency && (
+                        <Badge className={getUrgencyClass(t.urgency)}>{t.urgency} urgency</Badge>
+                    )}
+                    {t.assignee_name && t.assignee_name !== "Unassigned" && (
+                        <Badge className="bg-slate-100 text-slate-600 border border-slate-200">
+                            {t.assignee_name}
+                        </Badge>
+                    )}
+                    {date && (
+                        <span className="text-[10px] text-slate-400 ml-auto">{date}</span>
+                    )}
+                </div>
+            </div>
+        </button>
+    );
+});
+TicketResult.displayName = "TicketResult";
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 

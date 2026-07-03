@@ -36,7 +36,7 @@ const MyReviews = () => {
 
   const todoReviews = reviews.filter(r => {
     const status = getUIStatus(r);
-    return status === "Assigned" || status === "In Progress" || status === "Rejected";
+    return status === "Assigned" || status === "In Progress" || status === "Rejected" || status === "Reopened";
   });
 
   const submittedReviews = reviews.filter(r => {

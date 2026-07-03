@@ -54,6 +54,7 @@ const COLUMNS = [
   "In Progress",
   "Pending Approval",
   "Lead Approved",
+  "Reopened",
   "Rejected",
   "Published"
 ];
@@ -75,6 +76,7 @@ const ReviewBoard = () => {
     "Assigned",
     "In Progress",
     "Pending Approval",
+    "Reopened",
     "Published"
   ]);
 

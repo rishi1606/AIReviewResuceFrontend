@@ -1,5 +1,5 @@
 import React from "react";
-import { CircleDot, UserCircle2, Clock, FileCheck, CheckCircle2, Globe2, AlertCircle } from "lucide-react";
+import { CircleDot, UserCircle2, Clock, FileCheck, CheckCircle2, Globe2, AlertCircle, RotateCcw } from "lucide-react";
 
 export const getUIStatus = (review) => {
   if (!review) return "Unassigned";
@@ -13,7 +13,11 @@ export const getUIStatus = (review) => {
     return "Published";
   }
 
-  if (review.approval_status === "rejected" || review.approval_status === "reopened") {
+  if (review.approval_status === "reopened") {
+    return "Reopened";
+  }
+
+  if (review.approval_status === "rejected") {
     return "Rejected";
   }
 
@@ -46,6 +50,7 @@ const StatusBadge = ({ review, customStatus }) => {
     "In Progress": { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", icon: Clock },
     "Pending Approval": { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", icon: FileCheck },
     "Lead Approved": { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200", icon: CheckCircle2 },
+    "Reopened": { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-200", icon: RotateCcw },
     "Rejected": { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", icon: AlertCircle },
     "Published": { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", icon: Globe2 },
   };

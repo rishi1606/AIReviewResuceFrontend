@@ -36,6 +36,9 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
     if (!staff && !formData.password) newErrors.password = 'Password required';
     if (!formData.role) newErrors.role = 'Role required';
     if (!formData.property_id) newErrors.property_id = 'Property required';
+    if ((formData.role === STAFF_ROLES.STAFF || formData.role === STAFF_ROLES.LEAD) && !formData.department) {
+      newErrors.department = 'Department required';
+    }
 
     // For Staff role, check if the property's department has a Lead
     if (formData.role === STAFF_ROLES.STAFF && formData.department && formData.property_id && !propDeptHasLead) {
@@ -98,7 +101,7 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
           {/* Name */}
           <div>
             <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-              Full Name
+              Full Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -117,7 +120,7 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
           {/* Email */}
           <div>
             <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -140,7 +143,7 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
               {/* Password */}
               <div>
                 <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                  Password
+                  Password <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -159,7 +162,7 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
           {/* Role */}
           <div>
             <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-              Role
+              Role <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.role}
@@ -183,7 +186,7 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
           {(formData.role === STAFF_ROLES.STAFF || formData.role === STAFF_ROLES.LEAD) && (
             <div>
               <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Department
+                Department <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.department || ''}
