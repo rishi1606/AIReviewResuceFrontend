@@ -891,29 +891,6 @@ const Dashboard = () => {
           </>
         ) : (
           <>
-            {/* ─ Add Property CTA ─ */}
-            <div
-              className="border-2 border-dashed border-zinc-200 rounded-2xl p-5 cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-all group"
-              onClick={goToSettings}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && goToSettings()}
-              aria-label="Go to settings to add a new property"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0 group-hover:bg-orange-100 transition-colors">
-                  <Plus size={18} className="text-orange-500" />
-                </div>
-                <div>
-                  <h3 className="text-[14px] font-bold text-zinc-900">Add New Property</h3>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">Connect hotels & platforms</p>
-                </div>
-              </div>
-              <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 group-hover:text-orange-700 group-hover:translate-x-1 transition-all">
-                Go to Settings <ArrowRight size={12} aria-hidden="true" />
-              </span>
-            </div>
-
             {/* ─ What Guests Talk About ─ */}
             {topicsData.length > 0 && (
               <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
