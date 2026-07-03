@@ -1005,7 +1005,7 @@ const AdminPanel = () => {
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => { setEditingProp(prop); setShowEditProp(true); setPropError(""); }}
+                                  onClick={() => { setEditingProp({ ...prop, _originalPlatforms: { ...(prop.platforms || {}) } }); setShowEditProp(true); setPropError(""); }}
                                   className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                   title="Edit"
                                 >
@@ -1590,6 +1590,7 @@ const AdminPanel = () => {
                   {Object.entries(PLATFORM_META).map(([platform, meta]) => {
                     const url = (editingProp.platforms && editingProp.platforms[platform]) || "";
                     const isConnected = url && url.startsWith("http");
+                    const wasConnected = Boolean(editingProp._originalPlatforms && editingProp._originalPlatforms[platform] && String(editingProp._originalPlatforms[platform]).trim() !== "");
                     return (
                       <div key={platform}
                         className={`rounded-xl border-2 p-4 transition-all ${isConnected ? "border-emerald-200 bg-emerald-50/30" : "border-zinc-200 bg-zinc-50/50 hover:border-zinc-300"}`}>
@@ -1606,12 +1607,18 @@ const AdminPanel = () => {
                           </div>
                         </div>
                         <div className="relative">
-                          <input type="url" value={url} disabled={true}
+                          <input type="url" value={url} disabled={wasConnected}
                             onChange={e => setEditingProp({ ...editingProp, platforms: { ...(editingProp.platforms || {}), [platform]: e.target.value } })}
                             placeholder={`Paste ${platform} URL...`}
-                            className="w-full px-3 py-2 text-[12px] font-medium rounded-lg border border-zinc-200 outline-none transition-colors bg-zinc-100 text-zinc-500 cursor-not-allowed opacity-75"
-                            title="Not able to edit because of reviews."
+                            className={`w-full pl-3 pr-8 py-2 text-[12px] font-medium rounded-lg border outline-none transition-colors ${wasConnected ? "bg-zinc-100 border-zinc-200 text-zinc-500 cursor-not-allowed opacity-75" : isConnected ? "bg-white border-emerald-200 text-zinc-800 focus:border-emerald-400" : "bg-white border-zinc-200 text-zinc-800 focus:border-purple-400"}`}
+                            title={wasConnected ? "Not able to edit because of reviews." : ""}
                           />
+                          {url && !wasConnected && (
+                            <X size={12}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-red-500 cursor-pointer transition-colors"
+                              onClick={() => setEditingProp({ ...editingProp, platforms: { ...(editingProp.platforms || {}), [platform]: "" } })}
+                            />
+                          )}
                         </div>
                       </div>
                     );
