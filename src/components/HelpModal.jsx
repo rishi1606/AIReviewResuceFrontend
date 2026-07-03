@@ -5,7 +5,8 @@ import {
   BarChart3, MessageSquare, Settings, Star, Flag, Shield,
   RefreshCw, CheckCircle2, AlertTriangle, Clock, Search,
   Bell, Sparkles, TrendingUp, Filter, Download, Eye,
-  Users, BookOpen, Building2, Globe
+  Users, BookOpen, Building2, Globe, Inbox, ShieldCheck,
+  UserPlus, Edit2, Trash2, ToggleRight, Columns, ArrowRight
 } from "lucide-react";
 
 // ─── Help content per page ──────────────────────────────────────────────────
@@ -293,6 +294,212 @@ const HELP_CONTENT = {
           "**Sync Status** — Watch for indicators showing when the last sync ran. If it's stale, check your platform connections.",
           "**Failed Syncs** — If a platform connection breaks (e.g., authentication token expired), the sync will fail and you'll be alerted.",
           "**Why this matters** — Timely review data means timely responses. Regular syncs ensure your team is always working with fresh guest feedback, not reviews from days ago."
+        ]
+      }
+    ]
+  },
+
+  staff: {
+    title: "Staff Management — How It Works",
+    intro: "This is where you manage your hotel team. Add, edit, and organise staff members who will handle review responses across your properties.",
+    sections: [
+      {
+        icon: Users,
+        heading: "Understanding Staff Roles",
+        items: [
+          "**Business Owner** — Full access to everything: staff management, settings, final approvals, published reviews, and all analytics. Owners are the only ones who can add or remove staff.",
+          "**Department Lead** — Manages review responses for their assigned department (e.g., Front Desk Lead, Housekeeping Lead). Leads can assign reviews to staff, approve drafted responses, and monitor their department's workflow via the Review Workflow board.",
+          "**Staff Member** — Handles individual reviews assigned to them. Staff can draft responses, submit them for approval, and track their own work in the My Reviews page.",
+          "**Why this matters** — Clear roles mean clear accountability. Each person knows exactly what they're responsible for, and the approval chain ensures no response goes out without proper review."
+        ]
+      },
+      {
+        icon: UserPlus,
+        heading: "Adding New Staff",
+        items: [
+          "Click the **'+ Add Staff'** button at the top to open the form.",
+          "Fill in the staff member's **name**, **email**, and a **temporary password** they'll use to log in.",
+          "Choose their **role** — either Department Lead or Staff Member.",
+          "Assign them to a **department** (Front Desk, Housekeeping, Food & Beverage, Maintenance, or Management) so reviews are routed correctly.",
+          "Select which **property** they belong to if you manage multiple hotels.",
+          "**Why this matters** — Getting the department and property right ensures that when reviews come in, they're automatically routed to the right person — no manual sorting needed."
+        ]
+      },
+      {
+        icon: Edit2,
+        heading: "Editing & Managing Staff",
+        items: [
+          "**Edit** — Click the edit icon on any staff row to update their name, email, role, department, or property assignment. Useful when someone changes departments or takes on a new role.",
+          "**Remove** — Permanently delete a staff member from the system. Their past actions in the audit trail remain, but they can no longer be assigned new work.",
+          "**Why this matters** — Hotels have high staff turnover. Being able to quickly onboard new team members and offboard departing ones keeps your review workflow running smoothly without gaps."
+        ]
+      },
+      {
+        icon: Filter,
+        heading: "Filtering by Property",
+        items: [
+          "Use the **property filter** in the sidebar to view staff for a specific property only.",
+          "When set to 'All Properties', you see every staff member across your entire business.",
+          "The staff table updates instantly when you switch properties.",
+          "**Why this matters** — If you manage multiple hotels, filtering helps you see exactly who's responsible for each property without scrolling through the entire team list."
+        ]
+      },
+      {
+        icon: Shield,
+        heading: "Access & Permissions",
+        items: [
+          "Only **Business Owners** and **Department Leads** can access the Staff Management page.",
+          "Staff Members are redirected to the Dashboard if they try to access this page directly.",
+          "Owners can create staff of any role (Lead or Staff). Leads can view the team but cannot add or remove members.",
+          "**Why this matters** — Sensitive operations like adding accounts with login credentials should only be done by authorised personnel. This keeps your system secure and prevents accidental changes."
+        ]
+      }
+    ]
+  },
+
+  publishedReviews: {
+    title: "Published Reviews — How It Works",
+    intro: "This is your complete archive of all guest reviews that have been fully processed — responses drafted, approved, and published to the original platforms.",
+    sections: [
+      {
+        icon: Globe,
+        heading: "What Appears Here",
+        items: [
+          "A review appears on this page once its response has been **fully approved and published**. This means it has passed through every stage of the workflow: AI analysis → staff drafting → lead approval → owner final approval → published.",
+          "Each card shows the guest name, platform, department, rating, the original guest review, and the published response.",
+          "The **'Approved by'** tag at the bottom of each card tells you which team member gave the final sign-off.",
+          "**Why this matters** — This is your proof that every review has been handled. It serves as a quality record, an audit trail, and a reference library for how your hotel responds to different types of feedback."
+        ]
+      },
+      {
+        icon: BarChart3,
+        heading: "KPI Cards — Performance at a Glance",
+        items: [
+          "**Total Published** — The total count of reviews that have been responded to and published. A growing number here means your team is staying on top of guest feedback.",
+          "**Average Rating** — The average star rating across all published reviews. This gives you a sense of the overall guest sentiment in your completed work.",
+          "**5-Star Reviews** — How many published reviews were perfect scores, shown as both a count and percentage.",
+          "**Positive Ratio** — The percentage of published reviews with positive sentiment or high ratings. Aim to keep this high.",
+          "**Why this matters** — These stats help you measure how effectively your team is handling guest feedback. A high volume with a strong positive ratio shows your reputation management is working."
+        ]
+      },
+      {
+        icon: Search,
+        heading: "Searching & Filtering",
+        items: [
+          "**Search Bar** — Search by guest name, review text, or response text. Useful for finding a specific guest's review when they call or email.",
+          "**Platform Filter** — Show only reviews from a specific platform (Google, Booking.com, Agoda, etc.).",
+          "**Department Filter** — Focus on reviews related to a specific department like Housekeeping or Front Desk.",
+          "**Rating Filter** — Filter by star rating to see how your team responded to different satisfaction levels.",
+          "**Property Filter** (in the sidebar) — If you manage multiple hotels, narrow down to a single property.",
+          "**Why this matters** — When preparing reports for ownership, brand audits, or internal reviews, these filters let you slice the data exactly the way you need it."
+        ]
+      },
+      {
+        icon: Eye,
+        heading: "Viewing Published Responses",
+        items: [
+          "Each card shows a snippet of both the **guest review** and the **published response**. Click **'View →'** to open the full review detail page.",
+          "The response is marked with a **'Formal'** tag (or whichever tone was used) so you can see at a glance what voice was used.",
+          "Published responses cannot be edited from this page — if you need to make changes, go to the full Review Detail page and reopen the review.",
+          "**Why this matters** — Having both the review and response visible side-by-side lets you quickly assess the quality and appropriateness of your team's work without opening each review individually."
+        ]
+      }
+    ]
+  },
+
+  finalApprovals: {
+    title: "Final Approvals — How It Works",
+    intro: "This is the last checkpoint before a response goes live. As the Business Owner, you review responses that have already been approved by a Department Lead, and either publish them or send them back for revisions.",
+    sections: [
+      {
+        icon: ShieldCheck,
+        heading: "What Appears Here",
+        items: [
+          "Reviews on this page have the status **'Lead Approved'** — meaning a Department Lead has already reviewed the AI-drafted response and approved it from their side.",
+          "These responses are waiting for your **final sign-off** before they go live on the review platform (Google, Booking.com, etc.).",
+          "The left panel shows all pending reviews. Click any to see the full details on the right.",
+          "**Why this matters** — This two-tier approval system ensures that no response is published without both department-level and management-level review. It protects your hotel's brand voice and prevents mistakes from reaching guests."
+        ]
+      },
+      {
+        icon: CheckCircle2,
+        heading: "Approving a Response",
+        items: [
+          "Select a review from the left panel to see the full guest review, AI analysis, and the drafted response.",
+          "Read the response carefully — make sure it addresses the guest's concerns, matches your hotel's tone, and doesn't promise anything you can't deliver.",
+          "Click **'Approve & Publish'** to mark the response as final. The review status changes to 'Published' and it moves to the Published Reviews archive.",
+          "A success notification confirms the action, and the review disappears from your pending queue.",
+          "**Why this matters** — Your approval is the green light. Once you publish, the response represents your hotel publicly. Take a moment to read it — a well-crafted response can turn a negative experience into a returning guest."
+        ]
+      },
+      {
+        icon: ArrowRight,
+        heading: "Rejecting a Response",
+        items: [
+          "If a response isn't quite right — wrong tone, missing key points, or factually incorrect — you can **reject it back to the Lead**.",
+          "You must provide a **rejection reason** explaining what needs to change. This feedback goes directly to the Lead who approved it.",
+          "The review goes back to the Lead's workflow board so they can revise the draft with your feedback.",
+          "There's no limit to how many times a response can be sent back — keep iterating until it's perfect.",
+          "**Why this matters** — Rejection with clear feedback is a coaching tool. It helps your Leads learn your standards and gradually reduces the need for revisions over time."
+        ]
+      },
+      {
+        icon: Eye,
+        heading: "Review Details Panel",
+        items: [
+          "The right panel shows everything you need to make a decision: the **guest's original review**, their **rating**, the **AI-generated analysis** (sentiment, department, urgency), and the **drafted response**.",
+          "You can see which **Lead approved** the response in the header tag, so you know who's accountable.",
+          "**Superadmin users** see this page in read-only monitor mode — they can observe the workflow but cannot approve or reject.",
+          "**Why this matters** — Having all the context in one view means you can make confident decisions quickly without switching between pages or asking your team for background information."
+        ]
+      }
+    ]
+  },
+
+  myReviews: {
+    title: "My Reviews — How It Works",
+    intro: "This is your personal workspace. All reviews assigned to you appear here, split into what needs your attention and what you've already submitted.",
+    sections: [
+      {
+        icon: Inbox,
+        heading: "To Do Tab — Your Work Queue",
+        items: [
+          "Reviews that have been **assigned to you** by a Department Lead appear here. These are the reviews waiting for you to draft a response.",
+          "You'll see reviews with statuses like **'Assigned'** (fresh, waiting for you to start), **'In Progress'** (you've started but not submitted), or **'Rejected'** (sent back to you with feedback for revision).",
+          "Click any review card to open it and start drafting your response.",
+          "**Rejected reviews** need special attention — they were sent back because the Lead or Owner wanted changes. Check the rejection feedback before revising.",
+          "**Why this matters** — This tab is your daily checklist. Start here every shift to see what needs your attention. The count in the tab header tells you how much work is in your queue."
+        ]
+      },
+      {
+        icon: CheckCircle2,
+        heading: "Submitted Tab — Tracking Your Work",
+        items: [
+          "Once you submit a response for approval, the review moves to this tab.",
+          "You'll see statuses like **'Pending Approval'** (waiting for your Lead to review), **'Lead Approved'** (approved by Lead, waiting for Owner's final sign-off), or **'Published'** (live on the platform — great work!).",
+          "You can click any submitted review to see its current status and your response.",
+          "**Why this matters** — Tracking your submitted work lets you see the progress of your responses through the approval pipeline. If something's been stuck in 'Pending Approval' for too long, you might want to check in with your Lead."
+        ]
+      },
+      {
+        icon: MessageSquare,
+        heading: "Drafting a Response",
+        items: [
+          "When you click a review from your To Do list, you're taken to the **Review Detail page** where you can read the full guest review and all the AI analysis.",
+          "Use the **Generate Draft** button to get an AI-suggested response, then customise it to match your hotel's voice.",
+          "Choose the right **tone** (Formal, Empathetic, Friendly, Apologetic, or Concise) based on what the guest wrote.",
+          "Once you're happy with the draft, submit it for your Lead's approval.",
+          "**Why this matters** — Your response is the voice of the hotel. Taking a few extra seconds to personalise the AI draft makes the difference between a generic reply and one that genuinely connects with the guest."
+        ]
+      },
+      {
+        icon: Star,
+        heading: "Review Card Information",
+        items: [
+          "Each card shows the review's **current status**, the **guest name**, their **star rating**, the **platform** it came from, and the **date** it was assigned to you.",
+          "A preview of the guest's review text is shown so you can quickly gauge what the review is about before opening it.",
+          "Hover over a card to reveal the action button — **'Draft Response'** for To Do items, or **'View Details'** for submitted ones.",
+          "**Why this matters** — The card layout lets you quickly scan your queue and prioritise. Low-rated reviews or older assignments might need attention first."
         ]
       }
     ]

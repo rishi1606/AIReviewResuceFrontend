@@ -240,6 +240,15 @@ export const AppProvider = ({ children }) => {
         }
       });
 
+      // For leads and staff, pre-fill the global active filter with their assigned property name instantly
+      // to avoid any "flashing" of unfiltered data on the dashboard.
+      if ((currentUser?.role === 'lead' || currentUser?.role === 'staff') && currentUser?.property_id) {
+        const leadProp = (hotel.data?.properties || []).find(p => p._id === currentUser.property_id || p.id === currentUser.property_id);
+        if (leadProp) {
+          dispatch({ type: actions.SET_ACTIVE_FILTERS, payload: { property: leadProp.name } });
+        }
+      }
+
       console.log('[AppContext] ✅ STATE UPDATED');
 
       // Load notifications from backend

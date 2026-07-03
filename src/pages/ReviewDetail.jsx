@@ -592,6 +592,23 @@ const ReviewDetail = () => {
     </div>
   );
 
+  const selectedProperty = state.activeFilters?.property || "ALL";
+  if (selectedProperty !== "ALL" && review.hotel_name !== selectedProperty) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] gap-4">
+        <AlertTriangle size={48} className="text-orange-400" />
+        <h2 className="text-xl font-bold text-zinc-800">Property Mismatch</h2>
+        <p className="text-zinc-500 font-medium text-center max-w-md">
+          This review belongs to <span className="font-bold text-zinc-700">{review.hotel_name}</span>.<br/>
+          Your current filter is set to <span className="font-bold text-orange-600">{selectedProperty}</span>.
+        </p>
+        <button onClick={() => navigate("/reviews")} className="mt-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold transition-all">
+          Back to Reviews
+        </button>
+      </div>
+    );
+  }
+
   const sc = getSentimentColor(review.sentiment);
   const conf = review.confidence;
 
@@ -1443,7 +1460,7 @@ const ReviewDetail = () => {
 
           {/* ── Panel 4: Flag Workflow ── */}
           <div className="rd-panel">
-            <div className="rd-panel-title"><Flag size={14} className="text-red-400" /> Flag Review</div>
+            <div className="rd-panel-title"><Flag size={14} className="text-red-400" /> Flag Review <InfoTooltip text="Use flags to mark reviews that need special attention — for example, if a published response couldn't be posted on the platform, flag it as 'Not Posted' so your team can investigate. Remember: responses are not auto-posted. You need to copy the approved response and paste it on the platform manually." size={13} /></div>
 
             {review.is_suspicious ? (
               <div className="p-3 rounded-lg" style={{ background: "#fef2f2", border: "1px solid #fecaca" }}>

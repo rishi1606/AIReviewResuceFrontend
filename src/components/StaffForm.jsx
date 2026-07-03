@@ -16,14 +16,18 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Check if a Lead already exists for the selected department
-  const getDepartmentLeadCount = (dept) => {
-    if (!dept) return 0;
-    return existingStaff.filter(s => (s.role === 'lead' || s.role === STAFF_ROLES.LEAD) && s.department === dept).length;
+  // Check if a Lead already exists for the selected property AND department
+  const getPropertyDepartmentLeadCount = (propertyId, dept) => {
+    if (!propertyId || !dept) return 0;
+    return existingStaff.filter(s =>
+      (s.role === 'lead' || s.role === STAFF_ROLES.LEAD) &&
+      (s.property_id === propertyId) &&
+      (s.department === dept)
+    ).length;
   };
 
-  const departmentLeadCount = getDepartmentLeadCount(formData.department);
-  const departmentHasLead = departmentLeadCount > 0;
+  const propDeptLeadCount = getPropertyDepartmentLeadCount(formData.property_id, formData.department);
+  const propDeptHasLead = propDeptLeadCount > 0;
 
   const validate = () => {
     const newErrors = {};
@@ -33,14 +37,15 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
     if (!formData.role) newErrors.role = 'Role required';
     if (!formData.property_id) newErrors.property_id = 'Property required';
 
-    // For Staff role, check if department has a Lead
-    if (formData.role === STAFF_ROLES.STAFF && formData.department && !departmentHasLead) {
-      newErrors.department = `⚠️ First add a Lead to "${formData.department}" department`;
+    // For Staff role, check if the property's department has a Lead
+    if (formData.role === STAFF_ROLES.STAFF && formData.department && formData.property_id && !propDeptHasLead) {
+      newErrors.department = `⚠️ First add a Lead to "${formData.department}" department for this property.`;
     }
 
-    // Check if trying to add another Lead to same department
-    if (formData.role === 'lead' && departmentLeadCount > 0 && !staff) {
-      newErrors.department = `Only 1 Lead allowed per department. "${formData.department}" already has a Lead.`;
+    // Check if trying to add another Lead to same property AND department
+    if (formData.role === 'lead' && propDeptLeadCount > 0 && !staff) {
+      const propName = properties.find(p => (p._id || p.id) === formData.property_id)?.name || 'this property';
+      newErrors.role = `Only 1 Lead allowed per department per property. "${propName}" already has a "${formData.department}" Lead.`;
     }
 
     setErrors(newErrors);
@@ -129,26 +134,27 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
             {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
           </div>
 
-          {/* Password */}
+          {/* Password, Role, Department, and Property are only for creation */}
           {!staff && (
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className={`w-full px-3 py-2 rounded-lg border transition-colors ${
-                  errors.password
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-zinc-200 focus:border-orange-400'
-                }`}
-                placeholder="••••••••"
-              />
-              {errors.password && <p className="text-red-600 text-xs mt-1">{errors.password}</p>}
-            </div>
-          )}
+            <>
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border transition-colors ${
+                    errors.password
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-zinc-200 focus:border-orange-400'
+                  }`}
+                  placeholder="••••••••"
+                />
+                {errors.password && <p className="text-red-600 text-xs mt-1">{errors.password}</p>}
+              </div>
 
           {/* Role */}
           <div>
@@ -166,8 +172,8 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
             >
               <option value="">Select role</option>
               <option value={STAFF_ROLES.STAFF}>{STAFF_ROLES_LABELS[STAFF_ROLES.STAFF]}</option>
-              <option value={STAFF_ROLES.LEAD} disabled={departmentLeadCount > 0 && !staff && formData.department}>
-                {STAFF_ROLES_LABELS[STAFF_ROLES.LEAD]} {departmentLeadCount > 0 && !staff && formData.department ? '(Limit reached)' : ''}
+              <option value={STAFF_ROLES.LEAD} disabled={propDeptLeadCount > 0 && !staff && formData.property_id && formData.department}>
+                {STAFF_ROLES_LABELS[STAFF_ROLES.LEAD]} {propDeptLeadCount > 0 && !staff && formData.property_id && formData.department ? '(Limit reached)' : ''}
               </option>
             </select>
             {errors.role && <p className="text-red-600 text-xs mt-1">{errors.role}</p>}
@@ -226,7 +232,8 @@ const StaffForm = ({ onSubmit, onClose, staff, userRole, currentBusinessId, busi
             </select>
             {errors.property_id && <p className="text-red-600 text-xs mt-1">{errors.property_id}</p>}
           </div>
-
+          </>
+          )}
           {/* Submit Button */}
           <button
             type="submit"

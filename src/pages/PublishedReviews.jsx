@@ -101,6 +101,15 @@ const PublishedReviews = () => {
   const [selectedRating, setSelectedRating] = useState("ALL");
   const [selectedDepartment, setSelectedDepartment] = useState("ALL");
   const [selectedSentiment, setSelectedSentiment] = useState("ALL");
+  const [isFiltering, setIsFiltering] = useState(false);
+
+  // Simulate loading when property filter changes
+  const selectedGlobalProperty = state.activeFilters?.property || "ALL";
+  useEffect(() => {
+    setIsFiltering(true);
+    const timer = setTimeout(() => setIsFiltering(false), 500);
+    return () => clearTimeout(timer);
+  }, [selectedGlobalProperty]);
 
   useEffect(() => {
     document.title = "ReviewRescue — Published Reviews";
@@ -140,6 +149,9 @@ const PublishedReviews = () => {
   // Filter logic
   const filteredReviews = useMemo(() => {
     return reviews.filter(r => {
+      if (selectedGlobalProperty !== "ALL" && r.hotel_name !== selectedGlobalProperty) {
+        return false;
+      }
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const nameMatch = (r.reviewer_name || "").toLowerCase().includes(query);
@@ -165,22 +177,22 @@ const PublishedReviews = () => {
       }
       return true;
     });
-  }, [reviews, searchQuery, selectedPlatform, selectedDepartment, selectedRating, selectedSentiment]);
+  }, [reviews, searchQuery, selectedPlatform, selectedDepartment, selectedRating, selectedSentiment, selectedGlobalProperty]);
 
-  // Calculate stats
+  // Calculate stats based on filtered (property-scoped) reviews
   const stats = useMemo(() => {
-    const total = reviews.length;
+    const total = filteredReviews.length;
     const avgRating = total > 0
-      ? (reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / total).toFixed(1)
+      ? (filteredReviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / total).toFixed(1)
       : "0.0";
-    const fiveStarCount = reviews.filter(r => Number(r.rating) === 5).length;
+    const fiveStarCount = filteredReviews.filter(r => Number(r.rating) === 5).length;
     const fiveStarPercentage = total > 0 ? Math.round((fiveStarCount / total) * 100) : 0;
-    const positiveCount = reviews.filter(r => r.sentiment === "Positive" || Number(r.rating) >= 4).length;
+    const positiveCount = filteredReviews.filter(r => r.sentiment === "Positive" || Number(r.rating) >= 4).length;
     const positivePercentage = total > 0 ? Math.round((positiveCount / total) * 100) : 0;
-    const negativeCount = reviews.filter(r => r.sentiment === "Negative" || Number(r.rating) <= 2).length;
+    const negativeCount = filteredReviews.filter(r => r.sentiment === "Negative" || Number(r.rating) <= 2).length;
     const negativePercentage = total > 0 ? Math.round((negativeCount / total) * 100) : 0;
     return { total, avgRating, fiveStarCount, fiveStarPercentage, positiveCount, positivePercentage, negativeCount, negativePercentage };
-  }, [reviews]);
+  }, [filteredReviews]);
 
   const getPlatformColor = (platform) => {
     switch (platform) {
@@ -341,11 +353,26 @@ const PublishedReviews = () => {
         </div>
       </div>
 
-      {/* ── Card Grid System: 5-6 Cards in One Row on Desktop ── */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-zinc-200/80 shadow-md">
-          <Loader2 className="w-9 h-9 text-emerald-500 animate-spin mb-3" />
-          <p className="text-sm font-bold text-zinc-600">Loading published archive...</p>
+      {/* ─── Loading State ─── */}
+      {(loading || isFiltering) ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-zinc-200 p-5 h-[280px] flex flex-col animate-pulse">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-zinc-200"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-zinc-200 rounded w-24"></div>
+                  <div className="h-2 bg-zinc-200 rounded w-16"></div>
+                </div>
+              </div>
+              <div className="space-y-2 flex-1">
+                <div className="h-3 bg-zinc-200 rounded w-full"></div>
+                <div className="h-3 bg-zinc-200 rounded w-5/6"></div>
+                <div className="h-3 bg-zinc-200 rounded w-4/6"></div>
+              </div>
+              <div className="h-8 bg-zinc-200 rounded mt-4 w-full"></div>
+            </div>
+          ))}
         </div>
       ) : filteredReviews.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-zinc-200/80 shadow-md text-center px-4">

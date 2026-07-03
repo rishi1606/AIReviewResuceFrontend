@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, AlertTriangle, Loader2, CheckCircle2, X, Trash2, Edit2 } from 'lucide-react';
 import InfoTooltip from '../components/InfoTooltip';
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { getStaffByBusiness, createStaff, updateStaff, deactivateStaff, removeStaff } from '../api/apiClient';
 import apiClient from '../api/apiClient';
@@ -11,6 +12,7 @@ import { STAFF_ROLES } from '../constants/staffConstants';
 
 const StaffManagement = () => {
   const { currentUser } = useAuth();
+  const { state } = useAppContext();
   const navigate = useNavigate();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,32 @@ const StaffManagement = () => {
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [actionLoading, setActionLoading] = useState(null); // Track which action is loading
   const [showInfo, setShowInfo] = useState(false); // Show/hide info tooltip
+  const [isFiltering, setIsFiltering] = useState(false);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GLOBAL FILTER & FILTERING STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const selectedGlobalProperty = state.activeFilters?.property || "ALL";
+
+  // Simulate loading when property filter changes
+  useEffect(() => {
+    setIsFiltering(true);
+    const timer = setTimeout(() => setIsFiltering(false), 500);
+    return () => clearTimeout(timer);
+  }, [selectedGlobalProperty]);
+
+  const displayedStaff = React.useMemo(() => {
+    // Always exclude business owners from the staff table
+    const nonOwnerStaff = staff.filter(s => s.role !== 'owner');
+
+    if (selectedGlobalProperty === "ALL") return nonOwnerStaff;
+    
+    const prop = properties.find(p => p.name === selectedGlobalProperty || p.hotel_name === selectedGlobalProperty);
+    if (!prop) return nonOwnerStaff;
+
+    return nonOwnerStaff.filter(s => s.property_id === prop._id || s.property_id === prop.id);
+  }, [staff, selectedGlobalProperty, properties]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ROLE VALIDATION - OPTION 2: ONLY OWNER CAN MANAGE STAFF
@@ -470,26 +498,58 @@ const StaffManagement = () => {
             <Plus size={14} />
             Create Staff
           </button>
-          <InfoTooltip text={<><strong>Staff Creation Rules:</strong><br/>• Only 1 Lead allowed per business<br/>• Unlimited Staff members can be added<br/>• Each staff member needs a department assigned<br/>• Lead manages responses from staff</>} size={16} maxWidth={280} />
+          <InfoTooltip text={<><strong>Staff Creation Rules:</strong><br/>• Only 1 Lead allowed per business<br/>• Unlimited Staff members can be added<br/>• Each staff member needs a department assigned<br/>• Lead manages responses from staff<br/>• <span className="text-red-400">Disclaimer: Once you create staff, it cannot be undone.</span></>} size={16} maxWidth={280} />
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Main Content */}
+      {isFiltering ? (
+        <div className="flex flex-col space-y-4 w-full flex-1">
+          {/* Skeleton Stats */}
+          <div className="grid grid-cols-4 gap-4">
+             {[1, 2, 3, 4].map(i => (
+               <div key={i} className="bg-white rounded-xl border border-zinc-200 p-4 h-[88px] animate-pulse">
+                 <div className="h-3 bg-zinc-200 rounded w-16 mb-3"></div>
+                 <div className="h-6 bg-zinc-200 rounded w-8"></div>
+               </div>
+             ))}
+          </div>
+          {/* Skeleton Table */}
+          <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm animate-pulse flex-1 flex flex-col">
+             <div className="h-12 bg-zinc-50 border-b border-zinc-200"></div>
+             {[1, 2, 3, 4, 5].map(i => (
+               <div key={i} className="px-6 py-4 border-b border-zinc-100 flex gap-4 items-center">
+                 <div className="w-8 h-8 rounded-lg bg-zinc-200 shrink-0"></div>
+                 <div className="flex-1 space-y-2">
+                   <div className="h-3 bg-zinc-200 rounded w-32"></div>
+                   <div className="h-2 bg-zinc-200 rounded w-24"></div>
+                 </div>
+                 <div className="w-24 h-6 bg-zinc-200 rounded-lg"></div>
+                 <div className="w-32 h-4 bg-zinc-200 rounded"></div>
+                 <div className="w-16 h-6 bg-zinc-200 rounded-full"></div>
+                 <div className="w-8 h-8 bg-zinc-200 rounded"></div>
+               </div>
+             ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-zinc-200 p-4">
           <p className="text-xs text-zinc-500 mb-1">Total</p>
-          <p className="text-2xl font-bold text-zinc-900">{staff.length}</p>
+          <p className="text-2xl font-bold text-zinc-900">{displayedStaff.length}</p>
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-4">
           <p className="text-xs text-zinc-500 mb-1">Active</p>
           <p className="text-2xl font-bold text-emerald-600">
-            {staff.filter(s => s.is_active).length}
+            {displayedStaff.filter(s => s.is_active).length}
           </p>
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-4">
           <p className="text-xs text-zinc-500 mb-1">Inactive</p>
           <p className="text-2xl font-bold text-zinc-400">
-            {staff.filter(s => !s.is_active).length}
+            {displayedStaff.filter(s => !s.is_active).length}
           </p>
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-4">
@@ -500,7 +560,9 @@ const StaffManagement = () => {
 
       {/* Staff Table */}
       <StaffTable
-        staff={staff}
+        staff={displayedStaff}
+        properties={properties}
+        businessName={selectedBusiness?.hotel_name || ''}
         onEdit={(member) => {
           setEditingStaff(member);
           setShowForm(true);
@@ -509,6 +571,8 @@ const StaffManagement = () => {
         onDelete={handleDelete}
         loading={loading}
       />
+      </>
+      )}
 
       {/* Staff Form Modal */}
       {showForm && (

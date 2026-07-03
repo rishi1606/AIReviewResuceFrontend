@@ -21,20 +21,29 @@ const FinalApprovals = () => {
   useEffect(() => {
     document.title = "ReviewRescue — Final Approvals";
     fetchFinalApprovals();
-  }, [currentUser]);
+  }, [currentUser, state.activeFilters?.property]);
 
   const fetchFinalApprovals = async () => {
     setLoading(true);
     try {
       // Fetch reviews that might be Lead Approved
-      // We assume they have approval_status = "approved" and are not yet published
       const res = await getReviews({ limit: 100 });
       if (res.success || res.data?.success || res.reviews || res.data?.reviews) {
         const fetchedReviews = res.data?.reviews || res.reviews || res.data?.data?.reviews || [];
-        const leadApproved = fetchedReviews.filter(r => getUIStatus(r) === "Lead Approved");
+        
+        const selectedGlobalProperty = state.activeFilters?.property || "ALL";
+        
+        let leadApproved = fetchedReviews.filter(r => getUIStatus(r) === "Lead Approved");
+        
+        if (selectedGlobalProperty !== "ALL") {
+          leadApproved = leadApproved.filter(r => r.hotel_name === selectedGlobalProperty);
+        }
+        
         setReviews(leadApproved);
         if (leadApproved.length > 0) {
           setSelectedReview(leadApproved[0]);
+        } else {
+          setSelectedReview(null);
         }
       }
     } catch (err) {

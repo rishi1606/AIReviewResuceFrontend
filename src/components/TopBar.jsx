@@ -19,6 +19,24 @@ const ROUTE_MAP = [
     helpPage: "dashboard",
   },
   {
+    match: (p) => p === "/reviews/published",
+    title: "Published Reviews",
+    subtitle: () => "Comprehensive archive of all finalized responses published to platforms.",
+    helpPage: "publishedReviews",
+  },
+  {
+    match: (p) => p === "/reviews/final-approval",
+    title: "Final Approvals",
+    subtitle: () => "Final review before publishing responses to guest platforms.",
+    helpPage: "finalApprovals",
+  },
+  {
+    match: (p) => p === "/reviews/my-reviews",
+    title: "My Reviews",
+    subtitle: () => "Manage your assigned reviews and drafted responses.",
+    helpPage: "myReviews",
+  },
+  {
     match: (p) => /^\/reviews\/[a-zA-Z0-9]+/.test(p),
     title: "Review Detail",
     subtitle: () => "Full review analysis, response drafting, and approval workflow.",
@@ -29,6 +47,12 @@ const ROUTE_MAP = [
     title: "Guest Reviews",
     subtitle: () => "Monitor, analyze, and respond to your guests.",
     helpPage: "reviews",
+  },
+  {
+    match: (p) => p.startsWith("/staff"),
+    title: "Staff Management",
+    subtitle: () => "Add, edit, and manage your hotel team members.",
+    helpPage: "staff",
   },
   {
     match: (p) => p.startsWith("/settings"),

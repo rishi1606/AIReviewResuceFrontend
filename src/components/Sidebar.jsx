@@ -56,11 +56,23 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
     const selectedPlatform = state.activeFilters?.platform || "ALL";
 
-    // For leads, auto-select their property
-    let selectedProperty = state.activeFilters?.property || "ALL";
-    if (isStaff && currentUser?.role === "lead" && currentUser?.hotel_name && selectedProperty === "ALL") {
-      selectedProperty = currentUser.hotel_name;
+    // Find the lead's actual property name
+    let leadPropertyName = "";
+    if (currentUser?.property_id) {
+        const leadProp = (state?.hotelConfig?.properties || []).find(p => p._id === currentUser.property_id || p.id === currentUser.property_id);
+        if (leadProp) {
+            leadPropertyName = leadProp.name;
+        }
     }
+
+    const selectedProperty = state.activeFilters?.property || "ALL";
+
+    // Auto-dispatch lead/staff's property to global state if it's currently "ALL"
+    useEffect(() => {
+        if ((currentUser?.role === "lead" || currentUser?.role === "staff") && leadPropertyName && selectedProperty === "ALL") {
+            dispatch({ type: "SET_ACTIVE_FILTERS", payload: { property: leadPropertyName } });
+        }
+    }, [currentUser?.role, leadPropertyName, selectedProperty, dispatch]);
 
     const handleFilterChange = useCallback((type, value) => {
         setSwitching(true);
@@ -108,7 +120,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
         ...reviewNavItems,
         ...(isOwner ? [{ name: "Staff", path: "/staff", icon: Users }] : []),
-        { name: "Settings", path: "/settings", icon: Settings },
+        ...((isOwner || isSuperadmin) ? [{ name: "Settings", path: "/settings", icon: Settings }] : []),
         ...(isSuperadmin ? [{ name: "Admin Panel", path: "/admin", icon: ShieldCheck }] : []),
     ];
 
@@ -137,11 +149,11 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                 </button>
             </div>
 
-            {/* ─── Property Info (for Lead) or Filters (for Owner/Admin) ─── */}
+            {/* ─── Property Info (for Lead/Staff) or Filters (for Owner/Admin) ─── */}
             {(!collapsed || mobileOpen) && (
                 <div className="px-4 mb-4">
-                    {currentUser?.role === 'lead' ? (
-                        // Show property info for Lead
+                    {(currentUser?.role === 'lead' || currentUser?.role === 'staff') ? (
+                        // Show property info for Lead and Staff
                         <div>
                             <div className="flex items-center gap-2 mb-2 px-1">
                                 <Building2 size={13} className="text-zinc-400" />
@@ -151,9 +163,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                                 <p className="text-[13px] font-semibold text-orange-700">
                                     {state?.hotelConfig?.hotel_name || 'Loading...'}
                                 </p>
-                                {state?.hotelConfig?.properties && state.hotelConfig.properties.length > 0 && (
+                                {leadPropertyName && (
                                     <p className="text-[11px] text-orange-600 mt-1">
-                                        {state.hotelConfig.properties[0]?.name}
+                                        {leadPropertyName}
                                     </p>
                                 )}
                             </div>
@@ -178,27 +190,6 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                                     >
                                         {uniqueProperties.map(p => (
                                             <option key={p} value={p}>{p === "ALL" ? `All Properties (${propertyCount})` : p}</option>
-                                        ))}
-                                    </select>
-                                    {switching ? (
-                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-orange-500 pointer-events-none animate-spin" />
-                                    ) : (
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-                                    )}
-                                </div>
-
-                                {/* Platform dropdown */}
-                                <div className="relative">
-                                    <select
-                                        value={selectedPlatform}
-                                        onChange={(e) => handleFilterChange("platform", e.target.value)}
-                                        className={`w-full h-10 pl-3 pr-8 text-[12px] rounded-xl border-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition-all font-medium ${selectedPlatform !== "ALL"
-                                            ? "border-orange-300 bg-orange-50 text-orange-700 font-bold"
-                                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                                            }`}
-                                    >
-                                        {platforms.map(p => (
-                                            <option key={p} value={p}>{p === "ALL" ? "All Platforms" : p}</option>
                                         ))}
                                     </select>
                                     {switching ? (

@@ -51,10 +51,18 @@ const ReviewCard = ({ review, highlight, onFlag, onSimilar, onHistory, isSelecte
   const [noteSaved, setNoteSaved] = useState(false);
   const editRef = useRef(null);
 
+  // Map the review's hotel_name to its property_id
+  const reviewPropertyId = (() => {
+    const props = state.hotelConfig?.properties || [];
+    const prop = props.find(p => p.name === review.hotel_name);
+    return prop ? (prop._id || prop.id) : null;
+  })();
+
   const filteredStaff = state.staff?.filter(s =>
     s.is_active !== false &&
     s.role === "staff" &&
-    s.department === review.primary_department
+    s.department === review.primary_department &&
+    s.property_id === reviewPropertyId
   ) || [];
 
   const handleAssign = async (staffId) => {
